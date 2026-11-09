@@ -106,7 +106,7 @@ const TOPS=[['movies','Top 4 movies','Movie'],['albums','Top 4 albums','Album'],
 const topInputs=(p,t)=>TOPS.map(([k,l,n])=>`<label>${l}</label><div class="row">${[0,1,2,3].map(i=>`<input id="${p}-${k}-${i}" maxlength="60" placeholder="${n} ${i+1}" aria-label="${l} ${i+1}" value="${esc(((t&&t[k])||[])[i]||'')}">`).join('')}</div>`).join('');
 const readTops=p=>{const o={};TOPS.forEach(([k])=>{o[k]=[0,1,2,3].map(i=>{const el=document.getElementById(p+'-'+k+'-'+i);return el?el.value.trim():''})});return o};
 const topsView=u=>`<section class="panel"><h2>Top 4</h2><div class="tops">${TOPS.map(([k,l])=>{const a=((u.top||{})[k]||[]).filter(Boolean);return `<div class="topcard"><h3>${l.replace('Top 4 ','')}</h3>${a.length?`<ol>${a.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>`:'<p class="hint">Nothing picked yet.</p>'}</div>`}).join('')}</div></section>`;
-const AVATARS=['🍊','🧡','🟠','🔶','🦊','🐯','🎃','🥕','🏀','🔥','🥭','🐱'];
+const AVATARS=['🍊','🧡','🦊','🐯','🎃','🥕','🏀','🔥','🥭','🐱'];
 let db={me:null,profiles:[],posts:[]}, view={n:'feed'}, filter='All', rating=0, sort='new', rev=new Set(), pre=null, dcat='All', dyear='All', clubMsgs=[], feedPosts=[], feedShown=0, feedWant=20, obs=null, pickAv=AVATARS[0], TOKEN='';
 try{TOKEN=localStorage.getItem('tg-token')||''}catch(e){}
 const $=id=>document.getElementById(id);
@@ -118,7 +118,7 @@ async function api(a,d){
  try{const r=await fetch('/api',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+TOKEN},body:JSON.stringify({a,d})});
   const j=await r.json();if(j.error){toast(j.error);return null}
   if(j.token!==undefined){TOKEN=j.token;try{localStorage.setItem('tg-token',TOKEN)}catch(e){}}
-  db=j.db;db.me=j.me;db.msgs=j.msgs||[];db.notes=j.notes||[];db.blocked=j.blocked||[];db.admin=!!j.admin;db.reports=j.reports||[];db.email=j.email||'';db.suspended=j.suspended||[];db.clubs=j.clubs||[];db.features=j.features||[];db.isCore=!!j.isCore;db.core=j.core||[];if(j.cmsgs)clubMsgs=j.cmsgs;return j}
+  db=j.db;db.me=j.me;db.msgs=j.msgs||[];db.notes=j.notes||[];db.blocked=j.blocked||[];db.admin=!!j.admin;db.reports=j.reports||[];db.email=j.email||'';db.suspended=j.suspended||[];db.clubs=j.clubs||[];db.features=j.features||[];db.isCore=!!j.isCore;db.isEditor=!!j.isEditor;db.core=j.core||{};if(j.cmsgs)clubMsgs=j.cmsgs;return j}
  catch(e){toast('Network problem, try again');return null}}
 function ago(ts){const m=Math.round((Date.now()-ts)/60000);if(m<1)return'just now';if(m<60)return m+' min ago';const h=Math.round(m/60);if(h<24)return h+' h ago';return Math.round(h/24)+' d ago'}
 const excerpt=t=>{t=t.replace(/\s+/g,' ');return t.length>150?t.slice(0,150).trim()+'...':t};
@@ -128,6 +128,7 @@ const userLink=u=>`<button class="link" data-a="profile" data-id="${u.id}">${av(
 const unread=()=>(db.msgs||[]).filter(m=>m.to===db.me&&!m.read).length;
 const unreadN=()=>(db.notes||[]).filter(n=>!n.read).length;
 const isAdmin=()=>!!db.admin;
+const isEd=()=>!!db.isEditor;
 const followers=u=>db.profiles.filter(x=>(x.following||[]).includes(u.id)).length;
 const fbtn=u=>{const m=me();if(!m||m.id===u.id)return'';const f=(m.following||[]).includes(u.id);return `<button class="btn ${f?'ghost':''}" data-a="follow" data-id="${u.id}">${f?'Unfollow':'Follow'}</button>`};
 function go(v,keep){view=v;try{if(keep)history.replaceState({v},'');else history.pushState({v},'')}catch(e){}render();if(!keep){const t=document.getElementById('tg');t.scrollIntoView&&t.scrollIntoView()}}
@@ -135,7 +136,7 @@ function go(v,keep){view=v;try{if(keep)history.replaceState({v},'');else history
 function bar(){const u=me();
   return `<div class="bar">`+(u?`<button class="who" data-a="profile" data-id="${u.id}">${av(u)}${esc(u.name)}</button>
    <button class="btn ghost" data-a="feed">Home</button><button class="btn ghost" data-a="diary" data-id="${u.id}">📔 Diary</button><button class="btn ghost" data-a="inbox">✉️ Message${unread()?` (${unread()})`:''}</button><button class="btn ghost" data-a="notes" aria-label="Notifications">🔔${unreadN()?` (${unreadN()})`:''}</button><button class="btn ghost" data-a="settings" aria-label="Settings">⚙️</button><button class="btn ghost" data-a="logout">Log out</button>`
-  :`<button class="btn" data-a="join">Sign up or log in</button><button class="btn ghost" data-a="feed">Home</button>`)+`<button class="btn ghost" data-a="features">feature picks🧺</button><button class="btn ghost" data-a="lists">📋 Lists</button><button class="btn ghost" data-a="searchview">🔍 Search</button></div>`}
+  :`<button class="btn" data-a="join">Sign up or log in</button><button class="btn ghost" data-a="feed">Home</button>`)+`<button class="btn ghost" data-a="features">Feature Picks🧺</button><button class="btn ghost" data-a="lists">📋 Lists</button><button class="btn ghost" data-a="searchview">🔍 Search</button></div>`}
 
 function avPicker(sel){return `<div class="avpick" id="avpick" role="group" aria-label="Pick an avatar">${AVATARS.map(a=>`<button type="button" data-a="pickav" data-v="${a}" aria-pressed="${a===sel}">${a}</button>`).join('')}</div>`}
 
@@ -144,6 +145,10 @@ const igFields=(p,u)=>`<label for="${p}-ig">Instagram (optional)</label><input i
  <p class="hint">Optional. It shows on your profile as a social link.</p>
  <label for="${p}-l0">More social links (optional, up to 2)</label><div class="row"><input id="${p}-l0" maxlength="200" placeholder="Letterboxd, Goodreads, Spotify..." value="${esc(((u&&u.links)||[])[0]||'')}"><input id="${p}-l1" maxlength="200" placeholder="Another link" value="${esc(((u&&u.links)||[])[1]||'')}"></div>`;
 const readIg=p=>({insta:$(p+'-ig').value.trim(),igPrivate:$(p+'-igp').checked,links:[$(p+'-l0').value.trim(),$(p+'-l1').value.trim()]});
+const PRON=['she/her','he/him','they/them'];
+const pronFields=(p,u)=>`<label>Pronouns (optional)</label><div style="display:flex;gap:16px;flex-wrap:wrap">${PRON.map((x,i)=>`<label style="display:flex;align-items:center;gap:6px;font-weight:500;margin:4px 0"><input type="checkbox" id="${p}-pr${i}" style="width:auto"${u&&(u.pronouns||[]).includes(x)?' checked':''}>${x}</label>`).join('')}</div><p class="hint">Optional. Pick any that apply, or none. They show next to your username.</p>`;
+const readPron=p=>({pronouns:PRON.filter((x,i)=>$(p+'-pr'+i)&&$(p+'-pr'+i).checked)});
+const pronTxt=u=>(u.pronouns||[]).length?' · '+u.pronouns.map(esc).join(' · '):'';
 const host=h=>{try{return new URL(h).hostname.replace(/^www\./,'')}catch(e){return h}};
 const profLinks=u=>{const out=[];
  if(u.insta)out.push(`<a class="link" href="https://instagram.com/${esc(u.insta)}" target="_blank" rel="noopener noreferrer nofollow">📷 @${esc(u.insta)}${u.igPrivate?' (private, only you see this)':''}</a>`);
@@ -160,6 +165,7 @@ function joinView(){return `<section class="panel"><h2>Log in</h2>
  <label for="j-pw">Password</label><input id="j-pw" type="password" autocomplete="new-password" placeholder="At least 6 characters">
  <label for="j-em">Email</label><input id="j-em" type="email" autocomplete="email" placeholder="you@example.com"><p class="hint">Private: never shown to anyone. You can log in with it and use it to reset your password. One email per account.</p>
  <label for="j-bio">Short bio</label><textarea id="j-bio" maxlength="160" style="min-height:70px" placeholder="What do you love to watch, read or play?"></textarea>
+ ${pronFields('j')}
  ${igFields('j')}
  <p class="hint">Optional: add your top 4 picks. You can also add them later.</p>
  ${topInputs('j')}
@@ -224,7 +230,7 @@ function postView(p){const u=me();if(view.edit&&u&&u.id===p.by)return editForm(p
 
 function profileView(u){const mine=me()&&me().id===u.id, posts=db.posts.filter(p=>p.by===u.id);
  const likes=posts.reduce((s,p)=>s+p.likedBy.length,0);
- return `<section class="panel"><div class="phead">${av(u,'lg')}<div><h2>${esc(u.name)}</h2><div style="color:var(--mut)">@${esc(u.handle)}</div>
+ return `<section class="panel"><div class="phead">${av(u,'lg')}<div><h2>${esc(u.name)}</h2><div style="color:var(--mut)">@${esc(u.handle)}${pronTxt(u)}</div>
  <div class="stats"><span><b>${posts.length}</b> posts</span><span><b>${likes}</b> likes</span><span><b>${followers(u)}</b> followers</span><span><b>${(u.following||[]).length}</b> following</span></div>
  <div class="actions"><button class="btn ghost" data-a="diary" data-id="${u.id}">📔 Diary</button>${fbtn(u)}${me()&&!mine?`<button class="btn ghost" data-a="chat" data-id="${u.id}">✉️ Message</button><button class="btn ghost" data-a="block" data-id="${u.id}">🚫 Block</button>`:''}${isAdmin()&&!mine?`<button class="btn ghost" data-a="suspend" data-id="${u.id}">${(db.suspended||[]).includes(u.id)?'Unsuspend':'Suspend'}</button>`:''}</div></div></div>
  <p>${esc(u.bio)||'No bio yet.'}</p>${profLinks(u)}</section>
@@ -234,6 +240,7 @@ function profileView(u){const mine=me()&&me().id===u.id, posts=db.posts.filter(p
  <label for="e-handle">Username</label><input id="e-handle" maxlength="20" value="${esc(u.handle)}">
  <label for="e-bio">Short bio</label><textarea id="e-bio" maxlength="160" style="min-height:70px">${esc(u.bio)}</textarea>
  ${topInputs('e',u.top)}
+ ${pronFields('e',u)}
  ${igFields('e',u)}
  <label>Avatar </label>${avPicker(pickAv)}<div class="actions"><button class="btn" data-a="saveprofile">Save profile</button></div></section>`:''}
  <h2 style="margin:0 0 12px;color:var(--od)">Posts by ${esc(u.name)}</h2>${posts.length?posts.map(card).join(''):'<p class="empty">No posts yet.</p>'}`}
@@ -315,46 +322,49 @@ const repAuthor=r=>{const p=db.posts.find(x=>x.id===r.pid),by=p?(r.kind==='comme
 /* ---------- Feature picks 🧺 ---------- */
 const FSTAT={pending:'⏳ Waiting for the editor',published:'✅ Published',rejected:'↩️ Sent back'};
 const feats=()=>db.features||[];
-const featTools=f=>{const m=me();if(!m)return'';const adm=isAdmin(),own=f.by===m.id;let h='';
+const fMedia=f=>f.type&&f.media?`<span class="tag">${esc(f.type)} - ${esc(f.media)}</span>`:'';
+const roleSel=(id,v)=>`<select data-rolefor="${id}" aria-label="Role" style="width:auto"><option value="writer"${v==='writer'?' selected':''}>Writer</option><option value="editor"${v==='editor'?' selected':''}>Editor</option></select>`;
+const featTools=f=>{const m=me();if(!m)return'';const adm=isEd(),own=f.by===m.id;let h='';
  if(adm){if(f.status!=='published')h+=`<button class="btn" data-a="featdecide" data-id="${f.id}" data-to="published">Approve &amp; publish</button>`;
   if(f.status==='pending')h+=`<button class="btn ghost" data-a="featdecide" data-id="${f.id}" data-to="rejected">Send back</button>`;
   if(f.status==='published')h+=`<button class="btn ghost" data-a="featdecide" data-id="${f.id}" data-to="pending">Unpublish</button>`}
  if(adm||(own&&f.status!=='published'))h+=`<button class="btn ghost" data-a="featedit" data-id="${f.id}">Edit</button><button class="btn danger" data-a="featdel" data-id="${f.id}">Delete</button>`;
  return h};
 const fCard=(f,showStatus)=>`<article class="post"><button class="open" data-a="feat" data-id="${f.id}">${esc(f.title)}</button>
- <div class="meta">${userLink(user(f.by))}${f.tag?`<span class="tag">${esc(f.tag)}</span>`:''}<span>${ago(f.publishedAt||f.ts)}</span>${showStatus?`<span class="tag">${FSTAT[f.status]||''}</span>`:''}${f.via==='email'?'<span class="tag">via email</span>':''}</div>
+ <div class="meta">${userLink(user(f.by))}${fMedia(f)}${f.tag?`<span class="tag">${esc(f.tag)}</span>`:''}<span>${ago(f.publishedAt||f.ts)}</span>${showStatus?`<span class="tag">${FSTAT[f.status]||''}</span>`:''}${f.via==='email'?'<span class="tag">via email</span>':''}</div>
  ${f.dek?`<div class="body">${esc(f.dek)}</div>`:''}
  ${showStatus&&f.status==='rejected'&&f.note?`<p class="hint">Editor's note: ${esc(f.note)}</p>`:''}
  <div class="actions"><button class="btn ghost" data-a="feat" data-id="${f.id}">Read</button>${featTools(f)}</div></article>`;
-function featuresView(){const all=feats(),m=me(),adm=isAdmin();
+function featuresView(){const all=feats(),m=me(),adm=isEd();
  const pub=all.filter(f=>f.status==='published');
  const queue=adm?all.filter(f=>f.status==='pending'):[];
  const mine=m?all.filter(f=>f.by===m.id&&f.status!=='published'&&!(adm&&f.status==='pending')):[];
- const core=db.core||[];
- const coreBox=adm?`<section class="panel"><h2>Core team</h2><p class="hint">Only these members can send pieces to Feature Picks. Nothing goes live until you approve it.</p>
-  ${core.length?core.map(id=>`<div style="display:flex;align-items:center;gap:10px;padding:4px 0">${av(user(id),'sm')}<span style="flex:1">${esc(user(id).name)} <span class="hint">@${esc(user(id).handle)}</span></span><button class="btn ghost" data-a="setcore" data-id="${id}">Remove</button></div>`).join(''):'<p class="hint">No one yet.</p>'}
-  <label for="core-add">Add a member</label><div class="cform"><select id="core-add">${db.profiles.filter(u=>!core.includes(u.id)&&u.id!==db.me).map(u=>`<option value="${u.id}">${esc(u.name)} (@${esc(u.handle)})</option>`).join('')}</select><button class="btn" data-a="setcoreadd">Add to core team</button></div></section>`:'';
- return `<section class="panel"><h2>feature picks🧺</h2><p style="margin:0">Articles and posts from our core team, chosen and edited by the club editor.</p>
+ const core=db.core||{},coreIds=Object.keys(core);
+ const coreBox=isAdmin()?`<section class="panel"><h2>Zest Team 🍊</h2><p class="hint">Only Zest Team members can send pieces to Feature Picks. Writers write and submit pieces. Editors can also edit anyone's piece and approve, send back or publish. A writer's piece never goes live until an editor approves it.</p>
+  ${coreIds.length?coreIds.map(id=>`<div style="display:flex;align-items:center;gap:10px;padding:4px 0;flex-wrap:wrap">${av(user(id),'sm')}<span style="flex:1 1 140px">${esc(user(id).name)} <span class="hint">@${esc(user(id).handle)}</span></span>${roleSel(id,core[id])}<button class="btn ghost" data-a="setcore" data-id="${id}" data-role="">Remove</button></div>`).join(''):'<p class="hint">No one yet.</p>'}
+  <label for="core-add">Add a member</label><div class="cform"><select id="core-add">${db.profiles.filter(u=>!core[u.id]&&u.id!==db.me).map(u=>`<option value="${u.id}">${esc(u.name)} (@${esc(u.handle)})</option>`).join('')}</select><select id="core-role" aria-label="Role" style="width:auto"><option value="writer">Writer</option><option value="editor">Editor</option></select><button class="btn" data-a="setcoreadd">Add to Zest Team</button></div></section>`:'';
+ return `<section class="panel"><h2>Feature Picks🧺</h2><p style="margin:0">Featured articles and posts from our beloved Tangerine writers. To be featured, email <a class="link" href="mailto:tangerinereviewclub@gmail.com">tangerinereviewclub@gmail.com</a></p>
   ${db.isCore?'<div class="actions"><button class="btn" data-a="featnew">Write a piece</button></div>':''}</section>
   ${coreBox}
   ${queue.length?`<h2 style="margin:0 0 12px;color:var(--od)">Waiting for your approval (${queue.length})</h2>${queue.map(f=>fCard(f,true)).join('')}`:''}
   ${mine.length?`<h2 style="margin:0 0 12px;color:var(--od)">Your pieces</h2>${mine.map(f=>fCard(f,true)).join('')}`:''}
   <h2 style="margin:0 0 12px;color:var(--od)">Published</h2>${pub.length?pub.map(f=>fCard(f,adm||(m&&f.by===m.id))).join(''):'<p class="empty">No feature picks yet. Check back soon.</p>'}`}
 function featView(id){const f=feats().find(x=>x.id===id);if(!f)return featuresView();
- return `<button class="btn ghost" style="margin-bottom:14px" data-a="features">Back to feature picks🧺</button>
- <article class="post"><h3>${esc(f.title)}</h3><div class="meta">${userLink(user(f.by))}${f.tag?`<span class="tag">${esc(f.tag)}</span>`:''}<span>${ago(f.publishedAt||f.ts)}${f.edited?' (edited)':''}</span>${f.status!=='published'?`<span class="tag">${FSTAT[f.status]||''}</span>`:''}</div>
+ return `<button class="btn ghost" style="margin-bottom:14px" data-a="features">Back to Feature Picks🧺</button>
+ <article class="post"><h3>${esc(f.title)}</h3><div class="meta">${userLink(user(f.by))}${fMedia(f)}${f.tag?`<span class="tag">${esc(f.tag)}</span>`:''}<span>${ago(f.publishedAt||f.ts)}${f.edited?' (edited)':''}</span>${f.status!=='published'?`<span class="tag">${FSTAT[f.status]||''}</span>`:''}</div>
  ${f.dek?`<p style="font-weight:700">${esc(f.dek)}</p>`:''}<div class="body">${lk(f.text)}</div>
  ${f.status==='rejected'&&f.note?`<p class="hint">Editor's note: ${esc(f.note)}</p>`:''}
  <div class="actions">${featTools(f)}</div></article>`}
-function featForm(id){const f=id?feats().find(x=>x.id===id):null,adm=isAdmin();
+function featForm(id){const f=id?feats().find(x=>x.id===id):null,adm=isAdmin(),ed=isEd();
  return `<section class="panel"><h2>${f?'Edit piece':'Write a piece'}</h2>
  <label for="ff-title">Headline</label><input id="ff-title" maxlength="120" value="${f?esc(f.title):''}">
  <label for="ff-dek">Subtitle (optional)</label><input id="ff-dek" maxlength="200" value="${f?esc(f.dek||''):''}">
  <label for="ff-tag">Tag (optional, e.g. Interview, Essay)</label><input id="ff-tag" maxlength="30" value="${f?esc(f.tag||''):''}">
+ <div class="row"><div><label for="ff-type">Media type (optional)</label><select id="ff-type"><option value="">None</option>${TYPES.slice(1).map(t=>`<option${f&&f.type===t?' selected':''}>${t}</option>`).join('')}</select></div><div><label for="ff-media">Media title (optional)</label><input id="ff-media" maxlength="80" value="${f?esc(f.media||''):''}"></div></div>
  <label for="ff-text">Article</label><textarea id="ff-text" style="min-height:260px">${f?esc(f.text):''}</textarea>
  ${adm&&!f?`<label for="ff-as">Posting for a core member who emailed it? Their username (optional)</label><input id="ff-as" maxlength="20" placeholder="e.g. ash_reviews" autocapitalize="none">`:''}
- ${adm?`<label style="display:flex;align-items:center;gap:8px;font-weight:500"><input type="checkbox" id="ff-pub" style="width:auto">Publish right away</label>`:'<p class="hint">Your piece goes to the editor first. It is published only after approval.</p>'}
- <div class="actions"><button class="btn" data-a="featsave" data-id="${id||''}">${adm?'Save':'Send to the editor'}</button><button class="btn ghost" data-a="features">Cancel</button></div></section>`}
+ ${ed?`<label style="display:flex;align-items:center;gap:8px;font-weight:500"><input type="checkbox" id="ff-pub" style="width:auto">Publish right away</label>`:'<p class="hint">Your piece goes to the editor first. It is published only after approval.</p>'}
+ <div class="actions"><button class="btn" data-a="featsave" data-id="${id||''}">${ed?'Save':'Send to the editor'}</button><button class="btn ghost" data-a="features">Cancel</button></div></section>`}
 
 function loadMore(){const fl=$('feed-list'),mo=$('more');if(!fl||!mo)return;const next=feedPosts.slice(feedShown,feedShown+20);fl.insertAdjacentHTML('beforeend',next.map(card).join(''));feedShown+=next.length;feedWant=feedShown;if(feedShown>=feedPosts.length){obs&&obs.disconnect();mo.remove()}}
 const refreshBar=()=>{const bb=app.querySelector('.bar');if(bb)bb.outerHTML=bar()};
@@ -390,7 +400,7 @@ function copyText(t){return navigator.clipboard&&navigator.clipboard.writeText?n
 function fallbackCopy(t){const x=document.createElement('textarea');x.value=t;document.body.appendChild(x);x.select();let ok=false;try{ok=document.execCommand('copy')}catch(e){}x.remove();return ok}
 function needUser(){if(me())return true;toast('Create a profile or log in first');go({n:'join'});return false}
 
-app.addEventListener('change',e=>{if(e.target.id==='sort'){sort=e.target.value;feedWant=20;render()}if(e.target.id==='dyear'){dyear=e.target.value;render()}});
+app.addEventListener('change',e=>{if(e.target.dataset.rolefor){api('setcore',{id:e.target.dataset.rolefor,role:e.target.value}).then(r=>{if(r){toast('Role updated');render()}});return}if(e.target.id==='sort'){sort=e.target.value;feedWant=20;render()}if(e.target.id==='dyear'){dyear=e.target.value;render()}});
 app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='m-t'){e.preventDefault();app.querySelector('[data-a="sendm"]').click()}});
 app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='cm-t'){e.preventDefault();app.querySelector('[data-a="sendclub"]').click()}});
 app.addEventListener('input',e=>{if(e.target.id==='cl-q')$('cl-res').innerHTML=clRes(e.target.value);if(e.target.id==='pm-q')$('pm-res').innerHTML=pmRes(e.target.value);if(e.target.id==='s-q')$('s-res').innerHTML=searchRes(e.target.value);if(e.target.id==='f-title'){const c=$('h-count');if(c)c.textContent=e.target.value.length+'/100'}});
@@ -406,17 +416,17 @@ app.addEventListener('click',async e=>{
  else if(a==='feat')go({n:'feat',id});
  else if(a==='featnew'){if(!needUser())return;go({n:'featform'})}
  else if(a==='featedit')go({n:'featform',id});
- else if(a==='featsave'){const d={id:id||undefined,title:g('ff-title'),dek:g('ff-dek'),tag:g('ff-tag'),text:g('ff-text')};
+ else if(a==='featsave'){const d={id:id||undefined,title:g('ff-title'),dek:g('ff-dek'),tag:g('ff-tag'),type:g('ff-type'),media:g('ff-media'),text:g('ff-text')};
   if(!d.title||!d.text){toast('Add a headline and the article text first');return}
   if($('ff-as')&&g('ff-as'))d.as=g('ff-as').toLowerCase().replace(/^@/,'');
   if($('ff-pub')&&$('ff-pub').checked)d.publish=true;
-  if(await api('fsave',d)){toast(isAdmin()?'Saved':'Sent to the editor for approval');go({n:'features'})}}
+  if(await api('fsave',d)){toast(isEd()?'Saved':'Sent to the editor for approval');go({n:'features'})}}
  else if(a==='featdecide'){const to=b.dataset.to;let note='';
   if(to==='rejected'){note=prompt('Note to the author (optional)');if(note===null)return}
   if(await api('fdecide',{id,to,note})){toast(to==='published'?'Published':to==='rejected'?'Sent back':'Moved back to pending');render()}}
  else if(a==='featdel'){if(!confirm('Delete this piece?'))return;if(await api('fdelete',{id})){toast('Deleted');go({n:'features'})}}
- else if(a==='setcore'){if(await api('setcore',{id}))render()}
- else if(a==='setcoreadd'){const v=$('core-add')&&$('core-add').value;if(v&&await api('setcore',{id:v})){toast('Added to the core team');render()}}
+ else if(a==='setcore'){if(await api('setcore',{id,role:b.dataset.role||''}))render()}
+ else if(a==='setcoreadd'){const v=$('core-add')&&$('core-add').value;if(v&&await api('setcore',{id:v,role:$('core-role').value})){toast('Added to the Zest Team');render()}}
  else if(a==='mailtest'){b.disabled=true;const r=await api('mailtest');b.disabled=false;if(r&&r.mail)alert(r.mail)}
  else if(a==='inbox'){go({n:'inbox'});api('state').then(r=>{if(r&&view.n==='inbox')render()})}
  else if(a==='chat'){if(!needUser())return;go({n:'chat',id});api('read',{id}).then(r=>{if(r&&view.n==='chat'&&view.id===id&&$('m-list')){$('m-list').innerHTML=chatList(id);refreshBar()}})}
@@ -493,14 +503,14 @@ app.addEventListener('click',async e=>{
   if(!/^[a-z0-9_]{3,20}$/.test(handle)){toast('Username needs 3 to 20 letters, numbers or underscores');return}
   if(pw.length<6){toast('Password needs at least 6 characters');return}
   if(!$('j-em').value.trim()){toast('Add your email');return}
-  const r=await api('signup',{...readIg('j'),email:$('j-em').value.trim(),name,handle,pw,bio:g('j-bio'),avatar:pickAv,top:readTops('j')});
+  const r=await api('signup',{...readIg('j'),email:$('j-em').value.trim(),name,handle,pw,bio:g('j-bio'),avatar:pickAv,top:readTops('j'),...readPron('j')});
   if(r){toast('Welcome to the grove, '+name);go({n:'profile',id:r.me})}}
  else if(a==='loginname'){const r=await api('login',{handle:g('l-handle').toLowerCase().replace(/^@/,''),pw:$('l-pw').value});
   if(r){toast('Logged in as '+me().name);go({n:'feed'})}}
  else if(a==='logout'){if(!confirm('Are you sure you want to log out?'))return;await api('logout');toast('Logged out');go({n:'feed'})}
  else if(a==='saveprofile'){if(!me())return;
   if(!g('e-name')){toast('Display name cannot be empty');return}
-  const r=await api('saveprofile',{name:g('e-name'),handle:g('e-handle').toLowerCase().replace(/^@/,''),bio:g('e-bio'),avatar:pickAv,top:readTops('e'),...readIg('e')});
+  const r=await api('saveprofile',{name:g('e-name'),handle:g('e-handle').toLowerCase().replace(/^@/,''),bio:g('e-bio'),avatar:pickAv,top:readTops('e'),...readPron('e'),...readIg('e')});
   if(r){toast('Profile saved');render()}}
  else if(a==='like'){if(!needUser())return;const y=window.scrollY;if(await api('like',{id})){if($('s-res'))$('s-res').innerHTML=searchRes($('s-q').value);else render();window.scrollTo(0,y)}}
  else if(a==='send'){if(!needUser())return;const t=g('c-t');if(!t){toast('Write a comment first');return}
