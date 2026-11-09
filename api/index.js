@@ -17,6 +17,7 @@ async function load() {
     else db[k] = v || base[k];
   });
   if (Array.isArray(db.core)) { const o = {}; db.core.forEach(x => { o[x] = "writer"; }); db.core = o; }
+  db.polls.forEach(l => { if (l.kind === "thisthat" && !l.pairs) { l.pairs = [l.options]; Object.keys(l.votes).forEach(u => { l.votes[u] = { 0: l.votes[u] }; }); l.options = []; } });
   return { db, raw };
 }
 async function save(db, raw) {
@@ -153,9 +154,18 @@ function out(db, uid, extra) {
       bingos: db.bingos.slice().sort((a, b) => b.ts - a.ts).map(l => ({ id: l.id, title: l.title, cells: l.cells, ts: l.ts, marks: uid && l.marks[uid] ? l.marks[uid] : [] })),
       prompts: db.prompts.slice().sort((a, b) => b.ts - a.ts),
       polls: db.polls.slice().sort((a, b) => b.ts - a.ts).map(l => {
+        if (l.kind === "thisthat") {
+          const pairs = l.pairs.map((pr, i) => {
+            let na = 0, nb = 0;
+            Object.values(l.votes).forEach(v => { if (v && v[i] === 0) na++; else if (v && v[i] === 1) nb++; });
+            return { a: pr[0], b: pr[1], na, nb };
+          });
+          const mv = uid && l.votes[uid] && typeof l.votes[uid] === "object" ? l.votes[uid] : {};
+          return { id: l.id, q: l.q, kind: l.kind, closed: !!l.closed, ts: l.ts, options: [], pairs, mine: l.pairs.map((_, i) => (mv[i] === 0 || mv[i] === 1 ? mv[i] : -1)) };
+        }
         const n = l.options.map(() => 0);
-        Object.values(l.votes).forEach(v => { if (n[v] !== undefined) n[v]++; });
-        return { id: l.id, q: l.q, kind: l.kind, closed: !!l.closed, ts: l.ts, options: l.options.map((t, i) => ({ t, n: n[i] })), mine: uid && l.votes[uid] !== undefined ? l.votes[uid] : -1 };
+        Object.values(l.votes).forEach(v => { if (typeof v === "number" && n[v] !== undefined) n[v]++; });
+        return { id: l.id, q: l.q, kind: l.kind, closed: !!l.closed, ts: l.ts, options: l.options.map((t, i) => ({ t, n: n[i] })), mine: uid && typeof l.votes[uid] === "number" ? l.votes[uid] : -1 };
       })
     },
     clubs: db.clubs.filter(c => !!uid && c.members.includes(uid)).sort((a, b) => b.ts - a.ts).map(c => ({
@@ -194,19 +204,6 @@ export default async function handler(req, res) {
   res.setHeader("content-type", "application/json");
   res.setHeader("cache-control", "no-store");
   const send = o => res.status(200).send(JSON.stringify(o));
-  if (req.method === "GET" && String(req.url || "").includes("feed")) {
-    let ld;
-    try { ld = await load(); } catch (e) { res.status(500).send("Feed unavailable"); return; }
-    const site = "https://" + (req.headers["x-forwarded-host"] || req.headers.host);
-    const items = ld.db.features.filter(f => f.status === "published").sort((a, b) => (b.publishedAt || b.ts) - (a.publishedAt || a.ts)).slice(0, 30).map(f => {
-      const au = U(ld.db, f.by), desc = f.dek || f.text.replace(/\s+/g, " ").slice(0, 300);
-      return `<item><title>${esc(f.title)}</title><link>${site}/#feature-${f.id}</link><guid isPermaLink="false">${f.id}</guid><pubDate>${new Date(f.publishedAt || f.ts).toUTCString()}</pubDate>${au ? `<dc:creator>${esc(au.name)}</dc:creator>` : ""}${f.tag ? `<category>${esc(f.tag)}</category>` : ""}<description>${esc(desc)}</description></item>`;
-    }).join("");
-    res.setHeader("content-type", "application/rss+xml; charset=utf-8");
-    res.setHeader("cache-control", "public, max-age=600");
-    res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>Tangerine Review Club: Feature Picks</title><link>${site}/#feature-picks</link><description>Featured articles and posts from the Tangerine Review Club Zest Team.</description><language>en</language>${items}</channel></rss>`);
-    return;
-  }
   if (req.method !== "POST") return send({ error: "Bad request" });
   let body = req.body;
   if (typeof body === "string") { try { body = JSON.parse(body); } catch (e) { return send({ error: "Bad request" }); } }
@@ -643,20 +640,34 @@ export default async function handler(req, res) {
       case "savepoll": {
         if (!isAdmin()) bad("Admins only");
         const kind = d.kind === "thisthat" ? "thisthat" : "poll", q = clip(d.q, 120);
-        const options = (Array.isArray(d.options) ? d.options : []).map(x => clip(x, 60)).filter(Boolean).slice(0, 6);
-        if (!q) bad("Write the question first");
-        if (kind === "thisthat" && options.length !== 2) bad("This or that needs exactly 2 options");
-        if (options.length < 2) bad("Add at least 2 options, one per line");
+        const lines = (Array.isArray(d.options) ? d.options : []).map(x => clip(x, 100)).filter(Boolean);
+        if (!q) bad("Write the question or title first");
         if (db.polls.length >= 100) bad("Delete some old polls first");
-        db.polls.push({ id: id8(), by: uid, q, kind, options, votes: {}, ts: Date.now(), closed: false });
+        let options = [], pairs;
+        if (kind === "thisthat") {
+          pairs = lines.map(x => x.split("|").map(y => clip(y, 40))).filter(a => a.length >= 2 && a[0] && a[1]).map(a => [a[0], a[1]]);
+          if (pairs.length !== lines.length) bad("Each line needs two choices with a | between them, like: Pizza | Burgers");
+          if (pairs.length < 3 || pairs.length > 9) bad("This or that needs 3 to 9 lines (you have " + pairs.length + ")");
+        } else {
+          options = lines.map(x => clip(x, 60)).slice(0, 6);
+          if (options.length < 2) bad("Add at least 2 options, one per line");
+        }
+        db.polls.push({ id: id8(), by: uid, q, kind, options, pairs, votes: {}, ts: Date.now(), closed: false });
         break;
       }
       case "pollvote": {
         const m = me(), l = db.polls.find(x => x.id === d.id) || bad("Poll not found");
-        if (l.closed) bad("This poll is closed");
+        if (l.closed) bad("This is closed");
         const i = parseInt(d.i, 10);
-        if (!(i >= 0 && i < l.options.length)) bad("Pick an option");
-        l.votes[m.id] = i;
+        if (l.kind === "thisthat") {
+          const c = parseInt(d.c, 10);
+          if (!(i >= 0 && i < l.pairs.length) || (c !== 0 && c !== 1)) bad("Pick one");
+          const v = l.votes[m.id] && typeof l.votes[m.id] === "object" ? l.votes[m.id] : (l.votes[m.id] = {});
+          v[i] = c;
+        } else {
+          if (!(i >= 0 && i < l.options.length)) bad("Pick an option");
+          l.votes[m.id] = i;
+        }
         break;
       }
       case "pollclose": {
