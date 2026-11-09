@@ -112,7 +112,7 @@ const topInputs=(p,t)=>TOPS.map(([k,l,n])=>`<label>${l}</label><div class="row">
 const readTops=p=>{const o={};TOPS.forEach(([k])=>{o[k]=[0,1,2,3].map(i=>{const el=document.getElementById(p+'-'+k+'-'+i);return el?el.value.trim():''})});return o};
 const topsView=u=>`<section class="panel"><h2>Top 4</h2><div class="tops">${TOPS.map(([k,l])=>{const a=((u.top||{})[k]||[]).filter(Boolean);return `<div class="topcard"><h3>${l.replace('Top 4 ','')}</h3>${a.length?`<ol>${a.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>`:'<p class="hint">Nothing picked yet.</p>'}</div>`}).join('')}</div></section>`;
 const AVATARS=['🍊','🧡','🟠','🔶','🦊','🐯','🎃','🥕','🏀','🔥','🥭','🐱'];
-let db={me:null,profiles:[],posts:[]}, view={n:'feed'}, filter='All', rating=0, sort='new', rev=new Set(), pre=null, dcat='All', dyear='All', feedPosts=[], feedShown=0, feedWant=20, obs=null, pickAv=AVATARS[0], TOKEN='';
+let db={me:null,profiles:[],posts:[]}, view={n:'feed'}, filter='All', rating=0, sort='new', rev=new Set(), pre=null, dcat='All', dyear='All', clubMsgs=[], feedPosts=[], feedShown=0, feedWant=20, obs=null, pickAv=AVATARS[0], TOKEN='';
 try{TOKEN=localStorage.getItem('tg-token')||''}catch(e){}
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -123,7 +123,7 @@ async function api(a,d){
  try{const r=await fetch('/api',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+TOKEN},body:JSON.stringify({a,d})});
   const j=await r.json();if(j.error){toast(j.error);return null}
   if(j.token!==undefined){TOKEN=j.token;try{localStorage.setItem('tg-token',TOKEN)}catch(e){}}
-  db=j.db;db.me=j.me;db.msgs=j.msgs||[];db.notes=j.notes||[];db.blocked=j.blocked||[];db.admin=!!j.admin;db.reports=j.reports||[];db.email=j.email||'';db.suspended=j.suspended||[];return j}
+  db=j.db;db.me=j.me;db.msgs=j.msgs||[];db.notes=j.notes||[];db.blocked=j.blocked||[];db.admin=!!j.admin;db.reports=j.reports||[];db.email=j.email||'';db.suspended=j.suspended||[];db.clubs=j.clubs||[];if(j.cmsgs)clubMsgs=j.cmsgs;return j}
  catch(e){toast('Network problem, try again');return null}}
 function ago(ts){const m=Math.round((Date.now()-ts)/60000);if(m<1)return'just now';if(m<60)return m+' min ago';const h=Math.round(m/60);if(h<24)return h+' h ago';return Math.round(h/24)+' d ago'}
 const excerpt=t=>{t=t.replace(/\s+/g,' ');return t.length>150?t.slice(0,150).trim()+'...':t};
@@ -135,11 +135,11 @@ const unreadN=()=>(db.notes||[]).filter(n=>!n.read).length;
 const isAdmin=()=>!!db.admin;
 const followers=u=>db.profiles.filter(x=>(x.following||[]).includes(u.id)).length;
 const fbtn=u=>{const m=me();if(!m||m.id===u.id)return'';const f=(m.following||[]).includes(u.id);return `<button class="btn ${f?'ghost':''}" data-a="follow" data-id="${u.id}">${f?'Unfollow':'Follow'}</button>`};
-function go(v,keep){view=v;render();if(!keep){const t=document.getElementById('tg');t.scrollIntoView&&t.scrollIntoView()}}
+function go(v,keep){view=v;try{if(keep)history.replaceState({v},'');else history.pushState({v},'')}catch(e){}render();if(!keep){const t=document.getElementById('tg');t.scrollIntoView&&t.scrollIntoView()}}
 
 function bar(){const u=me();
   return `<div class="bar">`+(u?`<button class="who" data-a="profile" data-id="${u.id}">${av(u)}${esc(u.name)}</button>
-   <button class="btn ghost" data-a="feed">Home</button><button class="btn ghost" data-a="diary" data-id="${u.id}">📔 Diary</button><button class="btn ghost" data-a="inbox">✉️ Peel a message${unread()?` (${unread()})`:''}</button><button class="btn ghost" data-a="notes" aria-label="Notifications">🔔${unreadN()?` (${unreadN()})`:''}</button><button class="btn ghost" data-a="settings" aria-label="Settings">⚙️</button><button class="btn ghost" data-a="logout">Log out</button>`
+   <button class="btn ghost" data-a="feed">Home</button><button class="btn ghost" data-a="diary" data-id="${u.id}">📔 Diary</button><button class="btn ghost" data-a="inbox">✉️ Message${unread()?` (${unread()})`:''}</button><button class="btn ghost" data-a="notes" aria-label="Notifications">🔔${unreadN()?` (${unreadN()})`:''}</button><button class="btn ghost" data-a="settings" aria-label="Settings">⚙️</button><button class="btn ghost" data-a="logout">Log out</button>`
   :`<button class="btn" data-a="join">Sign up or log in</button><button class="btn ghost" data-a="feed">Home</button>`)+`<button class="btn ghost" data-a="lists">📋 Lists</button><button class="btn ghost" data-a="searchview">🔍 Search</button></div>`}
 
 function avPicker(sel){return `<div class="avpick" id="avpick" role="group" aria-label="Pick an avatar">${AVATARS.map(a=>`<button type="button" data-a="pickav" data-v="${a}" aria-pressed="${a===sel}">${a}</button>`).join('')}</div>`}
@@ -252,8 +252,29 @@ function searchRes(q){q=q.trim().toLowerCase().replace(/^@/,'');
 const searchView=()=>`<section class="panel"><h2>Search</h2><input id="s-q" placeholder="Search people, reviews or titles" autocomplete="off"></section><div id="s-res">${searchRes('')}</div>`;
 
 const threads=()=>{const m={};(db.msgs||[]).forEach(x=>{const o=x.from===db.me?x.to:x.from;(m[o]=m[o]||[]).push(x)});return Object.entries(m).map(([o,l])=>({o,l,last:l[l.length-1]})).sort((a,b)=>b.last.ts-a.last.ts)};
+let clubPick=new Set();
+const clChips=()=>[...clubPick].map(id=>`<span class="tag">${esc(user(id).name)} <button class="link" data-a="pickmem" data-id="${id}" aria-label="Remove">✕</button></span>`).join('')||'<span class="hint">No one added yet.</span>';
+const clExc=()=>{if(view.n==='club'){const c=(db.clubs||[]).find(x=>x.id===view.id);return c?c.m||[]:[]}return[]};
+const clRes=q=>{q=q.trim().toLowerCase().replace(/^@/,'');const ex=clExc(),l=db.profiles.filter(u=>u.id!==db.me&&!ex.includes(u.id)&&(!q||u.handle.includes(q)||u.name.toLowerCase().includes(q))).slice(0,20);return l.length?l.map(u=>`<div style="display:flex;align-items:center;gap:12px;padding:6px 0">${av(u)}<div style="flex:1 1 140px">${esc(u.name)} <span class="hint">@${esc(u.handle)}</span></div><button class="btn ${clubPick.has(u.id)?'':'ghost'}" data-a="pickmem" data-id="${u.id}">${clubPick.has(u.id)?'Added ✓':'Add'}</button></div>`).join(''):'<p class="hint">No one found.</p>'};
+const pickBox=()=>`<label for="cl-q">Add people</label><input id="cl-q" placeholder="Search by name or username" autocomplete="off"><div id="cl-chips" style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">${clChips()}</div><div id="cl-res">${clRes('')}</div>`;
+const pmRes=q=>{q=q.trim().toLowerCase().replace(/^@/,'');const l=db.profiles.filter(u=>u.id!==db.me&&(!q||u.handle.includes(q)||u.name.toLowerCase().includes(q))).slice(0,20);return l.length?l.map(u=>`<div style="display:flex;align-items:center;gap:12px;padding:6px 0;flex-wrap:wrap">${av(u)}<div style="flex:1 1 140px"><div>${esc(u.name)}</div><div class="hint" style="margin:0">@${esc(u.handle)}</div></div><button class="btn" data-a="chat" data-id="${u.id}">Message</button></div>`).join(''):'<p class="hint">No one found.</p>'};
 function inboxView(){if(!me())return `<section class="panel"><p>Log in to see your messages.</p><button class="btn" data-a="join">Log in</button></section>`;
- const t=threads();return `<section class="panel"><h2>Peel a message</h2><p class="hint">Open someone's profile and tap Message to start a chat.</p></section>`+(t.length?t.map(({o,l,last})=>{const u=user(o),un=l.filter(x=>x.to===db.me&&!x.read).length;return `<div class="panel person">${av(u)}<div style="flex:1 1 140px"><button class="link" data-a="chat" data-id="${o}">${esc(u.name)}${un?` (${un} new)`:''}</button><div class="hint" style="margin:0">${esc(excerpt(last.t))}</div></div></div>`}).join(''):'<p class="empty">No messages yet.</p>')}
+ const t=threads(),sub=view.sub;
+ const peel=sub==='peel'?`<section class="panel"><h2>Peel a message</h2><p class="hint">Find a member and start a chat.</p><input id="pm-q" placeholder="Search by name or username" autocomplete="off"><div id="pm-res" style="margin-top:8px">${pmRes('')}</div></section>`:'';
+ const mk=sub==='club'?`<section class="panel"><h2>Create a club</h2><p class="hint">A club is a group chat. Pick the people you want in it.</p><label for="cl-n">Club name</label><input id="cl-n" maxlength="40" placeholder="e.g. K-drama fans"><div class="row"><div><label for="cl-e">Emoji</label><input id="cl-e" maxlength="8" placeholder="🍊"></div><div><label for="cl-d">Short description (optional)</label><input id="cl-d" maxlength="140" placeholder="What is this club about?"></div></div>${pickBox()}<div class="actions"><button class="btn" data-a="newclub">Create club</button><button class="btn ghost" data-a="inbox">Cancel</button></div></section>`:'';
+ const cl=(db.clubs||[]).map(c=>`<div class="panel person"><span class="av">${esc(c.emoji)}</span><div style="flex:1 1 160px"><button class="link" data-a="club" data-id="${c.id}">${esc(c.name)}</button><div class="hint" style="margin:0">${esc(c.desc||'')} ${c.desc?'· ':''}${c.n} member${c.n===1?'':'s'}</div></div><button class="btn ghost" data-a="club" data-id="${c.id}">Open</button></div>`).join('');
+ return `<section class="panel"><h2>Message</h2><div class="actions"><button class="btn" data-a="showpeel">🍊 Peel a message</button><button class="btn" data-a="showclub">🧡 Create a club (group chat)</button></div></section>${peel}${mk}`+
+ `<h2 style="margin:18px 0 10px;color:var(--od)">Your chats</h2>`+(t.length?t.map(({o,l,last})=>{const u=user(o),un=l.filter(x=>x.to===db.me&&!x.read).length;return `<div class="panel person">${av(u)}<div style="flex:1 1 140px"><button class="link" data-a="chat" data-id="${o}">${esc(u.name)}${un?` (${un} new)`:''}</button><div class="hint" style="margin:0">${esc(excerpt(last.t))}</div></div></div>`}).join(''):'<p class="empty">No chats yet. Tap Peel a message to start one.</p>')+
+ `<h2 style="margin:18px 0 10px;color:var(--od)">Your clubs</h2>`+(cl||'<p class="empty">No clubs yet. Tap Create a club to start a group chat.</p>')}
+const clubList=()=>clubMsgs.length?clubMsgs.map(m=>{const mine=m.by===db.me,c=(db.clubs||[]).find(x=>x.id===view.id),mod=mine||(c&&c.by===db.me)||isAdmin();return `<div class="cm">${av(user(m.by),'sm')}<div style="flex:1;min-width:0"><button class="link" data-a="profile" data-id="${m.by}">${esc(user(m.by).name)}</button> <span class="hint">${ago(m.ts)}</span>${mod?` <button class="link" data-a="delcm" data-id="${m.id}">Delete</button>`:''}<div style="white-space:pre-wrap;word-break:break-word">${lk(m.t)}</div></div></div>`}).join(''):'<p class="empty">No messages yet. Say hi.</p>';
+function clubView(id){const c=(db.clubs||[]).find(x=>x.id===id);if(!c||!me())return inboxView();
+ return `<button class="btn ghost" style="margin-bottom:14px" data-a="inbox">Back to messages</button><section class="panel"><h2>${esc(c.emoji)} ${esc(c.name)}</h2><p class="hint" style="margin:0 0 8px">${esc(c.desc||'')} ${c.desc?'· ':''}${c.n} member${c.n===1?'':'s'} · created by ${esc(user(c.by).name)}</p>
+ ${c.joined?`<div id="cm-list" style="max-height:55vh;overflow:auto;margin-top:8px">${clubList()}</div><div class="cform"><input id="cm-t" maxlength="500" placeholder="Message the club"><button class="btn" data-a="sendclub" data-id="${c.id}">Send</button></div>
+ <div class="actions">${c.by!==db.me?`<button class="btn ghost" data-a="leaveclub" data-id="${c.id}">Leave club</button>`:''}${c.by===db.me||isAdmin()?`<button class="btn danger" data-a="delclub" data-id="${c.id}">Delete club</button>`:''}</div>`
+ :''}</section>
+ <section class="panel"><h2>Members (${c.n})</h2>${(c.m||[]).map(id=>`<div style="display:flex;align-items:center;gap:10px;padding:4px 0">${av(user(id),'sm')}<span style="flex:1">${esc(user(id).name)}${id===c.by?' 👑':''}</span>${(c.by===db.me||isAdmin())&&id!==c.by?`<button class="link" data-a="kick" data-id="${c.id}" data-u="${id}">Remove</button>`:''}</div>`).join('')}<div class="actions"><button class="btn ghost" data-a="showadd">+ Add people</button></div></section>
+ ${view.adding?`<section class="panel"><h2>Add people to this club</h2>${pickBox()}<div class="actions"><button class="btn" data-a="addmem" data-id="${c.id}">Add to club</button><button class="btn ghost" data-a="club" data-id="${c.id}">Cancel</button></div></section>`:''}`}
+const cmUpdate=()=>{const l=$('cm-list');if(l){l.innerHTML=clubList();l.scrollTop=l.scrollHeight}};
 const chatList=id=>{const l=(db.msgs||[]).filter(m=>m.from===id||m.to===id);return l.length?l.map(m=>{const mine=m.from===db.me;return `<div style="display:flex;justify-content:${mine?'flex-end':'flex-start'};margin:6px 0"><div style="max-width:80%;padding:8px 12px;border-radius:14px;white-space:pre-wrap;word-break:break-word;background:${mine?'var(--o)':'var(--os)'};color:${mine?'#fff':'var(--ink)'}">${esc(m.t)}<div style="font-size:.72rem;opacity:.75">${ago(m.ts)}${mine?` · <button class="link" data-a="delm" data-id="${m.id}" style="font-size:.72rem;color:#fff">Delete</button>`:''}</div></div></div>`}).join(''):'<p class="empty">Say hi.</p>'};
 function chatView(id){if(!me())return inboxView();const u=user(id);return `<button class="btn ghost" style="margin-bottom:14px" data-a="inbox">Back to messages</button><section class="panel"><div class="phead">${av(u)}<h2 style="font-size:1.3rem">${esc(u.name)}</h2></div><div id="m-list" style="margin-top:12px">${chatList(id)}</div><div class="cform"><input id="m-t" maxlength="1000" placeholder="Write a message"><button class="btn" data-a="sendm" data-id="${id}">Send</button></div></section>`}
 const noteText={like:'liked your post',comment:'commented on your post',reply:'replied to a comment',follow:'started following you',mention:'mentioned you'};
@@ -311,6 +332,7 @@ function render(){
  else if(view.n==='diary')body=diaryView(user(view.id));
  else if(view.n==='settings')body=settingsView();
  else if(view.n==='chat')body=chatView(view.id);
+ else if(view.n==='club')body=clubView(view.id);
  else if(view.n==='post'){const p=db.posts.find(x=>x.id===view.id);body=p?postView(p):feedView()}
  else if(view.n==='profile')body=profileView(user(view.id));
  else body=feedView();
@@ -319,14 +341,15 @@ function render(){
  const mo=$('more');if(mo){obs=new IntersectionObserver(es=>{if(es[0].isIntersecting)loadMore()},{rootMargin:'500px'});obs.observe(mo)}
 }
 
+window.addEventListener('popstate',e=>{view=(e.state&&e.state.v)||{n:'feed'};render();window.scrollTo(0,0)});
 function copyText(t){return navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(t):Promise.reject()}
 function fallbackCopy(t){const x=document.createElement('textarea');x.value=t;document.body.appendChild(x);x.select();let ok=false;try{ok=document.execCommand('copy')}catch(e){}x.remove();return ok}
 function needUser(){if(me())return true;toast('Create a profile or log in first');go({n:'join'});return false}
 
 app.addEventListener('change',e=>{if(e.target.id==='sort'){sort=e.target.value;feedWant=20;render()}if(e.target.id==='dyear'){dyear=e.target.value;render()}});
 app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='m-t'){e.preventDefault();app.querySelector('[data-a="sendm"]').click()}});
-app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='rm-t'){e.preventDefault();app.querySelector('[data-a="sendrm"]').click()}});
-app.addEventListener('input',e=>{if(e.target.id==='s-q')$('s-res').innerHTML=searchRes(e.target.value);if(e.target.id==='f-title'){const c=$('h-count');if(c)c.textContent=e.target.value.length+'/100'}});
+app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='cm-t'){e.preventDefault();app.querySelector('[data-a="sendclub"]').click()}});
+app.addEventListener('input',e=>{if(e.target.id==='cl-q')$('cl-res').innerHTML=clRes(e.target.value);if(e.target.id==='pm-q')$('pm-res').innerHTML=pmRes(e.target.value);if(e.target.id==='s-q')$('s-res').innerHTML=searchRes(e.target.value);if(e.target.id==='f-title'){const c=$('h-count');if(c)c.textContent=e.target.value.length+'/100'}});
 app.addEventListener('click',async e=>{
  const st=e.target.closest('#f-stars button');
  if(st){rating=rating===+st.dataset.n?0:+st.dataset.n;app.querySelectorAll('#f-stars button').forEach(x=>x.classList.toggle('on',+x.dataset.n<=rating));return}
@@ -337,6 +360,18 @@ app.addEventListener('click',async e=>{
  else if(a==='searchview')go({n:'search'});
  else if(a==='inbox'){go({n:'inbox'});api('state').then(r=>{if(r&&view.n==='inbox')render()})}
  else if(a==='chat'){if(!needUser())return;go({n:'chat',id});api('read',{id}).then(r=>{if(r&&view.n==='chat'&&view.id===id&&$('m-list')){$('m-list').innerHTML=chatList(id);refreshBar()}})}
+ else if(a==='showpeel')go({n:'inbox',sub:'peel'},true);
+ else if(a==='showclub'){clubPick=new Set();go({n:'inbox',sub:'club'},true)}
+ else if(a==='club'){clubMsgs=[];go({n:'club',id});api('club',{id}).then(r=>{if(r&&view.n==='club'&&view.id===id)cmUpdate()})}
+ else if(a==='pickmem'){clubPick.has(id)?clubPick.delete(id):clubPick.add(id);if($('cl-chips'))$('cl-chips').innerHTML=clChips();if($('cl-res'))$('cl-res').innerHTML=clRes($('cl-q')?$('cl-q').value:'')}
+ else if(a==='showadd'){clubPick=new Set();go({n:'club',id:view.id,adding:true},true)}
+ else if(a==='addmem'){if(!clubPick.size){toast('Pick someone to add first');return}if(await api('addmembers',{id,members:[...clubPick]})){toast('People added');clubPick=new Set();go({n:'club',id},true)}}
+ else if(a==='kick'){if(!confirm('Remove this person from the club?'))return;if(await api('kick',{id,uid:b.dataset.u}))render()}
+ else if(a==='leaveclub'){if(!confirm('Leave this club?'))return;if(await api('leaveclub',{id})){toast('You left the club');go({n:'inbox'})}}
+ else if(a==='newclub'){if(!g('cl-n')){toast('Give your club a name');return}const r=await api('newclub',{name:g('cl-n'),emoji:g('cl-e'),desc:g('cl-d'),members:[...clubPick]});if(r){toast('Club created');clubMsgs=[];go({n:'club',id:r.club})}}
+ else if(a==='sendclub'){const t=g('cm-t');if(!t)return;if(await api('sendclub',{id,t})){$('cm-t').value='';cmUpdate()}}
+ else if(a==='delcm'){if(await api('delclubmsg',{id,club:view.id}))cmUpdate()}
+ else if(a==='delclub'){if(!confirm('Delete this club and all its messages?'))return;if(await api('delclub',{id}))go({n:'inbox'})}
  else if(a==='sendm'){const t=g('m-t');if(!t)return;if(await api('message',{id,t})&&$('m-list')){$('m-list').innerHTML=chatList(id);$('m-t').value='';refreshBar()}}
  else if(a==='delc'){if(!confirm('Delete this comment?'))return;if(await api('delcomment',{id,i:+b.dataset.i})){go({n:'post',id},true);toast('Comment deleted')}}
  else if(a==='delm'){if(!confirm('Delete this message for both of you?'))return;if(await api('delmessage',{id})&&view.n==='chat'){$('m-list').innerHTML=chatList(view.id);refreshBar()}}
@@ -429,9 +464,10 @@ function curTheme(){return document.documentElement.dataset.theme||(matchMedia('
 function paintTheme(){const d=curTheme()==='dark';tb.textContent=d?'☀️ Light mode':'🌙 Dark mode';tb.setAttribute('aria-label',d?'Switch to light mode':'Switch to dark mode')}
 tb.addEventListener('click',()=>{const n=curTheme()==='dark'?'light':'dark';document.documentElement.dataset.theme=n;try{localStorage.setItem('bb-theme',n)}catch(e){}paintTheme()});
 paintTheme();
-api('state').then(()=>{const h=location.hash;if(h.startsWith('#reset='))view={n:'reset',token:h.slice(7)};else if(h.startsWith('#list-'))view={n:'list',id:h.slice(6)};render()});
-let tick=0;setInterval(()=>{if(document.hidden||!me())return;if(view.n!=='chat'&&++tick%3)return;
+api('state').then(()=>{const h=location.hash;if(h.startsWith('#reset='))view={n:'reset',token:h.slice(7)};else if(h.startsWith('#list-'))view={n:'list',id:h.slice(6)};render();try{history.replaceState({v:view},'')}catch(e){}});
+let tick=0;setInterval(()=>{if(document.hidden||!me())return;if(view.n!=='chat'&&view.n!=='club'&&++tick%3)return;
  if(view.n==='chat'){const id=view.id;api('read',{id}).then(r=>{if(r&&view.n==='chat'&&$('m-list')){$('m-list').innerHTML=chatList(id);refreshBar()}})}
+ else if(view.n==='club'){const id=view.id;api('club',{id}).then(r=>{if(r&&view.n==='club'&&$('cm-list')){const l=$('cm-list'),atEnd=l.scrollHeight-l.scrollTop-l.clientHeight<60;l.innerHTML=clubList();if(atEnd)l.scrollTop=l.scrollHeight}})}
  else api('state').then(r=>{if(!r)return;if(view.n==='inbox')render();else refreshBar()})},10000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&view.n==='feed')api('state').then(r=>r&&render())});
 })();
