@@ -6,7 +6,6 @@
 <title>Tangerine Review Club</title>
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/logo.png">
-<link rel="alternate" type="application/rss+xml" title="Tangerine Review Club: Feature Picks" href="/api?feed=1">
 <script>try{var t=localStorage.getItem('bb-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -198,7 +197,7 @@ function composeView(){const u=me();
 
 function actions(p){const u=me(),liked=u&&p.likedBy.includes(u.id);
  return `<div class="actions"><button class="act" data-a="like" data-id="${p.id}" aria-label="Like" aria-pressed="${!!liked}"><span class="tl${liked?'':' off'}" aria-hidden="true">🍊</span> ${p.likedBy.length}</button>
- <button class="act" data-a="open" data-id="${p.id}">💬 ${p.comments.length}</button><button class="act" data-a="share" data-id="${p.id}">Share</button><button class="act" data-a="sharecard" data-id="${p.id}">🖼️ Card</button></div>`}
+ <button class="act" data-a="open" data-id="${p.id}">💬 ${p.comments.length}</button><button class="act" data-a="share" data-id="${p.id}">Share</button></div>`}
 const lk=t=>esc(t).replace(/@([a-z0-9_]{3,20})/gi,(m,h)=>{const u=db.profiles.find(x=>x.handle===h.toLowerCase());return u?`<button class="link" data-a="profile" data-id="${u.id}">@${esc(u.handle)}</button>`:m});
 const bodyHtml=(p,full)=>p.spoiler&&!rev.has(p.id)?`<div class="body"><button class="btn ghost" data-a="reveal" data-id="${p.id}">⚠️ Contains spoilers. Tap to show</button></div>`:`<div class="body">${lk(full?p.text:excerpt(p.text))}</div>`;
 const meta=p=>`<div class="meta">${userLink(user(p.by))}<span class="tag">${esc(p.type)}</span>${p.draft?'<span class="tag">Draft</span>':''}${p.prompt&&promptOf(p.prompt)?`<button class="link" data-a="prompt" data-id="${p.prompt}">💭 ${esc(promptOf(p.prompt).title)}</button>`:''}${p.media!==p.title?`<span>${esc(p.media)}</span>`:''}<span class="rate" aria-label="${p.rating} out of 5">${stars(p.rating)}</span><span>${ago(p.ts)}${p.edited?' (edited)':''}</span></div>`;
@@ -363,7 +362,7 @@ function featuresView(){const all=feats(),m=me(),adm=isEd();
  const coreBox=isAdmin()?`<section class="panel"><h2>Zest Team 🍊</h2><p class="hint">Only Zest Team members can send pieces to Feature Picks. Writers write and submit pieces. Editors can also edit anyone's piece and approve, send back or publish. A writer's piece never goes live until an editor approves it.</p>
   ${coreIds.length?coreIds.map(id=>`<div style="display:flex;align-items:center;gap:10px;padding:4px 0;flex-wrap:wrap">${av(user(id),'sm')}<span style="flex:1 1 140px">${esc(user(id).name)} <span class="hint">@${esc(user(id).handle)}</span></span>${roleSel(id,core[id])}<button class="btn ghost" data-a="setcore" data-id="${id}" data-role="">Remove</button></div>`).join(''):'<p class="hint">No one yet.</p>'}
   <label for="core-add">Add a member</label><div class="cform"><select id="core-add">${db.profiles.filter(u=>!core[u.id]&&u.id!==db.me).map(u=>`<option value="${u.id}">${esc(u.name)} (@${esc(u.handle)})</option>`).join('')}</select><select id="core-role" aria-label="Role" style="width:auto"><option value="writer">Writer</option><option value="editor">Editor</option></select><button class="btn" data-a="setcoreadd">Add to Zest Team</button></div></section>`:'';
- return `<section class="panel"><h2>Feature Picks🧺</h2><p style="margin:0">Featured articles and posts from our beloved Tangerine writers. To be featured, email <a class="link" href="mailto:tangerinereviewclub@gmail.com">tangerinereviewclub@gmail.com</a></p><p class="hint" style="margin:8px 0 0"><a class="link" href="/api?feed=1" target="_blank" rel="noopener">📡 RSS feed</a></p>
+ return `<section class="panel"><h2>Feature Picks🧺</h2><p style="margin:0">Featured articles and posts from our beloved Tangerine writers. To be featured, email <a class="link" href="mailto:tangerinereviewclub@gmail.com">tangerinereviewclub@gmail.com</a></p>
   ${db.isCore?'<div class="actions"><button class="btn" data-a="featnew">Write a piece</button></div>':''}</section>
   ${coreBox}
   ${queue.length?`<h2 style="margin:0 0 12px;color:var(--od)">Waiting for your approval (${queue.length})</h2>${queue.map(f=>fCard(f,true)).join('')}`:''}
@@ -400,31 +399,6 @@ const adminTools=()=>{if(!isAdmin())return'';const bn=db.banner,pr=db.prompts||[
  return owner+`<section class="panel"><h2>📣 Pinned announcement</h2><label for="bn-t">Message (shown at the top of Home)</label><textarea id="bn-t" maxlength="300" style="min-height:70px">${bn?esc(bn.text):''}</textarea><div class="actions"><button class="btn" data-a="setbanner">Pin it</button>${bn?'<button class="btn ghost" data-a="clearbanner">Remove</button>':''}</div></section>
  <section class="panel"><h2>💭 Weekly prompts</h2><p class="hint">Members reply with a post. The newest prompt shows on Home.</p><label for="pr-t">Prompt</label><input id="pr-t" maxlength="100" placeholder="e.g. Best comfort movie"><label for="pr-d">Details (optional)</label><input id="pr-d" maxlength="300"><div class="actions"><button class="btn" data-a="newprompt">Post prompt</button></div>${pr.map(k=>`<div class="cm"><span style="flex:1">${esc(k.title)} <span class="hint">${ago(k.ts)}</span></span><button class="link" data-a="delprompt" data-id="${k.id}">Delete</button></div>`).join('')}</section>
  <section class="panel"><h2>📊 Polls and This or that</h2><p class="hint">The newest one shows on Home. This or that has exactly 2 options.</p><div class="row"><div><label for="po-k">Type</label><select id="po-k"><option value="poll">Poll (2 to 6 options)</option><option value="thisthat">This or that (2 options)</option></select></div><div><label for="po-q">Question</label><input id="po-q" maxlength="120" placeholder="e.g. Movie night snack?"></div></div><label for="po-o">Options (one per line)</label><textarea id="po-o" style="min-height:80px" placeholder="Popcorn&#10;Chips"></textarea><div class="actions"><button class="btn" data-a="newpoll">Create</button></div>${po.map(l=>`<div class="cm" style="flex-wrap:wrap"><span style="flex:1 1 200px">${esc(l.q)} <span class="hint">${l.kind==='thisthat'?'This or that':'Poll'}${l.closed?', closed':''}</span></span><button class="link" data-a="pollclose" data-id="${l.id}">${l.closed?'Reopen':'Close'}</button><button class="link" data-a="delpoll" data-id="${l.id}">Delete</button></div>`).join('')}</section>`};
-const loadImg=src=>new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=src});
-function rrect(x,l,t,w,h,r){x.beginPath();x.moveTo(l+r,t);x.arcTo(l+w,t,l+w,t+h,r);x.arcTo(l+w,t+h,l,t+h,r);x.arcTo(l,t+h,l,t,r);x.arcTo(l,t,l+w,t,r);x.closePath()}
-function wrapLines(x,text,max,maxLines){const words=String(text).split(/\s+/),lines=[];let cur='';
- for(const w of words){const t=cur?cur+' '+w:w;if(x.measureText(t).width>max&&cur){lines.push(cur);cur=w}else cur=t}
- if(cur)lines.push(cur);if(lines.length>maxLines){lines.length=maxLines;let l=lines[maxLines-1];while(x.measureText(l+'...').width>max&&l.length>1)l=l.slice(0,-1);lines[maxLines-1]=l+'...'}return lines}
-async function shareCard(p){
- try{await document.fonts.ready}catch(e){}
- const W=1080,H=1350,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
- const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,'#FFB84D');g.addColorStop(1,'#FF8A00');x.fillStyle=g;x.fillRect(0,0,W,H);
- x.fillStyle='#FFFFFF';rrect(x,60,60,W-120,H-120,48);x.fill();
- x.textBaseline='top';
- try{const im=await loadImg('/logo.png');x.drawImage(im,100,100,110,110)}catch(e){}
- x.fillStyle='#D95F00';x.font='800 44px "Bricolage Grotesque","DM Sans",sans-serif';x.fillText('Tangerine Review Club',235,130);
- x.fillStyle='#8A6A4D';x.font='500 38px "DM Sans",sans-serif';
- const sub0=p.media===p.title?p.type:p.type+' · '+p.media;let sub=sub0;while(x.measureText(sub).width>W-200&&sub.length>4)sub=sub.slice(0,-2);if(sub!==sub0)sub+='...';
- x.fillText(sub,100,270);
- x.font='76px sans-serif';for(let i=0;i<5;i++){x.globalAlpha=i<p.rating?1:.22;x.fillText('🍊',100+i*92,340)}x.globalAlpha=1;
- x.fillStyle='#3A2210';x.font='800 80px "Bricolage Grotesque","DM Sans",sans-serif';
- wrapLines(x,p.title,W-200,6).forEach((l,i)=>x.fillText(l,100,470+i*96));
- x.fillStyle='#8A6A4D';x.font='500 40px "DM Sans",sans-serif';x.fillText('Review by '+user(p.by).name,100,H-250);
- x.fillStyle='#D95F00';x.font='700 38px "DM Sans",sans-serif';x.fillText(location.host,100,H-190);
- c.toBlob(async blob=>{if(!blob){toast('Could not make the card');return}
-  const file=new File([blob],'review-card.png',{type:'image/png'});
-  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:p.title});return}}catch(err){if(err&&err.name==='AbortError')return}
-  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='review-card.png';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);toast('Card saved to your device')},'image/png')}
 function loadMore(){const fl=$('feed-list'),mo=$('more');if(!fl||!mo)return;const next=feedPosts.slice(feedShown,feedShown+20);fl.insertAdjacentHTML('beforeend',next.map(card).join(''));feedShown+=next.length;feedWant=feedShown;if(feedShown>=feedPosts.length){obs&&obs.disconnect();mo.remove()}}
 const refreshBar=()=>{const bb=app.querySelector('.bar');if(bb)bb.outerHTML=bar()};
 function render(){
@@ -608,7 +582,6 @@ app.addEventListener('click',async e=>{
   try{await copyText(url);toast('Link copied')}catch(err){toast(fallbackCopy(url)?'Link copied':url)}}
  else if(a==='copymembers'){const t=membersTsv($('s-q')?$('s-q').value:'');
   try{await copyText(t);toast('Table copied. Paste it into Google Sheets')}catch(err){toast(fallbackCopy(t)?'Table copied. Paste it into Google Sheets':'Could not copy the table')}}
- else if(a==='sharecard'){if(p)shareCard(p)}
  else if(a==='share'){
   const txt=`${p.title} - a ${p.type.toLowerCase()} review of ${p.media} (${p.rating}/5) by ${user(p.by).name}`;
   try{if(navigator.share){await navigator.share({title:p.title,text:txt});return}}catch(err){if(err&&err.name==='AbortError')return}
