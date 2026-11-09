@@ -87,7 +87,7 @@ function cleanFeature(d) {
 const cleanPron = d => clip(Array.isArray(d.pronouns) ? d.pronouns.join(" / ") : d.pronouns, 30);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const pub = (u, viewer) => ({
-  id: u.id, name: u.name, handle: u.handle, bio: u.bio, avatar: u.avatar, following: u.following, top: u.top, pronouns: Array.isArray(u.pronouns) ? u.pronouns.join(" / ") : (u.pronouns || ""),
+  id: u.id, name: u.name, handle: u.handle, bio: u.bio, avatar: u.avatar, following: u.following, top: u.top, pronouns: Array.isArray(u.pronouns) ? u.pronouns.join(" / ") : (u.pronouns || ""), bingoShares: u.bingoShares || [],
   insta: viewer === u.id || !u.igPrivate ? u.insta : "", igPrivate: u.igPrivate, links: u.links, watch: u.watch
 });
 function blockedSet(db, uid) {
@@ -701,6 +701,18 @@ export default async function handler(req, res) {
         if (!(i >= 0 && i < 25)) bad("Pick a square");
         const a2 = l.marks[m.id] || (l.marks[m.id] = []), k = a2.indexOf(i);
         if (k >= 0) a2.splice(k, 1); else a2.push(i);
+        break;
+      }
+      case "bingoshare": {
+        const m = me(), l = db.bingos.find(x => x.id === d.id) || bad("Bingo card not found");
+        m.bingoShares = (m.bingoShares || []).filter(x => x.id !== l.id);
+        m.bingoShares.push({ id: l.id, title: l.title, cells: l.cells, marks: (l.marks[m.id] || []).slice(), ts: Date.now() });
+        if (m.bingoShares.length > 20) m.bingoShares.shift();
+        break;
+      }
+      case "bingounshare": {
+        const m = me();
+        m.bingoShares = (m.bingoShares || []).filter(x => x.id !== d.id);
         break;
       }
       case "report": {
