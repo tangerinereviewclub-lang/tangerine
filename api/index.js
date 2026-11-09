@@ -16,6 +16,7 @@ async function load() {
     if (k === "meta") META.forEach(m => { db[m] = v && v[m] !== undefined ? v[m] : base[m]; });
     else db[k] = v || base[k];
   });
+  if (Array.isArray(db.core)) { const o = {}; db.core.forEach(x => { o[x] = "writer"; }); db.core = o; }
   return { db, raw };
 }
 async function save(db, raw) {
@@ -46,7 +47,7 @@ const checkPw = (pw, h) => {
   return a.length === b.length && timingSafeEqual(a, b);
 };
 const emailOk = e => e.length <= 120 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
-const fresh = () => ({ users: [], posts: [], lists: [], msgs: [], clubs: [], cmsgs: [], features: [], core: [], reports: [], pick: null, suspended: [], sessions: {}, resets: {}, fails: {} });
+const fresh = () => ({ users: [], posts: [], lists: [], msgs: [], clubs: [], cmsgs: [], features: [], core: {}, reports: [], pick: null, suspended: [], sessions: {}, resets: {}, fails: {} });
 const U = (db, id) => db.users.find(u => u.id === id);
 
 function cleanTop(t) {
@@ -71,12 +72,15 @@ function cleanPost(d) {
 }
 function cleanFeature(d) {
   const title = clip(d.title, 120), dek = clip(d.dek, 200), tag = clip(d.tag, 30), text = clip(d.text, 20000);
+  const type = TYPES.includes(clip(d.type, 20)) ? clip(d.type, 20) : "", media = clip(d.media, 80);
   if (!title || !text) bad("Add a headline and the article text first");
-  return { title, dek, tag, text };
+  return { title, dek, tag, text, type, media: type ? media : "" };
 }
+const PRON = ["she/her", "he/him", "they/them"];
+const cleanPron = d => (Array.isArray(d.pronouns) ? d.pronouns : []).filter((x, i, a) => PRON.includes(x) && a.indexOf(x) === i);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const pub = (u, viewer) => ({
-  id: u.id, name: u.name, handle: u.handle, bio: u.bio, avatar: u.avatar, following: u.following, top: u.top,
+  id: u.id, name: u.name, handle: u.handle, bio: u.bio, avatar: u.avatar, following: u.following, top: u.top, pronouns: u.pronouns || [],
   insta: viewer === u.id || !u.igPrivate ? u.insta : "", igPrivate: u.igPrivate, links: u.links, watch: u.watch
 });
 function blockedSet(db, uid) {
@@ -130,11 +134,12 @@ function out(db, uid, extra) {
     comments: p.comments.map(c => bs.has(c.by) ? { hidden: true, replies: [] }
       : { ...c, replies: (c.replies || []).map(r => bs.has(r.by) ? { hidden: true } : r) })
   }));
-  const isCore = !!(me && (admin || db.core.includes(me.id)));
-  const seeF = f => admin || (me && f.by === me.id) || (f.status === "published" && !bs.has(f.by));
+  const isCore = !!(me && (admin || db.core[me.id]));
+  const isEditor = !!(me && (admin || db.core[me.id] === "editor"));
+  const seeF = f => isEditor || (me && f.by === me.id) || (f.status === "published" && !bs.has(f.by));
   const features = db.features.filter(seeF).sort((a, b) => (b.publishedAt || b.ts) - (a.publishedAt || a.ts));
   const r = {
-    features, isCore, core: admin ? db.core : [],
+    features, isCore, isEditor, core: admin ? db.core : {},
     db: {
       profiles: db.users.map(u => pub(u, uid)), posts,
       lists: db.lists.filter(l => !bs.has(l.by)).sort((a, b) => b.ts - a.ts), pick: db.pick || null
@@ -196,6 +201,7 @@ export default async function handler(req, res) {
   const me = () => (uid && U(db, uid)) || bad("Log in first");
   const P = id => db.posts.find(p => p.id === id) || bad("Post not found");
   const isAdmin = () => { const m = uid && U(db, uid); return !!(m && ADMIN && m.handle === ADMIN); };
+  const isEditor = () => isAdmin() || !!(uid && db.core[uid] === "editor");
 
   try {
     switch (a) {
@@ -212,7 +218,7 @@ export default async function handler(req, res) {
         if (db.users.some(u => u.email === email)) bad("That email already has an account");
         const u = {
           id: id8(), name, handle, email, pw: hashPw(pw), bio: clip(d.bio, 160), avatar: clip(d.avatar, 8) || "🍊",
-          following: [], top: cleanTop(d.top), ...cleanIg(d), watch: [], blocked: [], notes: []
+          following: [], top: cleanTop(d.top), pronouns: cleanPron(d), ...cleanIg(d), watch: [], blocked: [], notes: []
         };
         db.users.push(u);
         uid = u.id; extra.token = newSession(db, u.id);
@@ -313,7 +319,7 @@ export default async function handler(req, res) {
         if (!name) bad("Display name cannot be empty");
         if (!/^[a-z0-9_]{3,20}$/.test(handle)) bad("Username needs 3 to 20 letters, numbers or underscores");
         if (db.users.some(u => u.id !== m.id && u.handle === handle) || (ADMIN && handle === ADMIN && m.handle !== ADMIN)) bad("That username is taken");
-        Object.assign(m, { name, handle, bio: clip(d.bio, 160), avatar: clip(d.avatar, 8) || m.avatar, top: cleanTop(d.top), ...cleanIg(d) });
+        Object.assign(m, { name, handle, bio: clip(d.bio, 160), avatar: clip(d.avatar, 8) || m.avatar, top: cleanTop(d.top), pronouns: cleanPron(d), ...cleanIg(d) });
         break;
       }
       case "message": {
@@ -481,7 +487,7 @@ export default async function handler(req, res) {
         db.clubs = db.clubs.filter(c => c.by !== id);
         db.cmsgs = db.cmsgs.filter(x => x.by !== id && !gone.has(x.club));
         db.features = db.features.filter(f => f.by !== id);
-        db.core = db.core.filter(x => x !== id);
+        delete db.core[id];
         db.msgs = db.msgs.filter(x => x.from !== id && x.to !== id);
         db.reports = db.reports.filter(r => r.by !== id && db.posts.some(p => p.id === r.pid));
         db.suspended = db.suspended.filter(x => x !== id);
@@ -507,34 +513,33 @@ export default async function handler(req, res) {
         if (!isAdmin()) bad("Admins only");
         const t = U(db, d.id);
         if (!t) bad("Member not found");
-        const i = db.core.indexOf(t.id);
-        if (i >= 0) db.core.splice(i, 1); else db.core.push(t.id);
+        if (d.role === "writer" || d.role === "editor") db.core[t.id] = d.role; else delete db.core[t.id];
         break;
       }
       case "fsave": {
-        const m = me(), admin = isAdmin();
-        if (!admin && !db.core.includes(m.id)) bad("Feature Picks is for the core team only");
+        const m = me(), admin = isAdmin(), ed = isEditor();
+        if (!db.core[m.id] && !admin) bad("Feature Picks is for the Zest Team only");
         const n = cleanFeature(d);
         let author = m;
         if (d.as) {
           if (!admin) bad("Admins only");
           const h = clip(d.as, 20).toLowerCase().replace(/^@/, "");
           author = db.users.find(u => u.handle === h) || bad("Author not found");
-          if (author.id !== m.id && !db.core.includes(author.id)) bad("That member is not on the core team");
+          if (author.id !== m.id && !db.core[author.id]) bad("That member is not on the Zest Team");
         }
         let f;
         if (d.id) {
           f = F(d.id);
-          if (f.by !== m.id && !admin) bad("You can only edit your own pieces");
-          if (f.status === "published" && !admin) bad("Published pieces can only be changed by the editor");
+          if (f.by !== m.id && !ed) bad("You can only edit your own pieces");
+          if (f.status === "published" && !ed) bad("Published pieces can only be changed by an editor");
           Object.assign(f, n, { edited: true });
-          if (!admin && f.status !== "pending") { f.status = "pending"; f.note = ""; }
+          if (!ed && f.status !== "pending") { f.status = "pending"; f.note = ""; }
         } else {
           f = { id: id8(), by: author.id, ...n, status: "pending", via: d.as ? "email" : "site", ts: Date.now(), publishedAt: 0, note: "" };
           db.features.push(f);
         }
-        if (admin && d.publish) { f.status = "published"; f.publishedAt = Date.now(); f.note = ""; }
-        if (!admin && f.status === "pending") {
+        if (ed && d.publish) { f.status = "published"; f.publishedAt = Date.now(); f.note = ""; }
+        if (!ed && f.status === "pending") {
           const ed = ADMIN && db.users.find(u => u.handle === ADMIN);
           if (ed) mails.push(() => sendMail(ed.email, "Feature Picks: new piece to review",
             `${author.name} (@${author.handle}) submitted "${f.title}" for Feature Picks.\n\nReview it here:\n${origin}/#feature-picks`,
@@ -543,7 +548,7 @@ export default async function handler(req, res) {
         break;
       }
       case "fdecide": {
-        if (!isAdmin()) bad("Admins only");
+        if (!isEditor()) bad("Editors only");
         const f = F(d.id), to = d.to;
         if (!["published", "rejected", "pending"].includes(to)) bad("Unknown status");
         f.status = to; f.note = clip(d.note, 500);
@@ -558,7 +563,7 @@ export default async function handler(req, res) {
       }
       case "fdelete": {
         const m = me(), f = F(d.id);
-        if (!isAdmin() && !(f.by === m.id && f.status !== "published")) bad("Not allowed");
+        if (!isEditor() && !(f.by === m.id && f.status !== "published")) bad("Not allowed");
         db.features = db.features.filter(x => x.id !== f.id);
         break;
       }
