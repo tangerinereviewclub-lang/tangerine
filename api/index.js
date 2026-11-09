@@ -629,6 +629,11 @@ export default async function handler(req, res) {
         if (!isAdmin()) bad("Admins only");
         const title = clip(d.title, 100);
         if (!title) bad("Write the prompt first");
+        if (d.id) {
+          const k = db.prompts.find(x => x.id === d.id) || bad("Prompt not found");
+          Object.assign(k, { title, desc: clip(d.desc, 300), edited: true });
+          break;
+        }
         if (db.prompts.length >= 100) bad("Delete some old prompts first");
         db.prompts.push({ id: id8(), title, desc: clip(d.desc, 300), by: uid, ts: Date.now() });
         break;
@@ -640,10 +645,11 @@ export default async function handler(req, res) {
       }
       case "savepoll": {
         if (!isAdmin()) bad("Admins only");
-        const kind = d.kind === "thisthat" ? "thisthat" : "poll", q = clip(d.q, 120);
+        const old = d.id ? (db.polls.find(x => x.id === d.id) || bad("Poll not found")) : null;
+        const kind = old ? old.kind : (d.kind === "thisthat" ? "thisthat" : "poll"), q = clip(d.q, 120);
         const lines = (Array.isArray(d.options) ? d.options : []).map(x => clip(x, 100)).filter(Boolean);
         if (!q) bad("Write the question or title first");
-        if (db.polls.length >= 100) bad("Delete some old polls first");
+        if (!old && db.polls.length >= 100) bad("Delete some old polls first");
         let options = [], pairs;
         if (kind === "thisthat") {
           pairs = lines.map(x => x.split("|").map(y => clip(y, 40))).filter(a => a.length >= 2 && a[0] && a[1]).map(a => [a[0], a[1]]);
@@ -653,6 +659,7 @@ export default async function handler(req, res) {
           options = lines.map(x => clip(x, 60)).slice(0, 6);
           if (options.length < 2) bad("Add at least 2 options, one per line");
         }
+        if (old) { Object.assign(old, { q, options, pairs, edited: true }); break; }
         db.polls.push({ id: id8(), by: uid, q, kind, options, pairs, votes: {}, ts: Date.now(), closed: false });
         break;
       }
@@ -687,6 +694,11 @@ export default async function handler(req, res) {
         const title = clip(d.title, 80), cells = (Array.isArray(d.cells) ? d.cells : []).map(x => clip(x, 40)).filter(Boolean);
         if (!title) bad("Give the bingo card a title");
         if (cells.length !== 25) bad("A bingo card needs exactly 25 squares, one per line (you have " + cells.length + ")");
+        if (d.id) {
+          const l = db.bingos.find(x => x.id === d.id) || bad("Bingo card not found");
+          Object.assign(l, { title, cells, edited: true });
+          break;
+        }
         if (db.bingos.length >= 50) bad("Delete some old bingo cards first");
         db.bingos.push({ id: id8(), by: uid, title, cells, marks: {}, ts: Date.now() });
         break;
