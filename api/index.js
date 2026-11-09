@@ -181,9 +181,9 @@ function out(db, uid, extra) {
     r.email = me.email;
     if (admin) {
       r.reports = db.reports; r.suspended = db.suspended;
-      const cnt = {};
-      db.posts.forEach(p => { if (!p.draft) cnt[p.by] = (cnt[p.by] || 0) + 1; });
-      r.members = db.users.map(u => ({ id: u.id, name: u.name, handle: u.handle, email: u.email || "", posts: cnt[u.id] || 0, joined: u.joined || 0, suspended: db.suspended.includes(u.id) }));
+    }
+    if (owner) {
+      r.members = db.users.map(u => ({ id: u.id, email: u.email || "", joined: u.joined || 0, everSuspended: !!u.everSuspended || db.suspended.includes(u.id), insta: u.insta || "" }));
     }
   }
   return { ...r, ...extra };
@@ -737,7 +737,7 @@ export default async function handler(req, res) {
         if (!isAdmin()) bad("Admins only");
         if (!t || t.id === m.id) bad("Cannot suspend that account");
         const i = db.suspended.indexOf(t.id);
-        if (i >= 0) db.suspended.splice(i, 1); else { db.suspended.push(t.id); dropSessions(db, t.id); }
+        if (i >= 0) db.suspended.splice(i, 1); else { db.suspended.push(t.id); t.everSuspended = true; dropSessions(db, t.id); }
         break;
       }
       default: bad("Unknown action");
