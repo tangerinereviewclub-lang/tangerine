@@ -1,0 +1,5 @@
+{
+  "functions": {
+    "api/index.js": { "maxDuration": 15 }
+  }
+}
