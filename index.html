@@ -94,6 +94,16 @@ body{margin:0;background:var(--bg)}
 #tg .bingo{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;width:100%}
 #tg .bc{display:flex;align-items:center;justify-content:center;text-align:center;min-height:72px;padding:4px 3px;border:2px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font-size:.7rem;line-height:1.2;font-weight:600;overflow-wrap:break-word;hyphens:auto;-webkit-hyphens:auto;min-width:0}
 #tg button.bc{cursor:pointer}
+#tg .blist{display:grid;gap:6px}
+#tg .bl{display:flex;align-items:center;gap:12px;text-align:left;width:100%;padding:12px 14px;min-height:52px;border:2px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font-size:1rem;line-height:1.3;font-weight:600}
+#tg button.bl{cursor:pointer}
+#tg .bl .bx{flex:none;width:26px;height:26px;border:2px solid var(--o);border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1rem;line-height:1}
+#tg .bl .bn{color:var(--mut);font-weight:700}
+#tg .bl.on{background:var(--o);border-color:var(--o);color:#3A2210;font-weight:700}
+#tg .bl.on .bx{background:#3A2210;border-color:#3A2210;color:#fff}
+#tg .bl.on .bn{color:#3A2210}
+#tg .bl.free{background:#FFD08A;border-color:#FFD08A;color:#3A2210;font-weight:700}
+#tg .bl.free .bx{background:#3A2210;border-color:#3A2210;color:#fff}
 #tg .bc{position:relative}
 #tg .bc.on{background:var(--o);border-color:var(--o);color:#3A2210;font-weight:700}
 #tg .bc.free{background:#FFD08A;border-color:#FFD08A;color:#3A2210;font-weight:700}
@@ -356,10 +366,15 @@ const BLINES=(()=>{const l=[];for(let r=0;r<5;r++)l.push([0,1,2,3,4].map(c=>r*5+
 const isFree=c=>/^\s*free\s*space\s*$/i.test(c);
 const bingoSet=(cells,marks)=>{const x=new Set(marks||[]);(cells||[]).forEach((c,i)=>{if(isFree(c))x.add(i)});return x};
 const bingoDone=(cells,marks)=>{const x=bingoSet(cells,marks);return BLINES.some(l=>l.every(i=>x.has(i)))};
-const bingoGrid=(cells,marks,id)=>{const x=new Set(marks||[]);return `<div class="bingo">${cells.map((c,i)=>isFree(c)?`<div class="bc free">${esc(c)}</div>`:id?`<button type="button" class="bc${x.has(i)?' on':''}" data-a="bmark" data-id="${id}" data-i="${i}" aria-pressed="${x.has(i)}">${esc(c)}</button>`:`<div class="bc${x.has(i)?' on':''}">${esc(c)}</div>`).join('')}</div>`};
+let bview=window.innerWidth<600?'list':'grid';
+const bingoGrid=(cells,marks,id)=>{const x=new Set(marks||[]);
+ if(bview==='list')return `<div class="blist">${cells.map((c,i)=>{const fr=isFree(c),on=fr||x.has(i),inner=`<span class="bx" aria-hidden="true">${on?'✓':''}</span><span class="bt"><span class="bn">${i+1}.</span> ${esc(c)}</span>`;
+  return id&&!fr?`<button type="button" class="bl${on?' on':''}" data-a="bmark" data-id="${id}" data-i="${i}" aria-pressed="${on}">${inner}</button>`:`<div class="bl${fr?' free':on?' on':''}">${inner}</div>`}).join('')}</div>`;
+ return `<div class="bingo">${cells.map((c,i)=>isFree(c)?`<div class="bc free">${esc(c)}</div>`:id?`<button type="button" class="bc${x.has(i)?' on':''}" data-a="bmark" data-id="${id}" data-i="${i}" aria-pressed="${x.has(i)}">${esc(c)}</button>`:`<div class="bc${x.has(i)?' on':''}">${esc(c)}</div>`).join('')}</div>`};
+const bviewBtns=()=>`<div class="filters" style="margin:0 0 10px"><button class="chip" data-a="bview" data-v="list" aria-pressed="${bview==='list'}">☰ List</button><button class="chip" data-a="bview" data-v="grid" aria-pressed="${bview==='grid'}">▦ Grid</button></div>`;
 const bingoBox=()=>{const l=(db.bingos||[])[0];if(!l)return'';const m=me(),done=bingoDone(l.cells,l.marks),shared=m&&((m.bingoShares||[]).some(x=>x.id===l.id));
- return `<section class="panel"><h2>🎯 ${esc(l.title)}</h2><p class="hint" style="margin:0 0 10px">${m?'Tap a square when you have done it. Get a full row, column or diagonal to share your card on your profile.':'Log in to play.'}</p>${bingoGrid(l.cells,l.marks,m?l.id:'')}${m?`<p class="hint">${bingoSet(l.cells,l.marks).size}/25 squares${done?' · 🎉 Bingo!':''}</p><div class="actions">${done?`<button class="btn" data-a="bshare" data-id="${l.id}">${shared?'Update my profile card':'Share my card on my profile'}</button>`:''}${shared?`<button class="btn ghost" data-a="bunshare" data-id="${l.id}">Remove from my profile</button>`:''}</div>`:''}</section>`};
-const bingoShares=u=>{const l=u.bingoShares||[];return l.length?`<section class="panel"><h2>🎯 Bingo cards</h2>${l.map(x=>`<div style="margin-bottom:16px"><div style="font-weight:700;margin-bottom:8px">${esc(x.title)} ${bingoDone(x.cells,x.marks)?'🎉':''} <span class="hint">${ago(x.ts)}</span></div>${bingoGrid(x.cells,x.marks,'')}${me()&&me().id===u.id?`<div class="actions"><button class="btn ghost" data-a="bunshare" data-id="${x.id}">Remove from my profile</button></div>`:''}</div>`).join('')}</section>`:''};
+ return `<section class="panel"><h2>🎯 ${esc(l.title)}</h2><p class="hint" style="margin:0 0 10px">${m?'Tap a square when you have done it. Get a full row, column or diagonal to share your card on your profile.':'Log in to play.'}</p>${bviewBtns()}${bingoGrid(l.cells,l.marks,m?l.id:'')}${m?`<p class="hint">${bingoSet(l.cells,l.marks).size}/25 squares${done?' · 🎉 Bingo!':''}</p><div class="actions">${done?`<button class="btn" data-a="bshare" data-id="${l.id}">${shared?'Update my profile card':'Share my card on my profile'}</button>`:''}${shared?`<button class="btn ghost" data-a="bunshare" data-id="${l.id}">Remove from my profile</button>`:''}</div>`:''}</section>`};
+const bingoShares=u=>{const l=u.bingoShares||[];return l.length?`<section class="panel"><h2>🎯 Bingo cards</h2>${bviewBtns()}${l.map(x=>`<div style="margin-bottom:16px"><div style="font-weight:700;margin-bottom:8px">${esc(x.title)} ${bingoDone(x.cells,x.marks)?'🎉':''} <span class="hint">${ago(x.ts)}</span></div>${bingoGrid(x.cells,x.marks,'')}${me()&&me().id===u.id?`<div class="actions"><button class="btn ghost" data-a="bunshare" data-id="${x.id}">Remove from my profile</button></div>`:''}</div>`).join('')}</section>`:''};
 const pickBanner=()=>{const k=db.pick;return k?`<section class="panel" style="background:var(--os)"><h2>🍊 Fresh pick of the week</h2><div style="font-weight:700">${esc(k.type)} - ${esc(k.media)}</div>${k.note?`<p style="margin:6px 0 0">${lk(k.note)}</p>`:''}${me()?`<div class="actions"><button class="btn" data-a="pickreview">Review it</button></div>`:''}</section>`:''};
 const repAuthor=r=>{const p=db.posts.find(x=>x.id===r.pid),by=p?(r.kind==='comment'&&r.i!=null&&p.comments[r.i]?p.comments[r.i].by:p.by):null;if(!by||by===db.me)return'';const sus=(db.suspended||[]).includes(by);return ` <button class="link" data-a="suspend" data-id="${by}">${sus?'Unsuspend':'Suspend'} ${esc(user(by).name)}</button>`};
 
@@ -612,6 +627,7 @@ app.addEventListener('click',async e=>{
  else if(a==='sharefeat'){const url=location.origin+location.pathname+'#feature-'+id,f=feats().find(x=>x.id===id);
   try{if(navigator.share){await navigator.share({title:f.title,url});return}}catch(err){if(err&&err.name==='AbortError')return}
   try{await copyText(url);toast('Link copied')}catch(err){toast(fallbackCopy(url)?'Link copied':url)}}
+ else if(a==='bview'){bview=b.dataset.v;const y=window.scrollY;render();window.scrollTo(0,y)}
  else if(a==='bmark'){const y=window.scrollY;if(await api('bingomark',{id,i:+b.dataset.i})){render();window.scrollTo(0,y)}}
  else if(a==='bshare'){if(await api('bingoshare',{id})){toast('Card shared on your profile 🎉');render()}}
  else if(a==='bunshare'){if(await api('bingounshare',{id})){toast('Removed from your profile');render()}}
