@@ -6,6 +6,7 @@
 <title>Tangerine Review Club</title>
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/logo.png">
+<link rel="alternate" type="application/rss+xml" title="Tangerine Review Club: Feature Picks" href="/api?feed=1">
 <script>try{var t=localStorage.getItem('bb-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -83,15 +84,15 @@ body{margin:0;background:var(--bg)}
 #tg .topcard{border:2px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--os)}
 #tg .topcard h3{font-size:1.05rem;color:var(--od);margin-bottom:6px}
 #tg .topcard ol{margin:0;padding-left:20px}
-#tg .bingo{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin:10px 0}
-#tg .bcell{aspect-ratio:1;min-width:0;min-height:58px;padding:3px;border:2px solid var(--line);border-radius:10px;background:var(--bg);cursor:pointer;font-size:.74rem;line-height:1.15;overflow:hidden;overflow-wrap:anywhere;hyphens:auto;display:flex;align-items:center;justify-content:center;text-align:center}
-#tg .bcell.long{font-size:.62rem}
-@media(max-width:520px){#tg .bingo-panel{padding:10px}#tg .bingo{gap:4px}#tg .bcell{min-height:60px;font-size:.62rem;border-width:1.5px;border-radius:8px;padding:2px}#tg .bcell.long{font-size:.54rem}}
-#tg .bcell.free{background:var(--line);border-color:var(--line);cursor:default;font-weight:700}
-#tg .bcell[aria-pressed="true"]{background:var(--o);border-color:var(--od);color:#fff;font-weight:700}
-#tg .bcell.mini{min-height:0;font-size:.5rem;cursor:default;padding:2px;border-width:1px;border-radius:6px}
-#tg .bcell.mini.long{font-size:.44rem}
-#tg .fake{border:2px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg);color:var(--mut)}
+#tg .tblwrap{overflow-x:auto;border:2px solid var(--line);border-radius:14px;margin-bottom:22px}
+#tg .mtable{border-collapse:collapse;width:100%;font-size:.92rem;white-space:nowrap}
+#tg .mtable th,#tg .mtable td{padding:8px 12px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);text-align:left;vertical-align:middle}
+#tg .mtable th{background:var(--os);color:var(--od);font-weight:700;position:sticky;top:0}
+#tg .mtable tr:last-child td{border-bottom:0}
+#tg .mtable th:last-child,#tg .mtable td:last-child{border-right:0}
+#tg .mtable td:nth-child(4){white-space:normal;min-width:200px;max-width:320px}
+#tg .mtable .nocopy{user-select:none;-webkit-user-select:none}
+#tg .mtable .btn{padding:4px 12px;font-size:.85rem}
 #tg .person{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px}
 </style>
 </head>
@@ -116,10 +117,9 @@ const topInputs=(p,t)=>TOPS.map(([k,l,n])=>`<label>${l}</label><div class="row">
 const readTops=p=>{const o={};TOPS.forEach(([k])=>{o[k]=[0,1,2,3].map(i=>{const el=document.getElementById(p+'-'+k+'-'+i);return el?el.value.trim():''})});return o};
 const topsView=u=>`<section class="panel"><h2>Top 4</h2><div class="tops">${TOPS.map(([k,l])=>{const a=((u.top||{})[k]||[]).filter(Boolean);return `<div class="topcard"><h3>${l.replace('Top 4 ','')}</h3>${a.length?`<ol>${a.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>`:'<p class="hint">Nothing picked yet.</p>'}</div>`}).join('')}</div></section>`;
 const AVATARS=['🍊','🧡','🟠','🔶','🦊','🐯','🎃','🥕','🏀','🔥','🥭','🐱'];
-let db={me:null,profiles:[],posts:[]}, view={n:'feed'}, filter='All', rating=0, sort='new', rev=new Set(), pre=null, dcat='All', dyear='All', clubMsgs=[], feedPosts=[], feedShown=0, feedWant=20, obs=null, pickAv=AVATARS[0], TOKEN='', composeOpen=false;
+let db={me:null,profiles:[],posts:[]}, view={n:'feed'}, filter='All', rating=0, sort='new', rev=new Set(), pre=null, dcat='All', dyear='All', clubMsgs=[], feedPosts=[], feedShown=0, feedWant=20, obs=null, pickAv=AVATARS[0], TOKEN='';
 try{TOKEN=localStorage.getItem('tg-token')||''}catch(e){}
 const $=id=>document.getElementById(id);
-const focusCompose=()=>setTimeout(()=>{const el=$('f-media');if(el){el.scrollIntoView({block:'center'});el.focus()}},40);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const user=id=>db.profiles.find(u=>u.id===id)||{id:'x',name:'Deleted user',handle:'deleted',bio:'',avatar:'🍊'};
 const me=()=>db.me?db.profiles.find(u=>u.id===db.me):null;
@@ -130,7 +130,7 @@ async function api(a,d){
  try{const r=await fetch('/api',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+TOKEN},body:JSON.stringify({a,d})});
   const j=await r.json();if(j.error){toast(j.error);return null}
   if(j.token!==undefined){TOKEN=j.token;try{localStorage.setItem('tg-token',TOKEN)}catch(e){}}
-  db=j.db;db.me=j.me;db.msgs=j.msgs||[];db.notes=j.notes||[];db.blocked=j.blocked||[];db.admin=!!j.admin;db.reports=j.reports||[];db.email=j.email||'';db.suspended=j.suspended||[];db.clubs=j.clubs||[];db.features=j.features||[];db.members=j.members||[];db.owner=!!j.owner;db.admins=j.admins||[];db.drafts=(db.posts||[]).filter(p=>p.draft);db.posts=(db.posts||[]).filter(p=>!p.draft);db.isCore=!!j.isCore;db.isEditor=!!j.isEditor;db.core=j.core||{};if(j.cmsgs)clubMsgs=j.cmsgs;return j}
+  db=j.db;db.me=j.me;db.msgs=j.msgs||[];db.notes=j.notes||[];db.blocked=j.blocked||[];db.admin=!!j.admin;db.reports=j.reports||[];db.email=j.email||'';db.suspended=j.suspended||[];db.clubs=j.clubs||[];db.features=j.features||[];db.owner=!!j.owner;db.admins=j.admins||[];db.drafts=(db.posts||[]).filter(p=>p.draft);db.posts=(db.posts||[]).filter(p=>!p.draft);db.isCore=!!j.isCore;db.isEditor=!!j.isEditor;db.core=j.core||{};if(j.cmsgs)clubMsgs=j.cmsgs;return j}
  catch(e){toast('Network problem, try again');return null}}
 function ago(ts){const m=Math.round((Date.now()-ts)/60000);if(m<1)return'just now';if(m<60)return m+' min ago';const h=Math.round(m/60);if(h<24)return h+' h ago';return Math.round(h/24)+' d ago'}
 const excerpt=t=>{t=t.replace(/\s+/g,' ');return t.length>150?t.slice(0,150).trim()+'...':t};
@@ -146,9 +146,10 @@ const fbtn=u=>{const m=me();if(!m||m.id===u.id)return'';const f=(m.following||[]
 function go(v,keep){view=v;try{if(keep)history.replaceState({v},'');else history.pushState({v},'')}catch(e){}render();if(!keep){const t=document.getElementById('tg');t.scrollIntoView&&t.scrollIntoView()}}
 
 function bar(){const u=me();
-  return `<div class="bar">`+(u?`<button class="who" data-a="profile" data-id="${u.id}">${av(u)}${esc(u.name)}</button>
-   <button class="btn ghost" data-a="feed">Home</button><button class="btn ghost" data-a="diary" data-id="${u.id}">Diary</button><button class="btn ghost" data-a="inbox">Message${unread()?` (${unread()})`:''}</button><button class="btn ghost" data-a="notes" aria-label="Notifications">Alerts${unreadN()?` (${unreadN()})`:''}</button><button class="btn ghost" data-a="settings" aria-label="Settings">Settings</button><button class="btn ghost" data-a="logout">Log out</button>`
-  :`<button class="btn" data-a="join">Sign up or log in</button><button class="btn ghost" data-a="feed">Home</button>`)+`<button class="btn ghost" data-a="features">Feature Picks🧺</button><button class="btn ghost" data-a="lists">Lists</button><button class="btn ghost" data-a="searchview">Search</button></div>`}
+  const nav=`<button class="btn ghost" data-a="feed">Home</button>`;
+  const lists=`<button class="btn ghost" data-a="lists">Lists 📋</button><button class="btn ghost" data-a="features">Feature Picks🧺</button><button class="btn ghost" data-a="searchview">Search 🔍</button>`;
+  return `<div class="bar">`+(u?`<button class="who" data-a="profile" data-id="${u.id}">${av(u)}Profile</button>${nav}<button class="btn ghost" data-a="diary" data-id="${u.id}">Diary 📒</button>${lists}<button class="btn ghost" data-a="inbox" aria-label="Messages" title="Messages">✉️${unread()?` (${unread()})`:''}</button><button class="btn ghost" data-a="notes" aria-label="Alerts" title="Alerts">🔔${unreadN()?` (${unreadN()})`:''}</button><button class="btn ghost" data-a="settings" aria-label="Settings" title="Settings">⚙️</button><button class="btn ghost" data-a="logout">Log out</button>`
+  :`<button class="btn" data-a="join">Sign up or log in</button>${nav}${lists}`)+`</div>`}
 
 function avPicker(sel){return `<div class="avpick" id="avpick" role="group" aria-label="Pick an avatar">${AVATARS.map(a=>`<button type="button" data-a="pickav" data-v="${a}" aria-pressed="${a===sel}">${a}</button>`).join('')}</div>`}
 
@@ -163,8 +164,8 @@ const readPron=p=>({pronouns:$(p+'-pr')?$(p+'-pr').value.trim():''});
 const pronTxt=u=>pronStr(u)?' · '+esc(pronStr(u)):'';
 const host=h=>{try{return new URL(h).hostname.replace(/^www\./,'')}catch(e){return h}};
 const profLinks=u=>{const out=[];
- if(u.insta)out.push(`<a class="link" href="https://instagram.com/${esc(u.insta)}" target="_blank" rel="noopener noreferrer nofollow">@${esc(u.insta)}${u.igPrivate?' (private, only you see this)':''}</a>`);
- (u.links||[]).filter(x=>/^https?:\/\//.test(x)).forEach(x=>out.push(`<a class="link" href="${esc(x)}" target="_blank" rel="noopener noreferrer nofollow">${esc(host(x))}</a>`));
+ if(u.insta)out.push(`<a class="link" href="https://instagram.com/${esc(u.insta)}" target="_blank" rel="noopener noreferrer nofollow">📷 @${esc(u.insta)}${u.igPrivate?' (private, only you see this)':''}</a>`);
+ (u.links||[]).filter(x=>/^https?:\/\//.test(x)).forEach(x=>out.push(`<a class="link" href="${esc(x)}" target="_blank" rel="noopener noreferrer nofollow">🔗 ${esc(host(x))}</a>`));
  return out.length?`<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px">${out.join('')}</div>`:''};
 function joinView(){return `<section class="panel"><h2>Log in</h2>
  <label for="l-handle">Username or email</label><input id="l-handle" maxlength="120" placeholder="e.g. ash_reviews" autocapitalize="none">
@@ -187,30 +188,27 @@ function joinView(){return `<section class="panel"><h2>Log in</h2>
 
 function composeView(){const u=me();
  if(!u)return `<section class="panel"><h2>Write a post</h2><p>Create a profile to publish reviews and blogs.</p><button class="btn" data-a="join">Create a profile</button></section>`;
- if(!composeOpen&&!pre)return `<section class="panel" role="button" tabindex="0" data-a="opencompose" style="border-color:var(--o);background:var(--os);cursor:pointer"><h2 style="margin:0 0 10px">Share a slice</h2><div class="fake">Media type - Title</div><div class="fake" style="margin-top:8px;min-height:62px">What did you think? Tap to write your review or blog.</div></section>`;
  return `<section class="panel"><h2>Share a slice as ${esc(u.name)}</h2>${pre&&pre.prompt?`<p class="hint">Replying to the weekly prompt: <b>${esc(pre.ptitle)}</b></p>`:''}
  <div class="row"><div><label for="f-type">Media type</label><select id="f-type">${TYPES.slice(1).map(t=>`<option${pre&&pre.type===t?' selected':''}>${t}</option>`).join('')}</select></div>
  <div><label for="f-media">Media title</label><input id="f-media" maxlength="80"${pre?` value="${esc(pre.media)}"`:''}></div></div>
- <label for="f-title">Post headline</label><input id="f-title" maxlength="100" placeholder="e.g. Is this movie worth watching?">
- <p class="hint" id="h-count">0/100</p>
  <label>Your rating</label><div class="stars" id="f-stars">${[1,2,3,4,5].map(n=>`<button type="button" class="${n<=rating?'on':''}" data-n="${n}" aria-label="${n} stars">🍊</button>`).join('')}</div>
  <label for="f-text">Your review or blog</label><textarea id="f-text" placeholder="What did you think?"></textarea>
  <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="f-spoil" style="width:auto">This post contains spoilers</label>
- <div class="actions"><button class="btn" data-a="publish">Share a slice</button><button class="btn ghost" data-a="savedraft">Save as draft</button><button class="link" data-a="closecompose">Cancel</button></div></section>`}
+ <div class="actions"><button class="btn" data-a="publish">Share a slice</button><button class="btn ghost" data-a="savedraft">Save as draft</button></div></section>`}
 
 function actions(p){const u=me(),liked=u&&p.likedBy.includes(u.id);
  return `<div class="actions"><button class="act" data-a="like" data-id="${p.id}" aria-label="Like" aria-pressed="${!!liked}"><span class="tl${liked?'':' off'}" aria-hidden="true">🍊</span> ${p.likedBy.length}</button>
- <button class="act" data-a="open" data-id="${p.id}">Comments ${p.comments.length}</button><button class="act" data-a="share" data-id="${p.id}">Share</button></div>`}
+ <button class="act" data-a="open" data-id="${p.id}">💬 ${p.comments.length}</button><button class="act" data-a="share" data-id="${p.id}">Share</button><button class="act" data-a="sharecard" data-id="${p.id}">🖼️ Card</button></div>`}
 const lk=t=>esc(t).replace(/@([a-z0-9_]{3,20})/gi,(m,h)=>{const u=db.profiles.find(x=>x.handle===h.toLowerCase());return u?`<button class="link" data-a="profile" data-id="${u.id}">@${esc(u.handle)}</button>`:m});
-const bodyHtml=(p,full)=>p.spoiler&&!rev.has(p.id)?`<div class="body"><button class="btn ghost" data-a="reveal" data-id="${p.id}">Contains spoilers. Tap to show</button></div>`:`<div class="body">${lk(full?p.text:excerpt(p.text))}</div>`;
-const meta=p=>`<div class="meta">${userLink(user(p.by))}<span class="tag">${esc(p.type)}</span>${p.draft?'<span class="tag">Draft</span>':''}${p.prompt&&promptOf(p.prompt)?`<button class="link" data-a="prompt" data-id="${p.prompt}">${esc(promptOf(p.prompt).title)}</button>`:''}<span>${esc(p.media)}</span><span class="rate" aria-label="${p.rating} out of 5">${stars(p.rating)}</span><span>${ago(p.ts)}${p.edited?' (edited)':''}</span></div>`;
+const bodyHtml=(p,full)=>p.spoiler&&!rev.has(p.id)?`<div class="body"><button class="btn ghost" data-a="reveal" data-id="${p.id}">⚠️ Contains spoilers. Tap to show</button></div>`:`<div class="body">${lk(full?p.text:excerpt(p.text))}</div>`;
+const meta=p=>`<div class="meta">${userLink(user(p.by))}<span class="tag">${esc(p.type)}</span>${p.draft?'<span class="tag">Draft</span>':''}${p.prompt&&promptOf(p.prompt)?`<button class="link" data-a="prompt" data-id="${p.prompt}">💭 ${esc(promptOf(p.prompt).title)}</button>`:''}${p.media!==p.title?`<span>${esc(p.media)}</span>`:''}<span class="rate" aria-label="${p.rating} out of 5">${stars(p.rating)}</span><span>${ago(p.ts)}${p.edited?' (edited)':''}</span></div>`;
 const card=p=>`<article class="post"><button class="open" data-a="open" data-id="${p.id}">${esc(p.title)}</button>${meta(p)}
  ${bodyHtml(p)}<div class="actions"><button class="btn ghost" data-a="open" data-id="${p.id}">Read post</button></div>${actions(p)}</article>`;
 
 function feedView(){const fl=(me()&&me().following)||[];
  const list=db.posts.filter(p=>filter==='All'||(filter==='Following'?fl.includes(p.by):p.type===filter));
  if(sort==='liked')list.sort((a,b)=>b.likedBy.length-a.likedBy.length||b.ts-a.ts);else if(sort==='comm')list.sort((a,b)=>b.comments.length-a.comments.length||b.ts-a.ts);
- return bannerBox()+pickBanner()+promptBox()+pollBox()+bingoBox()+composeView()+`<div class="filters"><select id="sort" aria-label="Sort posts" style="width:auto"><option value="new"${sort==='new'?' selected':''}>Newest</option><option value="liked"${sort==='liked'?' selected':''}>Most liked</option><option value="comm"${sort==='comm'?' selected':''}>Most commented</option></select>${TYPES.concat(me()?['Following']:[]).map(t=>`<button class="chip" data-a="filter" data-t="${t}" aria-pressed="${t===filter}">${t}</button>`).join('')}</div>`+
+ return bannerBox()+pickBanner()+promptBox()+pollBox()+composeView()+`<div class="filters"><select id="sort" aria-label="Sort posts" style="width:auto"><option value="new"${sort==='new'?' selected':''}>Newest</option><option value="liked"${sort==='liked'?' selected':''}>Most liked</option><option value="comm"${sort==='comm'?' selected':''}>Most commented</option></select>${TYPES.concat(me()?['Following']:[]).map(t=>`<button class="chip" data-a="filter" data-t="${t}" aria-pressed="${t===filter}">${t}</button>`).join('')}</div>`+
  (list.length?(feedPosts=list,feedShown='IntersectionObserver' in window?Math.min(feedWant,list.length):list.length,`<div id="feed-list">${list.slice(0,feedShown).map(card).join('')}</div>${feedShown<list.length?'<div id="more" style="height:1px"></div>':''}`):`<p class="empty">${filter==='Following'?'Nothing here yet. Use Find people to follow someone.':'No fruit on the tree yet. Be the first to post.'}</p>`)}
 
 const postTools=p=>{const u=me();if(!u)return'';const own=u.id===p.by;
@@ -226,8 +224,6 @@ function commentHtml(p,c,i){const u=me();
 function editForm(p){return `<section class="panel"><h2>Edit your post</h2>
  <div class="row"><div><label for="f-type">Media type</label><select id="f-type">${TYPES.slice(1).map(t=>`<option${t===p.type?' selected':''}>${t}</option>`).join('')}</select></div>
  <div><label for="f-media">Media title</label><input id="f-media" maxlength="80" value="${esc(p.media)}"></div></div>
- <label for="f-title">Post headline</label><input id="f-title" maxlength="100" value="${esc(p.title)}">
- <p class="hint" id="h-count">${p.title.length}/100</p>
  <label>Your rating</label><div class="stars" id="f-stars">${[1,2,3,4,5].map(n=>`<button type="button" class="${n<=rating?'on':''}" data-n="${n}" aria-label="${n} stars">🍊</button>`).join('')}</div>
  <label for="f-text">Your review or blog</label><textarea id="f-text">${esc(p.text)}</textarea>
  <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="f-spoil" style="width:auto"${p.spoiler?' checked':''}>This post contains spoilers</label>
@@ -245,11 +241,10 @@ function profileView(u){const mine=me()&&me().id===u.id, posts=db.posts.filter(p
  const likes=posts.reduce((s,p)=>s+p.likedBy.length,0);
  return `<section class="panel"><div class="phead">${av(u,'lg')}<div><h2>${esc(u.name)}</h2><div style="color:var(--mut)">@${esc(u.handle)}${pronTxt(u)}</div>
  <div class="stats"><span><b>${posts.length}</b> posts</span><span><b>${likes}</b> likes</span><span><b>${followers(u)}</b> followers</span><span><b>${(u.following||[]).length}</b> following</span></div>
- <div class="actions"><button class="btn ghost" data-a="diary" data-id="${u.id}">Diary</button>${fbtn(u)}${me()&&!mine?`<button class="btn ghost" data-a="chat" data-id="${u.id}">Message</button><button class="btn ghost" data-a="block" data-id="${u.id}">Block</button>`:''}${isAdmin()&&!mine?`<button class="btn ghost" data-a="suspend" data-id="${u.id}">${(db.suspended||[]).includes(u.id)?'Unsuspend':'Suspend'}</button>`:''}</div></div></div>
+ <div class="actions"><button class="btn ghost" data-a="diary" data-id="${u.id}">📔 Diary</button>${fbtn(u)}${me()&&!mine?`<button class="btn ghost" data-a="chat" data-id="${u.id}">✉️ Message</button><button class="btn ghost" data-a="block" data-id="${u.id}">🚫 Block</button>`:''}${isAdmin()&&!mine?`<button class="btn ghost" data-a="suspend" data-id="${u.id}">${(db.suspended||[]).includes(u.id)?'Unsuspend':'Suspend'}</button>`:''}</div></div></div>
  <p>${esc(u.bio)||'No bio yet.'}</p>${profLinks(u)}</section>
  ${topsView(u)}
  ${badgesView(u)}
- ${bingoSharesView(u)}
  ${mine?`<section class="panel"><h2>Edit your profile</h2><label for="e-name">Display name</label><input id="e-name" maxlength="30" value="${esc(u.name)}">
  <label for="e-handle">Username</label><input id="e-handle" maxlength="20" value="${esc(u.handle)}">
  <label for="e-bio">Short bio</label><textarea id="e-bio" maxlength="160" style="min-height:70px">${esc(u.bio)}</textarea>
@@ -259,9 +254,16 @@ function profileView(u){const mine=me()&&me().id===u.id, posts=db.posts.filter(p
  <label>Avatar </label>${avPicker(pickAv)}<div class="actions"><button class="btn" data-a="saveprofile">Save profile</button></div></section>`:''}
  ${draftsView(u)}<h2 style="margin:0 0 12px;color:var(--od)">Posts by ${esc(u.name)}</h2>${posts.length?posts.map(card).join(''):'<p class="empty">No posts yet.</p>'}`}
 
+function memberRows(q){q=q.trim().toLowerCase().replace(/^@/,'');
+ const posts={},likes={},fol={};
+ db.posts.forEach(p=>{posts[p.by]=(posts[p.by]||0)+1;likes[p.by]=(likes[p.by]||0)+p.likedBy.length});
+ db.profiles.forEach(x=>(x.following||[]).forEach(i=>{fol[i]=(fol[i]||0)+1}));
+ return db.profiles.filter(u=>!q||u.handle.includes(q)||u.name.toLowerCase().includes(q)).map(u=>({u,name:u.name,handle:'@'+u.handle,bio:(u.bio||'').replace(/\s+/g,' '),posts:posts[u.id]||0,likes:likes[u.id]||0,followers:fol[u.id]||0,following:(u.following||[]).length,insta:u.insta?'@'+u.insta:''}))}
+const MCOLS=[['Name','name'],['Username','handle'],['Bio','bio'],['Posts','posts'],['Likes','likes'],['Followers','followers'],['Following','following'],['Instagram','insta']];
+function membersTsv(q){const cell=v=>String(v).replace(/[\t\r\n]+/g,' ');return [MCOLS.map(c=>c[0]).join('\t')].concat(memberRows(q).map(r=>MCOLS.map(c=>cell(r[c[1]])).join('\t'))).join('\n')}
 function searchRes(q){q=q.trim().toLowerCase().replace(/^@/,'');
- const l=db.profiles.filter(u=>!q||u.handle.includes(q)||u.name.toLowerCase().includes(q));
- const people=`<h2 style="margin:0 0 10px;color:var(--od)">People</h2>`+(l.length?l.map(u=>`<div class="panel person">${av(u)}<div style="flex:1 1 140px"><button class="link" data-a="profile" data-id="${u.id}">${esc(u.name)}</button><div class="hint" style="margin:0">@${esc(u.handle)}</div></div>${fbtn(u)}</div>`).join(''):'<p class="empty">No one found.</p>');
+ const rows=memberRows(q);
+ const people=`<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 10px"><h2 style="margin:0;color:var(--od);flex:1 1 auto">Members (${rows.length})</h2>${rows.length?'<button class="btn ghost" data-a="copymembers">📋 Copy table</button>':''}</div>`+(rows.length?`<div class="tblwrap"><table class="mtable" id="m-table"><thead><tr><th>#</th>${MCOLS.map(c=>`<th>${c[0]}</th>`).join('')}<th class="nocopy"></th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td>${i+1}</td><td><button class="link" data-a="profile" data-id="${r.u.id}">${esc(r.name)}</button></td><td>${esc(r.handle)}</td><td>${esc(r.bio)}</td><td>${r.posts}</td><td>${r.likes}</td><td>${r.followers}</td><td>${r.following}</td><td>${esc(r.insta)}</td><td class="nocopy">${fbtn(r.u)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="empty">No one found.</p>');
  if(!q)return people;
  const ps=db.posts.filter(p=>[p.title,p.media,p.type].some(x=>x.toLowerCase().includes(q))||(!p.spoiler&&p.text.toLowerCase().includes(q))).slice(0,20);
  return people+`<h2 style="margin:18px 0 10px;color:var(--od)">Posts</h2>`+(ps.length?ps.map(card).join(''):'<p class="empty">No posts found.</p>')}
@@ -288,7 +290,7 @@ function clubView(id){const c=(db.clubs||[]).find(x=>x.id===id);if(!c||!me())ret
  ${c.joined?`<div id="cm-list" style="max-height:55vh;overflow:auto;margin-top:8px">${clubList()}</div><div class="cform"><input id="cm-t" maxlength="500" placeholder="Message the club"><button class="btn" data-a="sendclub" data-id="${c.id}">Send</button></div>
  <div class="actions">${c.by!==db.me?`<button class="btn ghost" data-a="leaveclub" data-id="${c.id}">Leave club</button>`:''}${c.by===db.me||isAdmin()?`<button class="btn danger" data-a="delclub" data-id="${c.id}">Delete club</button>`:''}</div>`
  :''}</section>
- <section class="panel"><h2>Members (${c.n})</h2>${(c.m||[]).map(id=>`<div style="display:flex;align-items:center;gap:10px;padding:4px 0">${av(user(id),'sm')}<span style="flex:1">${esc(user(id).name)}${id===c.by?' (owner)':''}</span>${(c.by===db.me||isAdmin())&&id!==c.by?`<button class="link" data-a="kick" data-id="${c.id}" data-u="${id}">Remove</button>`:''}</div>`).join('')}<div class="actions"><button class="btn ghost" data-a="showadd">+ Add people</button></div></section>
+ <section class="panel"><h2>Members (${c.n})</h2>${(c.m||[]).map(id=>`<div style="display:flex;align-items:center;gap:10px;padding:4px 0">${av(user(id),'sm')}<span style="flex:1">${esc(user(id).name)}${id===c.by?' 👑':''}</span>${(c.by===db.me||isAdmin())&&id!==c.by?`<button class="link" data-a="kick" data-id="${c.id}" data-u="${id}">Remove</button>`:''}</div>`).join('')}<div class="actions"><button class="btn ghost" data-a="showadd">+ Add people</button></div></section>
  ${view.adding?`<section class="panel"><h2>Add people to this club</h2>${pickBox()}<div class="actions"><button class="btn" data-a="addmem" data-id="${c.id}">Add to club</button><button class="btn ghost" data-a="club" data-id="${c.id}">Cancel</button></div></section>`:''}`}
 const cmUpdate=()=>{const l=$('cm-list');if(l){l.innerHTML=clubList();l.scrollTop=l.scrollHeight}};
 const chatList=id=>{const l=(db.msgs||[]).filter(m=>m.from===id||m.to===id);return l.length?l.map(m=>{const mine=m.from===db.me;return `<div style="display:flex;justify-content:${mine?'flex-end':'flex-start'};margin:6px 0"><div style="max-width:80%;padding:8px 12px;border-radius:14px;white-space:pre-wrap;word-break:break-word;background:${mine?'var(--o)':'var(--os)'};color:${mine?'#fff':'var(--ink)'}">${esc(m.t)}<div style="font-size:.72rem;opacity:.75">${ago(m.ts)}${mine?` · <button class="link" data-a="delm" data-id="${m.id}" style="font-size:.72rem;color:#fff">Delete</button>`:''}</div></div></div>`}).join(''):'<p class="empty">Say hi.</p>'};
@@ -311,7 +313,7 @@ function diaryView(u){const all=db.posts.filter(p=>p.by===u.id).sort((a,b)=>b.ts
  const years=[...new Set(all.map(yr))].sort((a,b)=>b-a),inY=all.filter(p=>dyear==='All'||yr(p)===+dyear);
  const cats=[...new Set(all.map(p=>p.type))],l=inY.filter(p=>dcat==='All'||p.type===dcat);
  const n=l.length,word=dcat==='All'?(n===1?'entry':'entries'):(PL[dcat]||['entry','entries'])[n===1?0:1];
- return `<div class="actions" style="margin:0 0 14px"><button class="btn ghost" data-a="profile" data-id="${u.id}">Back to profile</button><button class="btn ghost" data-a="watch" data-id="${u.id}">Watchlist</button></div>
+ return `<div class="actions" style="margin:0 0 14px"><button class="btn ghost" data-a="profile" data-id="${u.id}">Back to profile</button><button class="btn ghost" data-a="watch" data-id="${u.id}">📌 Watchlist</button></div>
  <section class="panel"><h2>${mine?'My diary':esc(u.name)+"'s diary"}</h2>
  <div class="filters" style="margin:10px 0"><select id="dyear" aria-label="Year" style="width:auto"><option value="All">All years</option>${years.map(y=>`<option${String(y)===String(dyear)?' selected':''}>${y}</option>`).join('')}</select>${['All',...cats].map(t=>`<button class="chip" data-a="dcat" data-t="${t}" aria-pressed="${t===dcat}">${t}${t==='All'?'':' ('+inY.filter(p=>p.type===t).length+')'}</button>`).join('')}</div>
  <p style="margin:0"><b>${n}</b> ${word} ${dyear==='All'?'logged so far':'in '+dyear}</p></section>`+
@@ -319,7 +321,7 @@ function diaryView(u){const all=db.posts.filter(p=>p.by===u.id).sort((a,b)=>b.ts
 const forgotView=()=>`<section class="panel"><h2>Forgot password</h2><p class="hint">Enter your username or the email you signed up with. We will email you a reset link.</p><label for="fg-w">Username or email</label><input id="fg-w" autocapitalize="none"><div class="actions"><button class="btn" data-a="sendforgot">Email me a link</button><button class="btn ghost" data-a="join">Back</button></div></section>`;
 const resetView=()=>`<section class="panel"><h2>Choose a new password</h2><label for="rs-p">New password</label><input id="rs-p" type="password" autocomplete="new-password" placeholder="At least 6 characters"><div class="actions"><button class="btn" data-a="doreset">Save and log in</button></div></section>`;
 function watchView(u){const mine=me()&&me().id===u.id,l=u.watch||[];
- return `<div class="actions" style="margin:0 0 14px"><button class="btn ghost" data-a="profile" data-id="${u.id}">Back to profile</button><button class="btn ghost" data-a="diary" data-id="${u.id}">Diary</button></div>
+ return `<div class="actions" style="margin:0 0 14px"><button class="btn ghost" data-a="profile" data-id="${u.id}">Back to profile</button><button class="btn ghost" data-a="diary" data-id="${u.id}">📔 Diary</button></div>
  <section class="panel"><h2>${mine?'My watchlist':esc(u.name)+"'s watchlist"}</h2><p class="hint">Want to watch, read or play.</p>
  ${mine?`<div class="row"><div><label for="w-type">Category</label><select id="w-type">${TYPES.slice(1).map(t=>`<option>${t}</option>`).join('')}</select></div><div><label for="w-media">Title</label><input id="w-media" maxlength="80"></div></div><div class="actions"><button class="btn" data-a="addw">Add to watchlist</button></div>`:''}</section>`+
  (l.length?`<section class="panel">${l.map(x=>`<div class="cm" style="align-items:center;flex-wrap:wrap"><span style="flex:1 1 200px">${esc(x.type)} - ${esc(x.media)}</span>${mine?`<button class="btn ghost" data-a="donew" data-id="${x.id}">✓ Done, log it</button><button class="link" data-a="delw" data-id="${x.id}">Remove</button>`:''}</div>`).join('')}</section>`:'<p class="empty">Nothing ripening on the watchlist yet.</p>')}
@@ -328,14 +330,17 @@ function listsView(){return `<section class="panel"><h2>Lists</h2><p class="hint
 function listView(l){if(!l)return listsView();const m=me(),own=m&&m.id===l.by;
  return `<button class="btn ghost" style="margin-bottom:14px" data-a="lists">All lists</button><section class="panel"><h2 style="font-size:1.5rem">${esc(l.title)}</h2><div class="meta">${userLink(user(l.by))}<span>${ago(l.ts)}${l.edited?' (edited)':''}</span></div><ol>${l.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ol><div class="actions"><button class="btn" data-a="sharelist" data-id="${l.id}">Share link</button>${own?`<button class="btn ghost" data-a="editlist" data-id="${l.id}">Edit</button>`:''}${own||isAdmin()?`<button class="btn danger" data-a="dellist" data-id="${l.id}">Delete</button>`:''}</div></section>`}
 function listForm(l){return `<section class="panel"><h2>${l?'Edit list':'Create a list'}</h2><label for="li-t">Title</label><input id="li-t" maxlength="80" placeholder="e.g. Best comfort movies" value="${l?esc(l.title):''}"><label for="li-i">Items (one per line, up to 30)</label><textarea id="li-i">${l?esc(l.items.join('\n')):''}</textarea><div class="actions"><button class="btn" data-a="savelist" data-id="${l?l.id:''}">Save list</button><button class="btn ghost" data-a="lists">Cancel</button></div></section>`}
+const TYPE_BADGES=[['Movie','🎬','Movie buff'],['Documentary','🎞️','Doc digger'],['Book','📚','Bookworm'],['Game','🎮','Player one'],['Show','📺','Binge watcher'],['Anime','🍥','Anime fan'],['Music','🎧','Music head'],['Musical','🎭','Show tune star'],['Other','✨','Wildcard']];
 function badgeList(u){const ps=db.posts.filter(p=>p.by===u.id),likes=ps.reduce((s,p)=>s+p.likedBy.length,0),cm=db.posts.reduce((s,p)=>s+p.comments.filter(c=>c.by===u.id).length,0),types=new Set(ps.map(p=>p.type)).size,ls=(db.lists||[]).filter(l=>l.by===u.id).length;
- return [['🍊','First slice','Share your first post',ps.length>=1],['🟠','10 reviews','Share 10 posts',ps.length>=10],['🔶','50 reviews','Share 50 posts',ps.length>=50],['🧡','Crowd favorite','Get 25 likes on your posts',likes>=25],['🟠','Conversation starter','Write 10 comments',cm>=10],['🔶','Explorer','Review 4 different categories',types>=4],['🟠','List maker','Create a list',ls>=1],['🧡','Well connected','Get 10 followers',followers(u)>=10]]}
+ const core=[['🍊','First slice','Share your first post',ps.length>=1],['🔟','10 reviews','Share 10 posts',ps.length>=10],['🏆','50 reviews','Share 50 posts',ps.length>=50],['💛','Crowd favorite','Get 25 likes on your posts',likes>=25],['💬','Conversation starter','Write 10 comments',cm>=10],['🧭','Explorer','Review 4 different categories',types>=4],['📋','List maker','Create a list',ls>=1],['🤝','Well connected','Get 10 followers',followers(u)>=10]];
+ const per=TYPE_BADGES.map(([t,e,n])=>[e,n,'Share 3 '+(PL[t]?PL[t][1]:t)+' reviews',ps.filter(p=>p.type===t).length>=3]);
+ return core.concat(per)}
 const badgesView=u=>`<section class="panel"><h2>Badges</h2><div style="display:flex;gap:8px;flex-wrap:wrap">${badgeList(u).map(([e,n,d,ok])=>`<span class="tag" title="${esc(d)}" style="padding:4px 12px;${ok?'':'filter:grayscale(1);opacity:.45'}">${e} ${n}${ok?'':' - '+esc(d)}</span>`).join('')}</div></section>`;
 const pickBanner=()=>{const k=db.pick;return k?`<section class="panel" style="background:var(--os)"><h2>🍊 Fresh pick of the week</h2><div style="font-weight:700">${esc(k.type)} - ${esc(k.media)}</div>${k.note?`<p style="margin:6px 0 0">${lk(k.note)}</p>`:''}${me()?`<div class="actions"><button class="btn" data-a="pickreview">Review it</button></div>`:''}</section>`:''};
 const repAuthor=r=>{const p=db.posts.find(x=>x.id===r.pid),by=p?(r.kind==='comment'&&r.i!=null&&p.comments[r.i]?p.comments[r.i].by:p.by):null;if(!by||by===db.me)return'';const sus=(db.suspended||[]).includes(by);return ` <button class="link" data-a="suspend" data-id="${by}">${sus?'Unsuspend':'Suspend'} ${esc(user(by).name)}</button>`};
 
 /* ---------- Feature picks 🧺 ---------- */
-const FSTAT={pending:'Waiting for the editor',published:'Published',rejected:'Sent back'};
+const FSTAT={pending:'⏳ Waiting for the editor',published:'✅ Published',rejected:'↩️ Sent back'};
 const feats=()=>db.features||[];
 const fMedia=f=>f.type&&f.media?`<span class="tag">${esc(f.type)} - ${esc(f.media)}</span>`:'';
 const roleSel=(id,v)=>`<select data-rolefor="${id}" aria-label="Role" style="width:auto"><option value="writer"${v==='writer'?' selected':''}>Writer</option><option value="editor"${v==='editor'?' selected':''}>Editor</option></select>`;
@@ -358,7 +363,7 @@ function featuresView(){const all=feats(),m=me(),adm=isEd();
  const coreBox=isAdmin()?`<section class="panel"><h2>Zest Team 🍊</h2><p class="hint">Only Zest Team members can send pieces to Feature Picks. Writers write and submit pieces. Editors can also edit anyone's piece and approve, send back or publish. A writer's piece never goes live until an editor approves it.</p>
   ${coreIds.length?coreIds.map(id=>`<div style="display:flex;align-items:center;gap:10px;padding:4px 0;flex-wrap:wrap">${av(user(id),'sm')}<span style="flex:1 1 140px">${esc(user(id).name)} <span class="hint">@${esc(user(id).handle)}</span></span>${roleSel(id,core[id])}<button class="btn ghost" data-a="setcore" data-id="${id}" data-role="">Remove</button></div>`).join(''):'<p class="hint">No one yet.</p>'}
   <label for="core-add">Add a member</label><div class="cform"><select id="core-add">${db.profiles.filter(u=>!core[u.id]&&u.id!==db.me).map(u=>`<option value="${u.id}">${esc(u.name)} (@${esc(u.handle)})</option>`).join('')}</select><select id="core-role" aria-label="Role" style="width:auto"><option value="writer">Writer</option><option value="editor">Editor</option></select><button class="btn" data-a="setcoreadd">Add to Zest Team</button></div></section>`:'';
- return `<section class="panel"><h2>Feature Picks🧺</h2><p style="margin:0">Featured articles and posts from our beloved Tangerine writers. To be featured, email <a class="link" href="mailto:tangerinereviewclub@gmail.com">tangerinereviewclub@gmail.com</a></p>
+ return `<section class="panel"><h2>Feature Picks🧺</h2><p style="margin:0">Featured articles and posts from our beloved Tangerine writers. To be featured, email <a class="link" href="mailto:tangerinereviewclub@gmail.com">tangerinereviewclub@gmail.com</a></p><p class="hint" style="margin:8px 0 0"><a class="link" href="/api?feed=1" target="_blank" rel="noopener">📡 RSS feed</a></p>
   ${db.isCore?'<div class="actions"><button class="btn" data-a="featnew">Write a piece</button></div>':''}</section>
   ${coreBox}
   ${queue.length?`<h2 style="margin:0 0 12px;color:var(--od)">Waiting for your approval (${queue.length})</h2>${queue.map(f=>fCard(f,true)).join('')}`:''}
@@ -381,59 +386,45 @@ function featForm(id){const f=id?feats().find(x=>x.id===id):null,adm=isAdmin(),e
  ${ed?`<label style="display:flex;align-items:center;gap:8px;font-weight:500"><input type="checkbox" id="ff-pub" style="width:auto">Publish right away</label>`:'<p class="hint">Your piece goes to the editor first. It is published only after approval.</p>'}
  <div class="actions"><button class="btn" data-a="featsave" data-id="${id||''}">${ed?'Save':'Send to the editor'}</button><button class="btn ghost" data-a="features">Cancel</button></div></section>`}
 
-const draftsView=u=>{const l=(db.drafts||[]).filter(p=>p.by===u.id);return me()&&me().id===u.id&&l.length?`<section class="panel"><h2>Your drafts</h2>${l.map(p=>`<div class="cm" style="align-items:center;flex-wrap:wrap"><span style="flex:1 1 200px">${esc(p.title)}${p.media?' <span class="hint">'+esc(p.type)+' - '+esc(p.media)+'</span>':''}</span><button class="btn ghost" data-a="editp" data-id="${p.id}">Edit</button><button class="link" data-a="open" data-id="${p.id}">Open</button></div>`).join('')}</section>`:''};
-const bannerBox=()=>db.banner?`<section class="panel" style="background:var(--os);border-color:var(--o);display:flex;gap:12px;align-items:flex-start;padding:14px 18px"><span style="font-size:1.6rem;line-height:1" aria-hidden="true">🍊</span><div class="body" style="flex:1;min-width:0;font-family:'Bricolage Grotesque','DM Sans',sans-serif;font-weight:800;font-size:1.15rem;line-height:1.25;color:var(--od)">${lk(db.banner.text)}</div></section>`:'';
+const draftsView=u=>{const l=(db.drafts||[]).filter(p=>p.by===u.id);return me()&&me().id===u.id&&l.length?`<section class="panel"><h2>Your drafts</h2>${l.map(p=>`<div class="cm" style="align-items:center;flex-wrap:wrap"><span style="flex:1 1 200px">${esc(p.title)}${p.media&&p.media!==p.title?' <span class="hint">'+esc(p.type)+' - '+esc(p.media)+'</span>':''}</span><button class="btn ghost" data-a="editp" data-id="${p.id}">Edit</button><button class="link" data-a="open" data-id="${p.id}">Open</button></div>`).join('')}</section>`:''};
+const bannerBox=()=>db.banner?`<section class="panel" style="background:var(--os);border-color:var(--o)"><h2>📣 Announcement</h2><div class="body">${lk(db.banner.text)}</div></section>`:'';
 const promptBox=()=>{const k=(db.prompts||[])[0];if(!k)return'';const n=db.posts.filter(p=>p.prompt===k.id).length;
- return `<section class="panel"><h2>Weekly prompt</h2><div style="font-weight:700;font-size:1.1rem">${esc(k.title)}</div>${k.desc?`<p style="margin:6px 0 0">${esc(k.desc)}</p>`:''}<div class="actions">${me()?`<button class="btn" data-a="promptreply" data-id="${k.id}">Reply with a post</button>`:`<button class="btn" data-a="join">Log in to reply</button>`}<button class="btn ghost" data-a="prompt" data-id="${k.id}">See replies (${n})</button></div></section>`};
+ return `<section class="panel"><h2>💭 Weekly prompt</h2><div style="font-weight:700;font-size:1.1rem">${esc(k.title)}</div>${k.desc?`<p style="margin:6px 0 0">${esc(k.desc)}</p>`:''}<div class="actions">${me()?`<button class="btn" data-a="promptreply" data-id="${k.id}">Reply with a post</button>`:`<button class="btn" data-a="join">Log in to reply</button>`}<button class="btn ghost" data-a="prompt" data-id="${k.id}">See replies (${n})</button></div></section>`};
 function promptView(id){const k=promptOf(id);if(!k)return feedView();const l=db.posts.filter(p=>p.prompt===id);
- return `<button class="btn ghost" style="margin-bottom:14px" data-a="feed">Back to all posts</button><section class="panel"><h2>${esc(k.title)}</h2>${k.desc?`<p style="margin:0 0 6px">${esc(k.desc)}</p>`:''}<p class="hint" style="margin:0">${l.length} repl${l.length===1?'y':'ies'}</p>${me()?`<div class="actions"><button class="btn" data-a="promptreply" data-id="${k.id}">Reply with a post</button></div>`:''}</section>`+(l.length?l.map(card).join(''):'<p class="empty">No replies yet. Be the first.</p>')}
+ return `<button class="btn ghost" style="margin-bottom:14px" data-a="feed">Back to all posts</button><section class="panel"><h2>💭 ${esc(k.title)}</h2>${k.desc?`<p style="margin:0 0 6px">${esc(k.desc)}</p>`:''}<p class="hint" style="margin:0">${l.length} repl${l.length===1?'y':'ies'}</p>${me()?`<div class="actions"><button class="btn" data-a="promptreply" data-id="${k.id}">Reply with a post</button></div>`:''}</section>`+(l.length?l.map(card).join(''):'<p class="empty">No replies yet. Be the first.</p>')}
 const pollCard=l=>{const tot=l.options.reduce((s,o)=>s+o.n,0);
- return `<section class="panel"><h2>${l.kind==='thisthat'?'This or that':'Poll'}${l.closed?' (closed)':''}</h2><div style="font-weight:700;margin-bottom:8px">${esc(l.q)}</div>${l.options.map((o,i)=>{const pct=tot?Math.round(o.n*100/tot):0;return `<button class="act" style="display:block;width:100%;text-align:left;margin:6px 0;position:relative;overflow:hidden;border-radius:12px" data-a="vote" data-id="${l.id}" data-i="${i}" aria-pressed="${l.mine===i}"${l.closed?' disabled':''}><span style="position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:var(--line);opacity:.55"></span><span style="position:relative">${esc(o.t)} · ${pct}% (${o.n})</span></button>`}).join('')}<p class="hint">${tot} vote${tot===1?'':'s'}${l.mine>=0?' · tap another option to change your vote':''}</p></section>`};
-const isFree=c=>/^\s*free\s*space\s*$/i.test(c);
-const bingoMarks=l=>[...new Set([...l.marks,...l.cells.map((c,i)=>isFree(c)?i:-1).filter(i=>i>=0)])];
-const bingoLines=(m)=>{const L=[];for(let i=0;i<5;i++){L.push([0,1,2,3,4].map(j=>i*5+j));L.push([0,1,2,3,4].map(j=>j*5+i))}L.push([0,6,12,18,24],[4,8,12,16,20]);return L.filter(l=>l.every(x=>m.includes(x))).length};
-const bingoBox=()=>{const l=(db.bingos||[])[0];if(!l)return'';const m=bingoMarks(l),n=bingoLines(m);
- return `<section class="panel bingo-panel"><h2>${esc(l.title)}</h2><p class="hint" style="margin:0">${me()?'Tap a square to color it orange when you have done it.':'Log in to play.'}</p><div class="bingo">${l.cells.map((c,i)=>isFree(c)?`<button class="bcell free${c.length>22?' long':''}" type="button" disabled>${esc(c)}</button>`:`<button class="bcell${c.length>22?' long':''}" data-a="bingo" data-id="${l.id}" data-i="${i}" aria-pressed="${l.marks.includes(i)}">${esc(c)}</button>`).join('')}</div><p style="margin:0"><b>${m.length}</b>/25 ticked${n?` · 🍊 <b>${n}</b> bingo line${n===1?'':'s'}!`:''}</p><div class="actions"><button class="btn ghost" data-a="sharebingo" data-id="${l.id}">Share my card</button></div></section>`};
-const ttCard=l=>{const done=l.mine.filter(x=>x>=0).length;
- return `<section class="panel"><h2>This or that${l.closed?' (closed)':''}</h2><div style="font-weight:700;margin-bottom:6px">${esc(l.q)}</div>${l.pairs.map((q,i)=>{const t=q.na+q.nb,pa=t?Math.round(q.na*100/t):0,pb=t?100-pa:0,m=l.mine[i];
-  const btn=(side,txt,pct)=>`<button class="act" style="flex:1 1 0;min-width:0;text-align:center;position:relative;overflow:hidden;border-radius:12px" data-a="ttvote" data-id="${l.id}" data-i="${i}" data-c="${side}" aria-pressed="${m===side}"${l.closed?' disabled':''}><span style="position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:var(--line);opacity:.55"></span><span style="position:relative">${esc(txt)} · ${pct}%</span></button>`;
-  return `<div style="display:flex;gap:8px;margin:8px 0;align-items:stretch">${btn(0,q.a,pa)}<span class="hint" style="align-self:center;margin:0">or</span>${btn(1,q.b,pb)}</div>`}).join('')}<p class="hint">${done}/${l.pairs.length} answered</p></section>`};
-const pollBox=()=>{const l=(db.polls||[])[0];return l?(l.kind==='thisthat'?ttCard(l):pollCard(l)):''};
-const memRows=q=>{q=q.trim().toLowerCase().replace(/^@/,'');const l=(db.members||[]).filter(u=>!q||u.handle.includes(q)||u.name.toLowerCase().includes(q)||u.email.toLowerCase().includes(q));
- return l.length?l.map(u=>`<div class="cm" style="flex-wrap:wrap;align-items:center"><div style="flex:1 1 220px;min-width:0"><button class="link" data-a="profile" data-id="${u.id}">${esc(u.name)}</button> <span class="hint">@${esc(u.handle)}</span><div class="hint" style="margin:0;word-break:break-all">${esc(u.email)}</div><div class="hint" style="margin:0">${u.posts} post${u.posts===1?'':'s'}${u.joined?' · joined '+new Date(u.joined).toLocaleDateString():''}${u.suspended?' · <b style="color:#B3261E">Suspended</b>':''}</div></div>${u.id!==db.me?`<button class="btn ghost" data-a="suspend" data-id="${u.id}">${u.suspended?'Unsuspend':'Suspend'}</button>`:''}</div>`).join(''):'<p class="hint">No one found.</p>'};
-const membersPanel=()=>{const l=db.members||[],sus=l.filter(u=>u.suspended).length;return `<section class="panel"><h2>Members (admins only)</h2><p style="margin:0"><b>${l.length}</b> member${l.length===1?'':'s'}${sus?` · <b>${sus}</b> suspended`:''}</p><p class="hint">Only admins can see this list and the emails.</p><input id="mb-q" placeholder="Search name, username or email" autocomplete="off" style="margin:8px 0"><div id="mb-res">${memRows('')}</div></section>`};
+ return `<section class="panel"><h2>${l.kind==='thisthat'?'⚖️ This or that':'📊 Poll'}${l.closed?' (closed)':''}</h2><div style="font-weight:700;margin-bottom:8px">${esc(l.q)}</div>${l.options.map((o,i)=>{const pct=tot?Math.round(o.n*100/tot):0;return `<button class="act" style="display:block;width:100%;text-align:left;margin:6px 0;position:relative;overflow:hidden;border-radius:12px" data-a="vote" data-id="${l.id}" data-i="${i}" aria-pressed="${l.mine===i}"${l.closed?' disabled':''}><span style="position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:var(--line);opacity:.55"></span><span style="position:relative">${esc(o.t)} · ${pct}% (${o.n})</span></button>`}).join('')}<p class="hint">${tot} vote${tot===1?'':'s'}${l.mine>=0?' · tap another option to change your vote':''}</p></section>`};
+const pollBox=()=>{const l=(db.polls||[])[0];return l?pollCard(l):''};
 const adminTools=()=>{if(!isAdmin())return'';const bn=db.banner,pr=db.prompts||[],po=db.polls||[],ad=db.admins||[];
- const owner=db.owner?`<section class="panel"><h2>Admin team</h2><p class="hint">You are an owner (listed in ADMIN_HANDLE). Admins can run polls, prompts and bingo, pin announcements, remove posts, suspend accounts and approve Feature Picks. Only owners can change this list.</p>${ad.length?ad.map(id=>`<div style="display:flex;align-items:center;gap:10px;padding:4px 0;flex-wrap:wrap">${av(user(id),'sm')}<span style="flex:1 1 140px">${esc(user(id).name)} <span class="hint">@${esc(user(id).handle)}</span></span><button class="btn ghost" data-a="setadmin" data-id="${id}" data-on="0">Remove</button></div>`).join(''):'<p class="hint">No extra admins yet.</p>'}<label for="ad-add">Add an admin</label><div class="cform"><select id="ad-add">${db.profiles.filter(u=>!ad.includes(u.id)&&u.id!==db.me).map(u=>`<option value="${u.id}">${esc(u.name)} (@${esc(u.handle)})</option>`).join('')}</select><button class="btn" data-a="addadmin">Add admin</button></div></section>`:'';
- return membersPanel()+owner+`<section class="panel"><h2>Pinned announcement</h2><label for="bn-t">Message (shown at the top of Home)</label><textarea id="bn-t" maxlength="300" style="min-height:70px">${bn?esc(bn.text):''}</textarea><div class="actions"><button class="btn" data-a="setbanner">Pin it</button>${bn?'<button class="btn ghost" data-a="clearbanner">Remove</button>':''}</div></section>
- <section class="panel"><h2>Weekly prompts</h2><p class="hint">Members reply with a post. The newest prompt shows on Home.</p><label for="pr-t">Prompt</label><input id="pr-t" maxlength="100" placeholder="e.g. Best comfort movie"><label for="pr-d">Details (optional)</label><input id="pr-d" maxlength="300"><div class="actions"><button class="btn" data-a="newprompt">Post prompt</button></div>${pr.map(k=>`<div class="cm"><span style="flex:1">${esc(k.title)} <span class="hint">${ago(k.ts)}</span></span><button class="link" data-a="delprompt" data-id="${k.id}">Delete</button></div>`).join('')}</section>
- <section class="panel"><h2>Polls and This or that</h2><p class="hint">The newest one shows on Home.</p><div class="row"><div><label for="po-k">Type</label><select id="po-k"><option value="poll">Poll (2 to 6 options)</option><option value="thisthat">This or that (3 to 9 pairs)</option></select></div><div><label for="po-q">Question or title</label><input id="po-q" maxlength="120" placeholder="e.g. Movie night snack?"></div></div><label for="po-o">Options (one per line)</label><textarea id="po-o" style="min-height:110px" placeholder="Poll: one option per line&#10;This or that: one pair per line, like&#10;Pizza | Burgers&#10;Movies | Books&#10;Night | Morning"></textarea><p class="hint">Poll: 2 to 6 options. This or that: 3 to 9 lines, each with two choices split by a | sign.</p><div class="actions"><button class="btn" data-a="newpoll">Create</button></div>${po.map(l=>`<div class="cm" style="flex-wrap:wrap"><span style="flex:1 1 200px">${esc(l.q)} <span class="hint">${l.kind==='thisthat'?'This or that':'Poll'}${l.closed?', closed':''}</span></span><button class="link" data-a="pollclose" data-id="${l.id}">${l.closed?'Reopen':'Close'}</button><button class="link" data-a="delpoll" data-id="${l.id}">Delete</button></div>`).join('')}</section>
- <section class="panel"><h2>Bingo card</h2><p class="hint">A 5x5 card. Members tap squares to color them orange. The newest card shows on Home.</p><label for="bg-t">Title</label><input id="bg-t" maxlength="80" placeholder="e.g. November watch bingo"><label for="bg-c">25 squares (one per line)</label><textarea id="bg-c" style="min-height:160px" placeholder="Watched a horror movie&#10;Read a book in one day&#10;..."></textarea><div class="actions"><button class="btn" data-a="newbingo">Create bingo card</button></div>${(db.bingos||[]).map(l=>`<div class="cm"><span style="flex:1">${esc(l.title)} <span class="hint">${ago(l.ts)}</span></span><button class="link" data-a="delbingo" data-id="${l.id}">Delete</button></div>`).join('')}</section>`};
+ const owner=db.owner?`<section class="panel"><h2>Admin team</h2><p class="hint">You are an owner (listed in ADMIN_HANDLE). Admins you add here can moderate, run polls and prompts, pin announcements and approve Feature Picks. Only owners can change this list.</p>${ad.length?ad.map(id=>`<div style="display:flex;align-items:center;gap:10px;padding:4px 0;flex-wrap:wrap">${av(user(id),'sm')}<span style="flex:1 1 140px">${esc(user(id).name)} <span class="hint">@${esc(user(id).handle)}</span></span><button class="btn ghost" data-a="setadmin" data-id="${id}" data-on="0">Remove</button></div>`).join(''):'<p class="hint">No extra admins yet.</p>'}<label for="ad-add">Add an admin</label><div class="cform"><select id="ad-add">${db.profiles.filter(u=>!ad.includes(u.id)&&u.id!==db.me).map(u=>`<option value="${u.id}">${esc(u.name)} (@${esc(u.handle)})</option>`).join('')}</select><button class="btn" data-a="addadmin">Add admin</button></div></section>`:'';
+ return owner+`<section class="panel"><h2>📣 Pinned announcement</h2><label for="bn-t">Message (shown at the top of Home)</label><textarea id="bn-t" maxlength="300" style="min-height:70px">${bn?esc(bn.text):''}</textarea><div class="actions"><button class="btn" data-a="setbanner">Pin it</button>${bn?'<button class="btn ghost" data-a="clearbanner">Remove</button>':''}</div></section>
+ <section class="panel"><h2>💭 Weekly prompts</h2><p class="hint">Members reply with a post. The newest prompt shows on Home.</p><label for="pr-t">Prompt</label><input id="pr-t" maxlength="100" placeholder="e.g. Best comfort movie"><label for="pr-d">Details (optional)</label><input id="pr-d" maxlength="300"><div class="actions"><button class="btn" data-a="newprompt">Post prompt</button></div>${pr.map(k=>`<div class="cm"><span style="flex:1">${esc(k.title)} <span class="hint">${ago(k.ts)}</span></span><button class="link" data-a="delprompt" data-id="${k.id}">Delete</button></div>`).join('')}</section>
+ <section class="panel"><h2>📊 Polls and This or that</h2><p class="hint">The newest one shows on Home. This or that has exactly 2 options.</p><div class="row"><div><label for="po-k">Type</label><select id="po-k"><option value="poll">Poll (2 to 6 options)</option><option value="thisthat">This or that (2 options)</option></select></div><div><label for="po-q">Question</label><input id="po-q" maxlength="120" placeholder="e.g. Movie night snack?"></div></div><label for="po-o">Options (one per line)</label><textarea id="po-o" style="min-height:80px" placeholder="Popcorn&#10;Chips"></textarea><div class="actions"><button class="btn" data-a="newpoll">Create</button></div>${po.map(l=>`<div class="cm" style="flex-wrap:wrap"><span style="flex:1 1 200px">${esc(l.q)} <span class="hint">${l.kind==='thisthat'?'This or that':'Poll'}${l.closed?', closed':''}</span></span><button class="link" data-a="pollclose" data-id="${l.id}">${l.closed?'Reopen':'Close'}</button><button class="link" data-a="delpoll" data-id="${l.id}">Delete</button></div>`).join('')}</section>`};
 const loadImg=src=>new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=src});
 function rrect(x,l,t,w,h,r){x.beginPath();x.moveTo(l+r,t);x.arcTo(l+w,t,l+w,t+h,r);x.arcTo(l+w,t+h,l,t+h,r);x.arcTo(l,t+h,l,t,r);x.arcTo(l,t,l+w,t,r);x.closePath()}
 function wrapLines(x,text,max,maxLines){const words=String(text).split(/\s+/),lines=[];let cur='';
  for(const w of words){const t=cur?cur+' '+w:w;if(x.measureText(t).width>max&&cur){lines.push(cur);cur=w}else cur=t}
  if(cur)lines.push(cur);if(lines.length>maxLines){lines.length=maxLines;let l=lines[maxLines-1];while(x.measureText(l+'...').width>max&&l.length>1)l=l.slice(0,-1);lines[maxLines-1]=l+'...'}return lines}
-async function bingoImage(title,cells,marks){
+async function shareCard(p){
  try{await document.fonts.ready}catch(e){}
  const W=1080,H=1350,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
  const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,'#FFB84D');g.addColorStop(1,'#FF8A00');x.fillStyle=g;x.fillRect(0,0,W,H);
- x.fillStyle='#FFFFFF';rrect(x,50,50,W-100,H-100,44);x.fill();x.textBaseline='top';
- try{const im=await loadImg('/logo.png');x.drawImage(im,90,90,90,90)}catch(e){}
- x.fillStyle='#D95F00';x.font='800 40px "Bricolage Grotesque","DM Sans",sans-serif';x.textAlign='left';x.fillText('Tangerine Review Club',200,118);
- x.fillStyle='#3A2210';x.font='800 56px "Bricolage Grotesque","DM Sans",sans-serif';
- wrapLines(x,title,W-180,2).forEach((l,i)=>x.fillText(l,90,215+i*66));
- const gx=90,gy=360,gap=8,cs=(W-180-gap*4)/5;
- cells.forEach((t,i)=>{const col=i%5,row=Math.floor(i/5),cx=gx+col*(cs+gap),cy=gy+row*(cs+gap),on=marks.includes(i)&&!isFree(t),fr=isFree(t);
-  x.fillStyle=on?'#FF8A00':fr?'#FFD9A8':'#FFF1E0';rrect(x,cx,cy,cs,cs,18);x.fill();
-  if(!on){x.strokeStyle='#FFD9A8';x.lineWidth=3;rrect(x,cx,cy,cs,cs,18);x.stroke()}
-  x.fillStyle=on?'#FFFFFF':'#3A2210';x.font='700 26px "DM Sans",sans-serif';x.textAlign='center';
-  const ls=wrapLines(x,t,cs-20,4),top=cy+cs/2-ls.length*15;ls.forEach((l,k)=>x.fillText(l,cx+cs/2,top+k*30))});
- const n=bingoLines(marks);x.textAlign='left';
- x.fillStyle='#D95F00';x.font='800 48px "Bricolage Grotesque","DM Sans",sans-serif';x.fillText(marks.length+'/25 ticked'+(n?' · '+n+' bingo line'+(n===1?'':'s'):''),90,gy+5*cs+4*gap+36);
- x.fillStyle='#8A6A4D';x.font='500 34px "DM Sans",sans-serif';x.fillText(location.host,90,H-120);
- return new Promise(ok=>c.toBlob(b=>ok(b),'image/png'))}
-const bingoSharesView=u=>{const l=u.bingoShares||[];if(!l.length)return'';const mine=me()&&me().id===u.id;
- return `<section class="panel"><h2>Bingo cards</h2>${l.slice().reverse().map(b=>{const m=bingoMarks(b),n=bingoLines(m);return `<div style="margin:0 0 16px"><div style="font-weight:700">${esc(b.title)}</div><div class="hint" style="margin:0">${m.length}/25 ticked${n?' · '+n+' bingo line'+(n===1?'':'s'):''} · ${ago(b.ts)}</div><div class="bingo">${b.cells.map((c,i)=>`<div class="bcell mini${isFree(c)?' free':''}${c.length>22?' long':''}" aria-pressed="${b.marks.includes(i)}">${esc(c)}</div>`).join('')}</div>${mine?`<button class="link" data-a="unbingo" data-id="${b.id}">Remove from profile</button>`:''}</div>`}).join('')}</section>`};
+ x.fillStyle='#FFFFFF';rrect(x,60,60,W-120,H-120,48);x.fill();
+ x.textBaseline='top';
+ try{const im=await loadImg('/logo.png');x.drawImage(im,100,100,110,110)}catch(e){}
+ x.fillStyle='#D95F00';x.font='800 44px "Bricolage Grotesque","DM Sans",sans-serif';x.fillText('Tangerine Review Club',235,130);
+ x.fillStyle='#8A6A4D';x.font='500 38px "DM Sans",sans-serif';
+ const sub0=p.media===p.title?p.type:p.type+' · '+p.media;let sub=sub0;while(x.measureText(sub).width>W-200&&sub.length>4)sub=sub.slice(0,-2);if(sub!==sub0)sub+='...';
+ x.fillText(sub,100,270);
+ x.font='76px sans-serif';for(let i=0;i<5;i++){x.globalAlpha=i<p.rating?1:.22;x.fillText('🍊',100+i*92,340)}x.globalAlpha=1;
+ x.fillStyle='#3A2210';x.font='800 80px "Bricolage Grotesque","DM Sans",sans-serif';
+ wrapLines(x,p.title,W-200,6).forEach((l,i)=>x.fillText(l,100,470+i*96));
+ x.fillStyle='#8A6A4D';x.font='500 40px "DM Sans",sans-serif';x.fillText('Review by '+user(p.by).name,100,H-250);
+ x.fillStyle='#D95F00';x.font='700 38px "DM Sans",sans-serif';x.fillText(location.host,100,H-190);
+ c.toBlob(async blob=>{if(!blob){toast('Could not make the card');return}
+  const file=new File([blob],'review-card.png',{type:'image/png'});
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:p.title});return}}catch(err){if(err&&err.name==='AbortError')return}
+  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='review-card.png';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);toast('Card saved to your device')},'image/png')}
 function loadMore(){const fl=$('feed-list'),mo=$('more');if(!fl||!mo)return;const next=feedPosts.slice(feedShown,feedShown+20);fl.insertAdjacentHTML('beforeend',next.map(card).join(''));feedShown+=next.length;feedWant=feedShown;if(feedShown>=feedPosts.length){obs&&obs.disconnect();mo.remove()}}
 const refreshBar=()=>{const bb=app.querySelector('.bar');if(bb)bb.outerHTML=bar()};
 function render(){
@@ -472,14 +463,13 @@ function needUser(){if(me())return true;toast('Create a profile or log in first'
 app.addEventListener('change',e=>{if(e.target.dataset.rolefor){api('setcore',{id:e.target.dataset.rolefor,role:e.target.value}).then(r=>{if(r){toast('Role updated');render()}});return}if(e.target.id==='sort'){sort=e.target.value;feedWant=20;render()}if(e.target.id==='dyear'){dyear=e.target.value;render()}});
 app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='m-t'){e.preventDefault();app.querySelector('[data-a="sendm"]').click()}});
 app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='cm-t'){e.preventDefault();app.querySelector('[data-a="sendclub"]').click()}});
-app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.a==='opencompose')e.target.click()});
-app.addEventListener('input',e=>{if(e.target.id==='cl-q')$('cl-res').innerHTML=clRes(e.target.value);if(e.target.id==='pm-q')$('pm-res').innerHTML=pmRes(e.target.value);if(e.target.id==='mb-q')$('mb-res').innerHTML=memRows(e.target.value);if(e.target.id==='s-q')$('s-res').innerHTML=searchRes(e.target.value);if(e.target.id==='f-title'){const c=$('h-count');if(c)c.textContent=e.target.value.length+'/100'}});
+app.addEventListener('input',e=>{if(e.target.id==='cl-q')$('cl-res').innerHTML=clRes(e.target.value);if(e.target.id==='pm-q')$('pm-res').innerHTML=pmRes(e.target.value);if(e.target.id==='s-q')$('s-res').innerHTML=searchRes(e.target.value);});
 app.addEventListener('click',async e=>{
  const st=e.target.closest('#f-stars button');
  if(st){rating=rating===+st.dataset.n?0:+st.dataset.n;app.querySelectorAll('#f-stars button').forEach(x=>x.classList.toggle('on',+x.dataset.n<=rating));return}
  const b=e.target.closest('[data-a]');if(!b)return;
  const a=b.dataset.a, id=b.dataset.id, p=postById(id), g=i=>$(i)?$(i).value.trim():'';
- if(a==='feed'){pre=null;composeOpen=false;feedWant=20;go({n:'feed'})}
+ if(a==='feed'){pre=null;feedWant=20;go({n:'feed'})}
  else if(a==='join'){pickAv=AVATARS[0];go({n:'join'})}
  else if(a==='searchview')go({n:'search'});
  else if(a==='features'){go({n:'features'});api('state').then(r=>{if(r&&view.n==='features')render()})}
@@ -540,7 +530,7 @@ app.addEventListener('click',async e=>{
  else if(a==='suspend'){const was=(db.suspended||[]).includes(id);if(!was&&!confirm('Suspend this account? They will be logged out and unable to log in.'))return;if(await api('suspend',{id})){toast(was?'Account unsuspended':'Account suspended');render()}}
  else if(a==='setpick'){if(await api('setpick',{type:g('fp-t'),media:g('fp-m'),note:g('fp-n')})){toast('Fresh pick saved');render()}}
  else if(a==='clearpick'){if(await api('setpick',{})){toast('Fresh pick removed');render()}}
- else if(a==='pickreview'){pre={type:db.pick.type,media:db.pick.media};rating=0;go({n:'feed'});focusCompose()}
+ else if(a==='pickreview'){pre={type:db.pick.type,media:db.pick.media};rating=0;go({n:'feed'})}
  else if(a==='notes'){go({n:'notes'});api('readnotes').then(()=>refreshBar())}
  else if(a==='settings')go({n:'settings'});
  else if(a==='reveal'){rev.add(id);const y=window.scrollY;render();window.scrollTo(0,y)}
@@ -560,15 +550,16 @@ app.addEventListener('click',async e=>{
  else if(a==='editp'){rating=p.rating;go({n:'post',id,edit:true})}
  else if(a==='editc')go({n:'post',id:view.id,ec:+b.dataset.i},true);
  else if(a==='savec'){const t=g('ce-t');if(!t){toast('Comment cannot be empty');return}if(await api('editcomment',{id,i:+b.dataset.i,t})){go({n:'post',id},true);toast('Comment updated')}}
- else if(a==='savepost'){const dr=b.dataset.draft==='1',d={id,type:g('f-type'),media:g('f-media'),title:g('f-title'),rating,text:g('f-text'),spoiler:$('f-spoil').checked,draft:dr};
-  if(dr?!d.title:(!d.media||!d.title||!d.text)){toast(dr?'Add a headline first':'Add a media title, headline and review first');return}
+ else if(a==='savepost'){const dr=b.dataset.draft==='1',d={id,type:g('f-type'),media:g('f-media'),rating,text:g('f-text'),spoiler:$('f-spoil').checked,draft:dr};
+  d.title=p&&p.title&&p.title!==p.media?p.title:d.media;
+  if(dr?!d.media:(!d.media||!d.text)){toast(dr?'Add a media title first':'Add a media title and your review first');return}
   if(p&&p.draft&&!dr&&!rating){toast('Pick a star rating first');return}
   const was=p&&p.draft;
   if(await api('editpost',d)){rating=0;toast(dr?'Draft saved':was?'Published! 🍊':'Post updated');go({n:'post',id})}}
  else if(a==='savedraft'){if(!needUser())return;
-  const d={type:g('f-type'),media:g('f-media'),title:g('f-title'),rating,text:g('f-text'),spoiler:$('f-spoil').checked,draft:true};
-  if(!d.title){toast('Add a headline to save a draft');return}
-  if(await api('publish',{...d,prompt:pre&&pre.prompt})){pre=null;composeOpen=false;rating=0;render();toast('Draft saved. Find it on your profile.')}}
+  const d={type:g('f-type'),media:g('f-media'),title:g('f-media'),rating,text:g('f-text'),spoiler:$('f-spoil').checked,draft:true};
+  if(!d.media){toast('Add a media title to save a draft');return}
+  if(await api('publish',{...d,prompt:pre&&pre.prompt})){pre=null;rating=0;render();toast('Draft saved. Find it on your profile.')}}
  else if(a==='open')go({n:'post',id});
  else if(a==='profile'){const u=user(id);pickAv=u.avatar;go({n:'profile',id})}
  else if(a==='filter'){filter=b.dataset.t;feedWant=20;render()}
@@ -594,27 +585,14 @@ app.addEventListener('click',async e=>{
  else if(a==='delete'){if(b.dataset.c!=='1'){b.dataset.c='1';b.textContent='Click again to confirm delete';return}
   if(await api('delete',{id})){toast('Post deleted');go({n:'feed'})}}
  else if(a==='publish'){if(!needUser())return;
-  const d={type:g('f-type'),media:g('f-media'),title:g('f-title'),rating,text:g('f-text'),spoiler:$('f-spoil').checked};
-  if(!d.media||!d.title||!d.text){toast('Add a media title, headline and review first');return}
+  const d={type:g('f-type'),media:g('f-media'),title:g('f-media'),rating,text:g('f-text'),spoiler:$('f-spoil').checked};
+  if(!d.media||!d.text){toast('Add a media title and your review first');return}
   if(!rating){toast('Pick a star rating first');return}
-  if(await api('publish',{...d,wid:pre&&pre.wid,prompt:pre&&pre.prompt})){pre=null;composeOpen=false;rating=0;render();toast('Slice shared! 🍊')}}
+  if(await api('publish',{...d,wid:pre&&pre.wid,prompt:pre&&pre.prompt})){pre=null;rating=0;render();toast('Slice shared! 🍊')}}
  else if(a==='follow'){if(!needUser())return;
   if(await api('follow',{id})){if($('s-res'))$('s-res').innerHTML=searchRes($('s-q').value);else render()}}
- else if(a==='ttvote'){if(!needUser())return;const y=window.scrollY;if(await api('pollvote',{id,i:+b.dataset.i,c:+b.dataset.c})){render();window.scrollTo(0,y)}}
- else if(a==='sharebingo'){if(!needUser())return;const l=(db.bingos||[]).find(x=>x.id===id);if(!l)return;
-  if(!await api('bingoshare',{id}))return;toast('Added to your profile');
-  const m=bingoMarks(l),blob=await bingoImage(l.title,l.cells,m);if(!blob)return;
-  const file=new File([blob],'bingo-card.png',{type:'image/png'});
-  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:l.title});return}}catch(err){if(err&&err.name==='AbortError')return}
-  const url=URL.createObjectURL(blob),a2=document.createElement('a');a2.href=url;a2.download='bingo-card.png';document.body.appendChild(a2);a2.click();a2.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);toast('Card saved to your device and added to your profile')}
- else if(a==='unbingo'){if(await api('bingounshare',{id}))render()}
- else if(a==='opencompose'){if(!needUser())return;composeOpen=true;const y=window.scrollY;render();window.scrollTo(0,y);focusCompose()}
- else if(a==='closecompose'){pre=null;composeOpen=false;rating=0;render()}
- else if(a==='bingo'){if(!needUser())return;const y=window.scrollY;if(await api('bingomark',{id,i:+b.dataset.i})){render();window.scrollTo(0,y)}}
- else if(a==='newbingo'){if(await api('savebingo',{title:g('bg-t'),cells:$('bg-c').value.split('\n')})){toast('Bingo card created');render()}}
- else if(a==='delbingo'){if(!confirm('Delete this bingo card?'))return;if(await api('delbingo',{id}))render()}
  else if(a==='prompt')go({n:'prompt',id});
- else if(a==='promptreply'){const k=promptOf(id);if(!k)return;if(!needUser())return;pre={type:'',media:'',prompt:id,ptitle:k.title};rating=0;go({n:'feed'});focusCompose()}
+ else if(a==='promptreply'){const k=promptOf(id);if(!k)return;if(!needUser())return;pre={type:'',media:'',prompt:id,ptitle:k.title};rating=0;go({n:'feed'})}
  else if(a==='vote'){if(!needUser())return;const y=window.scrollY;if(await api('pollvote',{id,i:+b.dataset.i})){render();window.scrollTo(0,y)}}
  else if(a==='setbanner'){if(await api('setbanner',{text:g('bn-t')})){toast('Announcement pinned');render()}}
  else if(a==='clearbanner'){if(await api('setbanner',{text:''})){toast('Announcement removed');render()}}
@@ -628,6 +606,9 @@ app.addEventListener('click',async e=>{
  else if(a==='sharefeat'){const url=location.origin+location.pathname+'#feature-'+id,f=feats().find(x=>x.id===id);
   try{if(navigator.share){await navigator.share({title:f.title,url});return}}catch(err){if(err&&err.name==='AbortError')return}
   try{await copyText(url);toast('Link copied')}catch(err){toast(fallbackCopy(url)?'Link copied':url)}}
+ else if(a==='copymembers'){const t=membersTsv($('s-q')?$('s-q').value:'');
+  try{await copyText(t);toast('Table copied. Paste it into Google Sheets')}catch(err){toast(fallbackCopy(t)?'Table copied. Paste it into Google Sheets':'Could not copy the table')}}
+ else if(a==='sharecard'){if(p)shareCard(p)}
  else if(a==='share'){
   const txt=`${p.title} - a ${p.type.toLowerCase()} review of ${p.media} (${p.rating}/5) by ${user(p.by).name}`;
   try{if(navigator.share){await navigator.share({title:p.title,text:txt});return}}catch(err){if(err&&err.name==='AbortError')return}
@@ -635,7 +616,7 @@ app.addEventListener('click',async e=>{
 });
 const tb=$('theme-btn');
 function curTheme(){return document.documentElement.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}
-function paintTheme(){const d=curTheme()==='dark';tb.textContent=d?'Light mode':'Dark mode';tb.setAttribute('aria-label',d?'Switch to light mode':'Switch to dark mode')}
+function paintTheme(){const d=curTheme()==='dark';tb.textContent=d?'☀️ Light mode':'🌙 Dark mode';tb.setAttribute('aria-label',d?'Switch to light mode':'Switch to dark mode')}
 tb.addEventListener('click',()=>{const n=curTheme()==='dark'?'light':'dark';document.documentElement.dataset.theme=n;try{localStorage.setItem('bb-theme',n)}catch(e){}paintTheme()});
 paintTheme();
 api('state').then(()=>{const h=location.hash;if(h.startsWith('#reset='))view={n:'reset',token:h.slice(7)};else if(h.startsWith('#list-'))view={n:'list',id:h.slice(6)};else if(h==='#feature-picks')view={n:'features'};else if(h.startsWith('#feature-'))view={n:'feat',id:h.slice(9)};render();try{history.replaceState({v:view},'')}catch(e){}});
