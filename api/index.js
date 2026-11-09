@@ -4,8 +4,8 @@ import nodemailer from "nodemailer";
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual, createHash } from "node:crypto";
 
 const redis = Redis.fromEnv({ automaticDeserialization: false });
-const PIECES = ["users", "posts", "lists", "msgs", "clubs", "cmsgs", "meta"];
-const META = ["reports", "pick", "suspended", "sessions", "resets", "fails"];
+const PIECES = ["users", "posts", "lists", "msgs", "clubs", "cmsgs", "features", "meta"];
+const META = ["reports", "pick", "suspended", "sessions", "resets", "fails", "core"];
 const pack = v => gzipSync(JSON.stringify(v)).toString("base64");
 const unpack = s => JSON.parse(gunzipSync(Buffer.from(s, "base64")).toString());
 async function load() {
@@ -46,7 +46,7 @@ const checkPw = (pw, h) => {
   return a.length === b.length && timingSafeEqual(a, b);
 };
 const emailOk = e => e.length <= 120 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
-const fresh = () => ({ users: [], posts: [], lists: [], msgs: [], clubs: [], cmsgs: [], reports: [], pick: null, suspended: [], sessions: {}, resets: {}, fails: {} });
+const fresh = () => ({ users: [], posts: [], lists: [], msgs: [], clubs: [], cmsgs: [], features: [], core: [], reports: [], pick: null, suspended: [], sessions: {}, resets: {}, fails: {} });
 const U = (db, id) => db.users.find(u => u.id === id);
 
 function cleanTop(t) {
@@ -69,6 +69,12 @@ function cleanPost(d) {
   const r = parseInt(d.rating, 10);
   return { type, media, title, text, rating: r >= 1 && r <= 5 ? r : 0, spoiler: !!d.spoiler };
 }
+function cleanFeature(d) {
+  const title = clip(d.title, 120), dek = clip(d.dek, 200), tag = clip(d.tag, 30), text = clip(d.text, 20000);
+  if (!title || !text) bad("Add a headline and the article text first");
+  return { title, dek, tag, text };
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const pub = (u, viewer) => ({
   id: u.id, name: u.name, handle: u.handle, bio: u.bio, avatar: u.avatar, following: u.following, top: u.top,
   insta: viewer === u.id || !u.igPrivate ? u.insta : "", igPrivate: u.igPrivate, links: u.links, watch: u.watch
@@ -124,7 +130,11 @@ function out(db, uid, extra) {
     comments: p.comments.map(c => bs.has(c.by) ? { hidden: true, replies: [] }
       : { ...c, replies: (c.replies || []).map(r => bs.has(r.by) ? { hidden: true } : r) })
   }));
+  const isCore = !!(me && (admin || db.core.includes(me.id)));
+  const seeF = f => admin || (me && f.by === me.id) || (f.status === "published" && !bs.has(f.by));
+  const features = db.features.filter(seeF).sort((a, b) => (b.publishedAt || b.ts) - (a.publishedAt || a.ts));
   const r = {
+    features, isCore, core: admin ? db.core : [],
     db: {
       profiles: db.users.map(u => pub(u, uid)), posts,
       lists: db.lists.filter(l => !bs.has(l.by)).sort((a, b) => b.ts - a.ts), pick: db.pick || null
@@ -145,16 +155,16 @@ function out(db, uid, extra) {
   return { ...r, ...extra };
 }
 
-async function sendReset(to, link) {
-  const user = process.env.GMAIL_USER, pass = process.env.GMAIL_APP_PASSWORD;
-  if (!user || !pass) { console.log("Email not configured: set GMAIL_USER and GMAIL_APP_PASSWORD"); return; }
+async function sendMail(to, subject, text, html) {
+  const user = (process.env.GMAIL_USER || "").trim(), pass = (process.env.GMAIL_APP_PASSWORD || "").replace(/\s+/g, "");
+  if (!user || !pass) throw new Error("Email is not set up. Add GMAIL_USER and GMAIL_APP_PASSWORD in Vercel, then redeploy.");
+  if (!to) throw new Error("No email address to send to");
   const t = nodemailer.createTransport({ host: "smtp.gmail.com", port: 465, secure: true, auth: { user, pass } });
-  await t.sendMail({
-    from: `Tangerine Review Club <${user}>`, to, subject: "Reset your Tangerine Review Club password",
-    text: `Someone asked to reset your password.\n\nOpen this link within 1 hour to choose a new one:\n${link}\n\nIf this was not you, ignore this email.`,
-    html: `<p>Someone asked to reset your password.</p><p><a href="${link}">Choose a new password</a> (valid for 1 hour)</p><p>If this was not you, ignore this email.</p>`
-  });
+  await t.sendMail({ from: `Tangerine Review Club <${user}>`, to, subject, text, html });
 }
+const sendReset = (to, link) => sendMail(to, "Reset your Tangerine Review Club password",
+  `Someone asked to reset your password.\n\nOpen this link within 1 hour to choose a new one:\n${link}\n\nIf this was not you, ignore this email.`,
+  `<p>Someone asked to reset your password.</p><p><a href="${link}">Choose a new password</a> (valid for 1 hour)</p><p>If this was not you, ignore this email.</p>`);
 
 export default async function handler(req, res) {
   res.setHeader("content-type", "application/json");
@@ -179,6 +189,8 @@ export default async function handler(req, res) {
     if (u && !db.suspended.includes(u.id)) uid = u.id;
   }
   const extra = {};
+  const mails = [];
+  const F = id => db.features.find(f => f.id === id) || bad("Piece not found");
   let dirty = a !== "state" && a !== "read" && a !== "club";
   const C = id => db.clubs.find(c => c.id === id) || bad("Club not found");
   const me = () => (uid && U(db, uid)) || bad("Log in first");
@@ -463,11 +475,13 @@ export default async function handler(req, res) {
           p.comments = p.comments.filter(c => c.by !== id);
           p.comments.forEach(c => { c.replies = (c.replies || []).filter(r => r.by !== id); });
         });
+        db.lists = db.lists.filter(l => l.by !== id);
         db.clubs.forEach(c => { c.members = c.members.filter(x => x !== id); });
         const gone = new Set(db.clubs.filter(c => c.by === id).map(c => c.id));
         db.clubs = db.clubs.filter(c => c.by !== id);
         db.cmsgs = db.cmsgs.filter(x => x.by !== id && !gone.has(x.club));
-        db.lists = db.lists.filter(l => l.by !== id);
+        db.features = db.features.filter(f => f.by !== id);
+        db.core = db.core.filter(x => x !== id);
         db.msgs = db.msgs.filter(x => x.from !== id && x.to !== id);
         db.reports = db.reports.filter(r => r.by !== id && db.posts.some(p => p.id === r.pid));
         db.suspended = db.suspended.filter(x => x !== id);
@@ -480,6 +494,72 @@ export default async function handler(req, res) {
         if (!isAdmin()) bad("Admins only");
         const type = clip(d.type, 20), media = clip(d.media, 80);
         db.pick = media && TYPES.includes(type) ? { type, media, note: clip(d.note, 200) } : null;
+        break;
+      }
+      case "mailtest": {
+        if (!isAdmin()) bad("Admins only");
+        const m = me();
+        try { await sendMail(m.email, "Tangerine test email", "Email is working.", "<p>Email is working. 🍊</p>"); extra.mail = "Test email sent to " + m.email + ". Check your inbox and spam."; }
+        catch (e) { extra.mail = "Email failed: " + e.message; }
+        break;
+      }
+      case "setcore": {
+        if (!isAdmin()) bad("Admins only");
+        const t = U(db, d.id);
+        if (!t) bad("Member not found");
+        const i = db.core.indexOf(t.id);
+        if (i >= 0) db.core.splice(i, 1); else db.core.push(t.id);
+        break;
+      }
+      case "fsave": {
+        const m = me(), admin = isAdmin();
+        if (!admin && !db.core.includes(m.id)) bad("Feature Picks is for the core team only");
+        const n = cleanFeature(d);
+        let author = m;
+        if (d.as) {
+          if (!admin) bad("Admins only");
+          const h = clip(d.as, 20).toLowerCase().replace(/^@/, "");
+          author = db.users.find(u => u.handle === h) || bad("Author not found");
+          if (author.id !== m.id && !db.core.includes(author.id)) bad("That member is not on the core team");
+        }
+        let f;
+        if (d.id) {
+          f = F(d.id);
+          if (f.by !== m.id && !admin) bad("You can only edit your own pieces");
+          if (f.status === "published" && !admin) bad("Published pieces can only be changed by the editor");
+          Object.assign(f, n, { edited: true });
+          if (!admin && f.status !== "pending") { f.status = "pending"; f.note = ""; }
+        } else {
+          f = { id: id8(), by: author.id, ...n, status: "pending", via: d.as ? "email" : "site", ts: Date.now(), publishedAt: 0, note: "" };
+          db.features.push(f);
+        }
+        if (admin && d.publish) { f.status = "published"; f.publishedAt = Date.now(); f.note = ""; }
+        if (!admin && f.status === "pending") {
+          const ed = ADMIN && db.users.find(u => u.handle === ADMIN);
+          if (ed) mails.push(() => sendMail(ed.email, "Feature Picks: new piece to review",
+            `${author.name} (@${author.handle}) submitted "${f.title}" for Feature Picks.\n\nReview it here:\n${origin}/#feature-picks`,
+            `<p><b>${esc(author.name)}</b> (@${esc(author.handle)}) submitted <b>${esc(f.title)}</b> for Feature Picks.</p><p><a href="${origin}/#feature-picks">Review it</a></p>`));
+        }
+        break;
+      }
+      case "fdecide": {
+        if (!isAdmin()) bad("Admins only");
+        const f = F(d.id), to = d.to;
+        if (!["published", "rejected", "pending"].includes(to)) bad("Unknown status");
+        f.status = to; f.note = clip(d.note, 500);
+        f.publishedAt = to === "published" ? Date.now() : 0;
+        const au = U(db, f.by);
+        if (au && to !== "pending") {
+          const ok = to === "published", subj = ok ? "Your Feature Picks piece is live" : "Feedback on your Feature Picks piece";
+          const body = ok ? `"${f.title}" has been published on Feature Picks.\n${origin}/#feature-picks` : `"${f.title}" was not published this time.${f.note ? "\n\nEditor's note: " + f.note : ""}\n\nYou can edit it and send it again.`;
+          mails.push(() => sendMail(au.email, subj, body, "<p>" + esc(body).replace(/\n/g, "<br>") + "</p>"));
+        }
+        break;
+      }
+      case "fdelete": {
+        const m = me(), f = F(d.id);
+        if (!isAdmin() && !(f.by === m.id && f.status !== "published")) bad("Not allowed");
+        db.features = db.features.filter(x => x.id !== f.id);
         break;
       }
       case "report": {
@@ -515,5 +595,6 @@ export default async function handler(req, res) {
     return send({ error: "Something went wrong, try again" });
   }
   if (dirty) await save(db, raw);
+  if (mails.length) await Promise.allSettled(mails.map(f => f()));
   return send(out(db, uid, extra));
 }
