@@ -83,10 +83,15 @@ body{margin:0;background:var(--bg)}
 #tg .topcard{border:2px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--os)}
 #tg .topcard h3{font-size:1.05rem;color:var(--od);margin-bottom:6px}
 #tg .topcard ol{margin:0;padding-left:20px}
-#tg .bingo{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:10px 0}
-#tg .bcell{aspect-ratio:1;min-height:58px;padding:4px;border:2px solid var(--line);border-radius:10px;background:var(--bg);cursor:pointer;font-size:.74rem;line-height:1.15;word-break:break-word;display:flex;align-items:center;justify-content:center;text-align:center}
+#tg .bingo{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin:10px 0}
+#tg .bcell{aspect-ratio:1;min-width:0;min-height:58px;padding:3px;border:2px solid var(--line);border-radius:10px;background:var(--bg);cursor:pointer;font-size:.74rem;line-height:1.15;overflow:hidden;overflow-wrap:anywhere;hyphens:auto;display:flex;align-items:center;justify-content:center;text-align:center}
+#tg .bcell.long{font-size:.62rem}
+@media(max-width:520px){#tg .bingo-panel{padding:10px}#tg .bingo{gap:4px}#tg .bcell{min-height:60px;font-size:.62rem;border-width:1.5px;border-radius:8px;padding:2px}#tg .bcell.long{font-size:.54rem}}
 #tg .bcell.free{background:var(--line);border-color:var(--line);cursor:default;font-weight:700}
 #tg .bcell[aria-pressed="true"]{background:var(--o);border-color:var(--od);color:#fff;font-weight:700}
+#tg .bcell.mini{min-height:0;font-size:.5rem;cursor:default;padding:2px;border-width:1px;border-radius:6px}
+#tg .bcell.mini.long{font-size:.44rem}
+#tg .fake{border:2px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg);color:var(--mut)}
 #tg .person{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px}
 </style>
 </head>
@@ -182,7 +187,7 @@ function joinView(){return `<section class="panel"><h2>Log in</h2>
 
 function composeView(){const u=me();
  if(!u)return `<section class="panel"><h2>Write a post</h2><p>Create a profile to publish reviews and blogs.</p><button class="btn" data-a="join">Create a profile</button></section>`;
- if(!composeOpen&&!pre)return `<section class="panel" style="padding:12px"><button class="btn ghost" data-a="opencompose" style="width:100%;text-align:left;border-radius:14px">Share a slice: what did you watch, read or play?</button></section>`;
+ if(!composeOpen&&!pre)return `<section class="panel" role="button" tabindex="0" data-a="opencompose" style="border-color:var(--o);background:var(--os);cursor:pointer"><h2 style="margin:0 0 10px">Share a slice</h2><div class="fake">Media type - Title</div><div class="fake" style="margin-top:8px;min-height:62px">What did you think? Tap to write your review or blog.</div></section>`;
  return `<section class="panel"><h2>Share a slice as ${esc(u.name)}</h2>${pre&&pre.prompt?`<p class="hint">Replying to the weekly prompt: <b>${esc(pre.ptitle)}</b></p>`:''}
  <div class="row"><div><label for="f-type">Media type</label><select id="f-type">${TYPES.slice(1).map(t=>`<option${pre&&pre.type===t?' selected':''}>${t}</option>`).join('')}</select></div>
  <div><label for="f-media">Media title</label><input id="f-media" maxlength="80"${pre?` value="${esc(pre.media)}"`:''}></div></div>
@@ -244,6 +249,7 @@ function profileView(u){const mine=me()&&me().id===u.id, posts=db.posts.filter(p
  <p>${esc(u.bio)||'No bio yet.'}</p>${profLinks(u)}</section>
  ${topsView(u)}
  ${badgesView(u)}
+ ${bingoSharesView(u)}
  ${mine?`<section class="panel"><h2>Edit your profile</h2><label for="e-name">Display name</label><input id="e-name" maxlength="30" value="${esc(u.name)}">
  <label for="e-handle">Username</label><input id="e-handle" maxlength="20" value="${esc(u.handle)}">
  <label for="e-bio">Short bio</label><textarea id="e-bio" maxlength="160" style="min-height:70px">${esc(u.bio)}</textarea>
@@ -387,7 +393,7 @@ const isFree=c=>/^\s*free\s*space\s*$/i.test(c);
 const bingoMarks=l=>[...new Set([...l.marks,...l.cells.map((c,i)=>isFree(c)?i:-1).filter(i=>i>=0)])];
 const bingoLines=(m)=>{const L=[];for(let i=0;i<5;i++){L.push([0,1,2,3,4].map(j=>i*5+j));L.push([0,1,2,3,4].map(j=>j*5+i))}L.push([0,6,12,18,24],[4,8,12,16,20]);return L.filter(l=>l.every(x=>m.includes(x))).length};
 const bingoBox=()=>{const l=(db.bingos||[])[0];if(!l)return'';const m=bingoMarks(l),n=bingoLines(m);
- return `<section class="panel"><h2>${esc(l.title)}</h2><p class="hint" style="margin:0">${me()?'Tap a square to color it orange when you have done it.':'Log in to play.'}</p><div class="bingo">${l.cells.map((c,i)=>isFree(c)?`<button class="bcell free" type="button" disabled>${esc(c)}</button>`:`<button class="bcell" data-a="bingo" data-id="${l.id}" data-i="${i}" aria-pressed="${l.marks.includes(i)}">${esc(c)}</button>`).join('')}</div><p style="margin:0"><b>${m.length}</b>/25 ticked${n?` · 🍊 <b>${n}</b> bingo line${n===1?'':'s'}!`:''}</p><div class="actions"><button class="btn ghost" data-a="sharebingo" data-id="${l.id}">Share my card</button></div></section>`};
+ return `<section class="panel bingo-panel"><h2>${esc(l.title)}</h2><p class="hint" style="margin:0">${me()?'Tap a square to color it orange when you have done it.':'Log in to play.'}</p><div class="bingo">${l.cells.map((c,i)=>isFree(c)?`<button class="bcell free${c.length>22?' long':''}" type="button" disabled>${esc(c)}</button>`:`<button class="bcell${c.length>22?' long':''}" data-a="bingo" data-id="${l.id}" data-i="${i}" aria-pressed="${l.marks.includes(i)}">${esc(c)}</button>`).join('')}</div><p style="margin:0"><b>${m.length}</b>/25 ticked${n?` · 🍊 <b>${n}</b> bingo line${n===1?'':'s'}!`:''}</p><div class="actions"><button class="btn ghost" data-a="sharebingo" data-id="${l.id}">Share my card</button></div></section>`};
 const ttCard=l=>{const done=l.mine.filter(x=>x>=0).length;
  return `<section class="panel"><h2>This or that${l.closed?' (closed)':''}</h2><div style="font-weight:700;margin-bottom:6px">${esc(l.q)}</div>${l.pairs.map((q,i)=>{const t=q.na+q.nb,pa=t?Math.round(q.na*100/t):0,pb=t?100-pa:0,m=l.mine[i];
   const btn=(side,txt,pct)=>`<button class="act" style="flex:1 1 0;min-width:0;text-align:center;position:relative;overflow:hidden;border-radius:12px" data-a="ttvote" data-id="${l.id}" data-i="${i}" data-c="${side}" aria-pressed="${m===side}"${l.closed?' disabled':''}><span style="position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:var(--line);opacity:.55"></span><span style="position:relative">${esc(txt)} · ${pct}%</span></button>`;
@@ -402,6 +408,32 @@ const adminTools=()=>{if(!isAdmin())return'';const bn=db.banner,pr=db.prompts||[
  <section class="panel"><h2>Weekly prompts</h2><p class="hint">Members reply with a post. The newest prompt shows on Home.</p><label for="pr-t">Prompt</label><input id="pr-t" maxlength="100" placeholder="e.g. Best comfort movie"><label for="pr-d">Details (optional)</label><input id="pr-d" maxlength="300"><div class="actions"><button class="btn" data-a="newprompt">Post prompt</button></div>${pr.map(k=>`<div class="cm"><span style="flex:1">${esc(k.title)} <span class="hint">${ago(k.ts)}</span></span><button class="link" data-a="delprompt" data-id="${k.id}">Delete</button></div>`).join('')}</section>
  <section class="panel"><h2>Polls and This or that</h2><p class="hint">The newest one shows on Home.</p><div class="row"><div><label for="po-k">Type</label><select id="po-k"><option value="poll">Poll (2 to 6 options)</option><option value="thisthat">This or that (3 to 9 pairs)</option></select></div><div><label for="po-q">Question or title</label><input id="po-q" maxlength="120" placeholder="e.g. Movie night snack?"></div></div><label for="po-o">Options (one per line)</label><textarea id="po-o" style="min-height:110px" placeholder="Poll: one option per line&#10;This or that: one pair per line, like&#10;Pizza | Burgers&#10;Movies | Books&#10;Night | Morning"></textarea><p class="hint">Poll: 2 to 6 options. This or that: 3 to 9 lines, each with two choices split by a | sign.</p><div class="actions"><button class="btn" data-a="newpoll">Create</button></div>${po.map(l=>`<div class="cm" style="flex-wrap:wrap"><span style="flex:1 1 200px">${esc(l.q)} <span class="hint">${l.kind==='thisthat'?'This or that':'Poll'}${l.closed?', closed':''}</span></span><button class="link" data-a="pollclose" data-id="${l.id}">${l.closed?'Reopen':'Close'}</button><button class="link" data-a="delpoll" data-id="${l.id}">Delete</button></div>`).join('')}</section>
  <section class="panel"><h2>Bingo card</h2><p class="hint">A 5x5 card. Members tap squares to color them orange. The newest card shows on Home.</p><label for="bg-t">Title</label><input id="bg-t" maxlength="80" placeholder="e.g. November watch bingo"><label for="bg-c">25 squares (one per line)</label><textarea id="bg-c" style="min-height:160px" placeholder="Watched a horror movie&#10;Read a book in one day&#10;..."></textarea><div class="actions"><button class="btn" data-a="newbingo">Create bingo card</button></div>${(db.bingos||[]).map(l=>`<div class="cm"><span style="flex:1">${esc(l.title)} <span class="hint">${ago(l.ts)}</span></span><button class="link" data-a="delbingo" data-id="${l.id}">Delete</button></div>`).join('')}</section>`};
+const loadImg=src=>new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=src});
+function rrect(x,l,t,w,h,r){x.beginPath();x.moveTo(l+r,t);x.arcTo(l+w,t,l+w,t+h,r);x.arcTo(l+w,t+h,l,t+h,r);x.arcTo(l,t+h,l,t,r);x.arcTo(l,t,l+w,t,r);x.closePath()}
+function wrapLines(x,text,max,maxLines){const words=String(text).split(/\s+/),lines=[];let cur='';
+ for(const w of words){const t=cur?cur+' '+w:w;if(x.measureText(t).width>max&&cur){lines.push(cur);cur=w}else cur=t}
+ if(cur)lines.push(cur);if(lines.length>maxLines){lines.length=maxLines;let l=lines[maxLines-1];while(x.measureText(l+'...').width>max&&l.length>1)l=l.slice(0,-1);lines[maxLines-1]=l+'...'}return lines}
+async function bingoImage(title,cells,marks){
+ try{await document.fonts.ready}catch(e){}
+ const W=1080,H=1350,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+ const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,'#FFB84D');g.addColorStop(1,'#FF8A00');x.fillStyle=g;x.fillRect(0,0,W,H);
+ x.fillStyle='#FFFFFF';rrect(x,50,50,W-100,H-100,44);x.fill();x.textBaseline='top';
+ try{const im=await loadImg('/logo.png');x.drawImage(im,90,90,90,90)}catch(e){}
+ x.fillStyle='#D95F00';x.font='800 40px "Bricolage Grotesque","DM Sans",sans-serif';x.textAlign='left';x.fillText('Tangerine Review Club',200,118);
+ x.fillStyle='#3A2210';x.font='800 56px "Bricolage Grotesque","DM Sans",sans-serif';
+ wrapLines(x,title,W-180,2).forEach((l,i)=>x.fillText(l,90,215+i*66));
+ const gx=90,gy=360,gap=8,cs=(W-180-gap*4)/5;
+ cells.forEach((t,i)=>{const col=i%5,row=Math.floor(i/5),cx=gx+col*(cs+gap),cy=gy+row*(cs+gap),on=marks.includes(i)&&!isFree(t),fr=isFree(t);
+  x.fillStyle=on?'#FF8A00':fr?'#FFD9A8':'#FFF1E0';rrect(x,cx,cy,cs,cs,18);x.fill();
+  if(!on){x.strokeStyle='#FFD9A8';x.lineWidth=3;rrect(x,cx,cy,cs,cs,18);x.stroke()}
+  x.fillStyle=on?'#FFFFFF':'#3A2210';x.font='700 26px "DM Sans",sans-serif';x.textAlign='center';
+  const ls=wrapLines(x,t,cs-20,4),top=cy+cs/2-ls.length*15;ls.forEach((l,k)=>x.fillText(l,cx+cs/2,top+k*30))});
+ const n=bingoLines(marks);x.textAlign='left';
+ x.fillStyle='#D95F00';x.font='800 48px "Bricolage Grotesque","DM Sans",sans-serif';x.fillText(marks.length+'/25 ticked'+(n?' · '+n+' bingo line'+(n===1?'':'s'):''),90,gy+5*cs+4*gap+36);
+ x.fillStyle='#8A6A4D';x.font='500 34px "DM Sans",sans-serif';x.fillText(location.host,90,H-120);
+ return new Promise(ok=>c.toBlob(b=>ok(b),'image/png'))}
+const bingoSharesView=u=>{const l=u.bingoShares||[];if(!l.length)return'';const mine=me()&&me().id===u.id;
+ return `<section class="panel"><h2>Bingo cards</h2>${l.slice().reverse().map(b=>{const m=bingoMarks(b),n=bingoLines(m);return `<div style="margin:0 0 16px"><div style="font-weight:700">${esc(b.title)}</div><div class="hint" style="margin:0">${m.length}/25 ticked${n?' · '+n+' bingo line'+(n===1?'':'s'):''} · ${ago(b.ts)}</div><div class="bingo">${b.cells.map((c,i)=>`<div class="bcell mini${isFree(c)?' free':''}${c.length>22?' long':''}" aria-pressed="${b.marks.includes(i)}">${esc(c)}</div>`).join('')}</div>${mine?`<button class="link" data-a="unbingo" data-id="${b.id}">Remove from profile</button>`:''}</div>`}).join('')}</section>`};
 function loadMore(){const fl=$('feed-list'),mo=$('more');if(!fl||!mo)return;const next=feedPosts.slice(feedShown,feedShown+20);fl.insertAdjacentHTML('beforeend',next.map(card).join(''));feedShown+=next.length;feedWant=feedShown;if(feedShown>=feedPosts.length){obs&&obs.disconnect();mo.remove()}}
 const refreshBar=()=>{const bb=app.querySelector('.bar');if(bb)bb.outerHTML=bar()};
 function render(){
@@ -440,6 +472,7 @@ function needUser(){if(me())return true;toast('Create a profile or log in first'
 app.addEventListener('change',e=>{if(e.target.dataset.rolefor){api('setcore',{id:e.target.dataset.rolefor,role:e.target.value}).then(r=>{if(r){toast('Role updated');render()}});return}if(e.target.id==='sort'){sort=e.target.value;feedWant=20;render()}if(e.target.id==='dyear'){dyear=e.target.value;render()}});
 app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='m-t'){e.preventDefault();app.querySelector('[data-a="sendm"]').click()}});
 app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='cm-t'){e.preventDefault();app.querySelector('[data-a="sendclub"]').click()}});
+app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.a==='opencompose')e.target.click()});
 app.addEventListener('input',e=>{if(e.target.id==='cl-q')$('cl-res').innerHTML=clRes(e.target.value);if(e.target.id==='pm-q')$('pm-res').innerHTML=pmRes(e.target.value);if(e.target.id==='mb-q')$('mb-res').innerHTML=memRows(e.target.value);if(e.target.id==='s-q')$('s-res').innerHTML=searchRes(e.target.value);if(e.target.id==='f-title'){const c=$('h-count');if(c)c.textContent=e.target.value.length+'/100'}});
 app.addEventListener('click',async e=>{
  const st=e.target.closest('#f-stars button');
@@ -568,11 +601,13 @@ app.addEventListener('click',async e=>{
  else if(a==='follow'){if(!needUser())return;
   if(await api('follow',{id})){if($('s-res'))$('s-res').innerHTML=searchRes($('s-q').value);else render()}}
  else if(a==='ttvote'){if(!needUser())return;const y=window.scrollY;if(await api('pollvote',{id,i:+b.dataset.i,c:+b.dataset.c})){render();window.scrollTo(0,y)}}
- else if(a==='sharebingo'){const l=(db.bingos||[]).find(x=>x.id===id);if(!l)return;const m=bingoMarks(l),n=bingoLines(m);
-  const grid=[0,1,2,3,4].map(rw=>[0,1,2,3,4].map(c=>m.includes(rw*5+c)?'🟧':'⬜').join('')).join('\n');
-  const txt=l.title+'\n'+grid+'\n'+m.length+'/25 ticked'+(n?' · '+n+' bingo line'+(n===1?'':'s'):'')+'\nPlay at '+location.origin;
-  try{if(navigator.share){await navigator.share({title:l.title,text:txt});return}}catch(err){if(err&&err.name==='AbortError')return}
-  try{await copyText(txt);toast('Copied to clipboard')}catch(err){toast(fallbackCopy(txt)?'Copied to clipboard':'Could not copy')}}
+ else if(a==='sharebingo'){if(!needUser())return;const l=(db.bingos||[]).find(x=>x.id===id);if(!l)return;
+  if(!await api('bingoshare',{id}))return;toast('Added to your profile');
+  const m=bingoMarks(l),blob=await bingoImage(l.title,l.cells,m);if(!blob)return;
+  const file=new File([blob],'bingo-card.png',{type:'image/png'});
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:l.title});return}}catch(err){if(err&&err.name==='AbortError')return}
+  const url=URL.createObjectURL(blob),a2=document.createElement('a');a2.href=url;a2.download='bingo-card.png';document.body.appendChild(a2);a2.click();a2.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);toast('Card saved to your device and added to your profile')}
+ else if(a==='unbingo'){if(await api('bingounshare',{id}))render()}
  else if(a==='opencompose'){if(!needUser())return;composeOpen=true;const y=window.scrollY;render();window.scrollTo(0,y);focusCompose()}
  else if(a==='closecompose'){pre=null;composeOpen=false;rating=0;render()}
  else if(a==='bingo'){if(!needUser())return;const y=window.scrollY;if(await api('bingomark',{id,i:+b.dataset.i})){render();window.scrollTo(0,y)}}
