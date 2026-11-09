@@ -620,8 +620,9 @@ export default async function handler(req, res) {
       }
       case "setbanner": {
         if (!isAdmin()) bad("Admins only");
-        const text = clip(d.text, 300);
-        db.banner = text ? { text, ts: Date.now() } : null;
+        const title = clip(d.title, 100), text = clip(d.text, 1000);
+        if (!title && text) bad("Add a headline for the announcement");
+        db.banner = title ? { title, text, ts: Date.now() } : null;
         break;
       }
       case "saveprompt": {
