@@ -5,7 +5,7 @@ import { randomBytes, randomUUID, scryptSync, timingSafeEqual, createHash } from
 
 const redis = Redis.fromEnv({ automaticDeserialization: false });
 const PIECES = ["users", "posts", "lists", "msgs", "clubs", "cmsgs", "features", "meta"];
-const META = ["reports", "pick", "suspended", "sessions", "resets", "fails", "core"];
+const META = ["reports", "pick", "suspended", "sessions", "resets", "fails", "core", "admins", "banner", "prompts", "polls"];
 const pack = v => gzipSync(JSON.stringify(v)).toString("base64");
 const unpack = s => JSON.parse(gunzipSync(Buffer.from(s, "base64")).toString());
 async function load() {
@@ -32,7 +32,9 @@ async function save(db, raw) {
 const TYPES = ["Movie","Documentary","Book","Game","Show","Anime","Music","Musical","Other"];
 const TOPK = ["movies","albums","books","shows","games","other"];
 const DAY = 864e5;
-const ADMIN = (process.env.ADMIN_HANDLE || "").trim().toLowerCase().replace(/^@/, "");
+const ADMINS = (process.env.ADMIN_HANDLE || "").split(/[,\s]+/).map(x => x.trim().toLowerCase().replace(/^@/, "")).filter(Boolean);
+const isAdminHandle = h => ADMINS.includes(h);
+const isAdminU = (db, u) => !!(u && (isAdminHandle(u.handle) || db.admins.includes(u.id)));
 
 class E extends Error {}
 const bad = m => { throw new E(m); };
@@ -47,7 +49,7 @@ const checkPw = (pw, h) => {
   return a.length === b.length && timingSafeEqual(a, b);
 };
 const emailOk = e => e.length <= 120 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
-const fresh = () => ({ users: [], posts: [], lists: [], msgs: [], clubs: [], cmsgs: [], features: [], core: {}, reports: [], pick: null, suspended: [], sessions: {}, resets: {}, fails: {} });
+const fresh = () => ({ users: [], posts: [], lists: [], msgs: [], clubs: [], cmsgs: [], features: [], core: {}, admins: [], banner: null, prompts: [], polls: [], reports: [], pick: null, suspended: [], sessions: {}, resets: {}, fails: {} });
 const U = (db, id) => db.users.find(u => u.id === id);
 
 function cleanTop(t) {
@@ -63,10 +65,15 @@ function cleanIg(d) {
   while (links.length < 2) links.push("");
   return { insta: i, igPrivate: !!d.igPrivate, links };
 }
-function cleanPost(d) {
-  const type = clip(d.type, 20), media = clip(d.media, 80), title = clip(d.title, 100), text = clip(d.text, 10000);
-  if (!TYPES.includes(type)) bad("Pick a media type");
-  if (!media || !title || !text) bad("Add a media title, headline and review first");
+function cleanPost(d, draft) {
+  let type = clip(d.type, 20), media = clip(d.media, 80), title = clip(d.title, 100), text = clip(d.text, 10000);
+  if (draft) {
+    if (!TYPES.includes(type)) type = "Other";
+    if (!title) bad("Add a headline to save a draft");
+  } else {
+    if (!TYPES.includes(type)) bad("Pick a media type");
+    if (!media || !title || !text) bad("Add a media title, headline and review first");
+  }
   const r = parseInt(d.rating, 10);
   return { type, media, title, text, rating: r >= 1 && r <= 5 ? r : 0, spoiler: !!d.spoiler };
 }
@@ -76,11 +83,10 @@ function cleanFeature(d) {
   if (!title || !text) bad("Add a headline and the article text first");
   return { title, dek, tag, text, type, media: type ? media : "" };
 }
-const PRON = ["she/her", "he/him", "they/them"];
-const cleanPron = d => (Array.isArray(d.pronouns) ? d.pronouns : []).filter((x, i, a) => PRON.includes(x) && a.indexOf(x) === i);
+const cleanPron = d => clip(Array.isArray(d.pronouns) ? d.pronouns.join(" / ") : d.pronouns, 30);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const pub = (u, viewer) => ({
-  id: u.id, name: u.name, handle: u.handle, bio: u.bio, avatar: u.avatar, following: u.following, top: u.top, pronouns: u.pronouns || [],
+  id: u.id, name: u.name, handle: u.handle, bio: u.bio, avatar: u.avatar, following: u.following, top: u.top, pronouns: Array.isArray(u.pronouns) ? u.pronouns.join(" / ") : (u.pronouns || ""),
   insta: viewer === u.id || !u.igPrivate ? u.insta : "", igPrivate: u.igPrivate, links: u.links, watch: u.watch
 });
 function blockedSet(db, uid) {
@@ -128,8 +134,8 @@ const dropSessions = (db, uid) => Object.keys(db.sessions).forEach(k => { if (db
 
 function out(db, uid, extra) {
   const me = uid ? U(db, uid) : null, bs = blockedSet(db, uid);
-  const admin = !!(me && ADMIN && me.handle === ADMIN);
-  const posts = db.posts.filter(p => !bs.has(p.by)).sort((a, b) => b.ts - a.ts).map(p => ({
+  const admin = isAdminU(db, me), owner = !!(me && isAdminHandle(me.handle));
+  const posts = db.posts.filter(p => !bs.has(p.by) && (!p.draft || p.by === uid)).sort((a, b) => b.ts - a.ts).map(p => ({
     ...p,
     comments: p.comments.map(c => bs.has(c.by) ? { hidden: true, replies: [] }
       : { ...c, replies: (c.replies || []).map(r => bs.has(r.by) ? { hidden: true } : r) })
@@ -139,10 +145,17 @@ function out(db, uid, extra) {
   const seeF = f => isEditor || (me && f.by === me.id) || (f.status === "published" && !bs.has(f.by));
   const features = db.features.filter(seeF).sort((a, b) => (b.publishedAt || b.ts) - (a.publishedAt || a.ts));
   const r = {
-    features, isCore, isEditor, core: admin ? db.core : {},
+    features, isCore, isEditor, core: admin ? db.core : {}, owner, admins: owner ? db.admins : [],
     db: {
       profiles: db.users.map(u => pub(u, uid)), posts,
-      lists: db.lists.filter(l => !bs.has(l.by)).sort((a, b) => b.ts - a.ts), pick: db.pick || null
+      lists: db.lists.filter(l => !bs.has(l.by)).sort((a, b) => b.ts - a.ts), pick: db.pick || null,
+      banner: db.banner || null,
+      prompts: db.prompts.slice().sort((a, b) => b.ts - a.ts),
+      polls: db.polls.slice().sort((a, b) => b.ts - a.ts).map(l => {
+        const n = l.options.map(() => 0);
+        Object.values(l.votes).forEach(v => { if (n[v] !== undefined) n[v]++; });
+        return { id: l.id, q: l.q, kind: l.kind, closed: !!l.closed, ts: l.ts, options: l.options.map((t, i) => ({ t, n: n[i] })), mine: uid && l.votes[uid] !== undefined ? l.votes[uid] : -1 };
+      })
     },
     clubs: db.clubs.filter(c => !!uid && c.members.includes(uid)).sort((a, b) => b.ts - a.ts).map(c => ({
       id: c.id, name: c.name, emoji: c.emoji, desc: c.desc, by: c.by, ts: c.ts, n: c.members.length, joined: true, m: c.members
@@ -175,6 +188,19 @@ export default async function handler(req, res) {
   res.setHeader("content-type", "application/json");
   res.setHeader("cache-control", "no-store");
   const send = o => res.status(200).send(JSON.stringify(o));
+  if (req.method === "GET" && String(req.url || "").includes("feed")) {
+    let ld;
+    try { ld = await load(); } catch (e) { res.status(500).send("Feed unavailable"); return; }
+    const site = "https://" + (req.headers["x-forwarded-host"] || req.headers.host);
+    const items = ld.db.features.filter(f => f.status === "published").sort((a, b) => (b.publishedAt || b.ts) - (a.publishedAt || a.ts)).slice(0, 30).map(f => {
+      const au = U(ld.db, f.by), desc = f.dek || f.text.replace(/\s+/g, " ").slice(0, 300);
+      return `<item><title>${esc(f.title)}</title><link>${site}/#feature-${f.id}</link><guid isPermaLink="false">${f.id}</guid><pubDate>${new Date(f.publishedAt || f.ts).toUTCString()}</pubDate>${au ? `<dc:creator>${esc(au.name)}</dc:creator>` : ""}${f.tag ? `<category>${esc(f.tag)}</category>` : ""}<description>${esc(desc)}</description></item>`;
+    }).join("");
+    res.setHeader("content-type", "application/rss+xml; charset=utf-8");
+    res.setHeader("cache-control", "public, max-age=600");
+    res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>Tangerine Review Club: Feature Picks</title><link>${site}/#feature-picks</link><description>Featured articles and posts from the Tangerine Review Club Zest Team.</description><language>en</language>${items}</channel></rss>`);
+    return;
+  }
   if (req.method !== "POST") return send({ error: "Bad request" });
   let body = req.body;
   if (typeof body === "string") { try { body = JSON.parse(body); } catch (e) { return send({ error: "Bad request" }); } }
@@ -200,7 +226,8 @@ export default async function handler(req, res) {
   const C = id => db.clubs.find(c => c.id === id) || bad("Club not found");
   const me = () => (uid && U(db, uid)) || bad("Log in first");
   const P = id => db.posts.find(p => p.id === id) || bad("Post not found");
-  const isAdmin = () => { const m = uid && U(db, uid); return !!(m && ADMIN && m.handle === ADMIN); };
+  const isAdmin = () => isAdminU(db, uid && U(db, uid));
+  const isOwner = () => { const m = uid && U(db, uid); return !!(m && isAdminHandle(m.handle)); };
   const isEditor = () => isAdmin() || !!(uid && db.core[uid] === "editor");
 
   try {
@@ -244,19 +271,28 @@ export default async function handler(req, res) {
       case "logout": if (auth) delete db.sessions[sha(auth)]; uid = null; extra.token = ""; break;
 
       case "publish": {
-        const m = me(), p = cleanPost(d);
-        if (!p.rating) bad("Pick a star rating first");
+        const m = me(), draft = !!d.draft, p = cleanPost(d, draft);
+        if (!draft && !p.rating) bad("Pick a star rating first");
         const post = { id: id8(), by: m.id, ...p, ts: Date.now(), likedBy: [], comments: [] };
+        if (draft) post.draft = true;
+        const pr = d.prompt && db.prompts.find(x => x.id === d.prompt);
+        if (pr) post.prompt = pr.id;
         db.posts.push(post);
-        if (d.wid) m.watch = m.watch.filter(w => w.id !== d.wid);
-        mentions(db, post.text, m.id, post.id);
+        if (!draft) {
+          if (d.wid) m.watch = m.watch.filter(w => w.id !== d.wid);
+          mentions(db, post.text, m.id, post.id);
+        }
         break;
       }
       case "editpost": {
         const m = me(), p = P(d.id);
         if (p.by !== m.id) bad("You can only edit your own posts");
-        const n = cleanPost(d);
-        Object.assign(p, { type: n.type, media: n.media, title: n.title, text: n.text, spoiler: n.spoiler, rating: n.rating || p.rating, edited: true });
+        const keepDraft = !!p.draft && !!d.draft;
+        const n = cleanPost(d, keepDraft);
+        if (p.draft && !keepDraft && !(n.rating || p.rating)) bad("Pick a star rating first");
+        Object.assign(p, { type: n.type, media: n.media, title: n.title, text: n.text, spoiler: n.spoiler, rating: n.rating || p.rating });
+        if (p.draft && !keepDraft) { delete p.draft; p.ts = Date.now(); mentions(db, p.text, m.id, p.id); }
+        else if (!p.draft) p.edited = true;
         break;
       }
       case "delete": {
@@ -318,7 +354,7 @@ export default async function handler(req, res) {
         const m = me(), name = clip(d.name, 30), handle = clip(d.handle, 20).toLowerCase().replace(/^@/, "");
         if (!name) bad("Display name cannot be empty");
         if (!/^[a-z0-9_]{3,20}$/.test(handle)) bad("Username needs 3 to 20 letters, numbers or underscores");
-        if (db.users.some(u => u.id !== m.id && u.handle === handle) || (ADMIN && handle === ADMIN && m.handle !== ADMIN)) bad("That username is taken");
+        if (db.users.some(u => u.id !== m.id && u.handle === handle) || (isAdminHandle(handle) && !isAdminHandle(m.handle))) bad("That username is taken");
         Object.assign(m, { name, handle, bio: clip(d.bio, 160), avatar: clip(d.avatar, 8) || m.avatar, top: cleanTop(d.top), pronouns: cleanPron(d), ...cleanIg(d) });
         break;
       }
@@ -488,6 +524,8 @@ export default async function handler(req, res) {
         db.cmsgs = db.cmsgs.filter(x => x.by !== id && !gone.has(x.club));
         db.features = db.features.filter(f => f.by !== id);
         delete db.core[id];
+        db.admins = db.admins.filter(x => x !== id);
+        db.polls.forEach(l => { delete l.votes[id]; });
         db.msgs = db.msgs.filter(x => x.from !== id && x.to !== id);
         db.reports = db.reports.filter(r => r.by !== id && db.posts.some(p => p.id === r.pid));
         db.suspended = db.suspended.filter(x => x !== id);
@@ -540,10 +578,9 @@ export default async function handler(req, res) {
         }
         if (ed && d.publish) { f.status = "published"; f.publishedAt = Date.now(); f.note = ""; }
         if (!ed && f.status === "pending") {
-          const ed = ADMIN && db.users.find(u => u.handle === ADMIN);
-          if (ed) mails.push(() => sendMail(ed.email, "Feature Picks: new piece to review",
+          db.users.filter(u => isAdminU(db, u)).forEach(ed => mails.push(() => sendMail(ed.email, "Feature Picks: new piece to review",
             `${author.name} (@${author.handle}) submitted "${f.title}" for Feature Picks.\n\nReview it here:\n${origin}/#feature-picks`,
-            `<p><b>${esc(author.name)}</b> (@${esc(author.handle)}) submitted <b>${esc(f.title)}</b> for Feature Picks.</p><p><a href="${origin}/#feature-picks">Review it</a></p>`));
+            `<p><b>${esc(author.name)}</b> (@${esc(author.handle)}) submitted <b>${esc(f.title)}</b> for Feature Picks.</p><p><a href="${origin}/#feature-picks">Review it</a></p>`)));
         }
         break;
       }
@@ -565,6 +602,65 @@ export default async function handler(req, res) {
         const m = me(), f = F(d.id);
         if (!isEditor() && !(f.by === m.id && f.status !== "published")) bad("Not allowed");
         db.features = db.features.filter(x => x.id !== f.id);
+        break;
+      }
+      case "setadmin": {
+        if (!isOwner()) bad("Only the owner can change the admin list");
+        const t = U(db, d.id);
+        if (!t) bad("Member not found");
+        if (isAdminHandle(t.handle)) bad("That person is already an owner");
+        const i = db.admins.indexOf(t.id);
+        if (d.on && i < 0) db.admins.push(t.id);
+        if (!d.on && i >= 0) db.admins.splice(i, 1);
+        break;
+      }
+      case "setbanner": {
+        if (!isAdmin()) bad("Admins only");
+        const text = clip(d.text, 300);
+        db.banner = text ? { text, ts: Date.now() } : null;
+        break;
+      }
+      case "saveprompt": {
+        if (!isAdmin()) bad("Admins only");
+        const title = clip(d.title, 100);
+        if (!title) bad("Write the prompt first");
+        if (db.prompts.length >= 100) bad("Delete some old prompts first");
+        db.prompts.push({ id: id8(), title, desc: clip(d.desc, 300), by: uid, ts: Date.now() });
+        break;
+      }
+      case "delprompt": {
+        if (!isAdmin()) bad("Admins only");
+        db.prompts = db.prompts.filter(x => x.id !== d.id);
+        break;
+      }
+      case "savepoll": {
+        if (!isAdmin()) bad("Admins only");
+        const kind = d.kind === "thisthat" ? "thisthat" : "poll", q = clip(d.q, 120);
+        const options = (Array.isArray(d.options) ? d.options : []).map(x => clip(x, 60)).filter(Boolean).slice(0, 6);
+        if (!q) bad("Write the question first");
+        if (kind === "thisthat" && options.length !== 2) bad("This or that needs exactly 2 options");
+        if (options.length < 2) bad("Add at least 2 options, one per line");
+        if (db.polls.length >= 100) bad("Delete some old polls first");
+        db.polls.push({ id: id8(), by: uid, q, kind, options, votes: {}, ts: Date.now(), closed: false });
+        break;
+      }
+      case "pollvote": {
+        const m = me(), l = db.polls.find(x => x.id === d.id) || bad("Poll not found");
+        if (l.closed) bad("This poll is closed");
+        const i = parseInt(d.i, 10);
+        if (!(i >= 0 && i < l.options.length)) bad("Pick an option");
+        l.votes[m.id] = i;
+        break;
+      }
+      case "pollclose": {
+        if (!isAdmin()) bad("Admins only");
+        const l = db.polls.find(x => x.id === d.id) || bad("Poll not found");
+        l.closed = !l.closed;
+        break;
+      }
+      case "delpoll": {
+        if (!isAdmin()) bad("Admins only");
+        db.polls = db.polls.filter(x => x.id !== d.id);
         break;
       }
       case "report": {
