@@ -104,11 +104,12 @@ body{margin:0;background:var(--bg)}
 #tg .bl.on .bn{color:#3A2210}
 #tg .bl.free{background:#FFD08A;border-color:#FFD08A;color:#3A2210;font-weight:700}
 #tg .bl.free .bx{background:#3A2210;border-color:#3A2210;color:#fff}
-#tg .bc{position:relative}
+#tg .bc{position:relative;overflow:hidden}
+#tg .bc .bt{display:block;min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:break-word;hyphens:auto;-webkit-hyphens:auto}
 #tg .bc.on{background:var(--o);border-color:var(--o);color:#3A2210;font-weight:700}
 #tg .bc.free{background:#FFD08A;border-color:#FFD08A;color:#3A2210;font-weight:700}
 #tg .bc.on::before{content:"\2713";position:absolute;top:1px;left:4px;font-size:.65rem;line-height:1}
-@media(max-width:400px){#tg .bc{font-size:.66rem;padding:10px 1px 3px;min-height:68px;hyphens:manual;-webkit-hyphens:manual}}
+@media(max-width:479px){#tg .bingo{gap:3px}#tg .bc{font-size:clamp(.54rem,2.7vw,.7rem);padding:10px 2px 3px;min-height:68px;border-radius:8px;line-height:1.15}}
 @media(min-width:480px){#tg .bingo{gap:6px}#tg .bc{min-height:88px;font-size:.82rem;padding:6px 5px}}
 @media(min-width:640px){#tg .bingo{gap:8px}#tg .bc{aspect-ratio:1;min-height:0;font-size:1rem;padding:8px;border-radius:12px}}
 #tg .person{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px}
@@ -370,7 +371,7 @@ let bview=window.innerWidth<600?'list':'grid';
 const bingoGrid=(cells,marks,id)=>{const x=new Set(marks||[]);
  if(bview==='list')return `<div class="blist">${cells.map((c,i)=>{const fr=isFree(c),on=fr||x.has(i),inner=`<span class="bx" aria-hidden="true">${on?'✓':''}</span><span class="bt"><span class="bn">${i+1}.</span> ${esc(c)}</span>`;
   return id&&!fr?`<button type="button" class="bl${on?' on':''}" data-a="bmark" data-id="${id}" data-i="${i}" aria-pressed="${on}">${inner}</button>`:`<div class="bl${fr?' free':on?' on':''}">${inner}</div>`}).join('')}</div>`;
- return `<div class="bingo">${cells.map((c,i)=>isFree(c)?`<div class="bc free">${esc(c)}</div>`:id?`<button type="button" class="bc${x.has(i)?' on':''}" data-a="bmark" data-id="${id}" data-i="${i}" aria-pressed="${x.has(i)}">${esc(c)}</button>`:`<div class="bc${x.has(i)?' on':''}">${esc(c)}</div>`).join('')}</div>`};
+ return `<div class="bingo">${cells.map((c,i)=>isFree(c)?`<div class="bc free"><span class="bt">${esc(c)}</span></div>`:id?`<button type="button" class="bc${x.has(i)?' on':''}" data-a="bmark" data-id="${id}" data-i="${i}" aria-pressed="${x.has(i)}"><span class="bt">${esc(c)}</span></button>`:`<div class="bc${x.has(i)?' on':''}"><span class="bt">${esc(c)}</span></div>`).join('')}</div>`};
 const bviewBtns=()=>`<div class="filters" style="margin:0 0 10px"><button class="chip" data-a="bview" data-v="list" aria-pressed="${bview==='list'}">☰ List</button><button class="chip" data-a="bview" data-v="grid" aria-pressed="${bview==='grid'}">▦ Grid</button></div>`;
 const bingoBox=()=>{const l=(db.bingos||[])[0];if(!l)return'';const m=me(),done=bingoDone(l.cells,l.marks),shared=m&&((m.bingoShares||[]).some(x=>x.id===l.id));
  return `<section class="panel"><h2>🎯 ${esc(l.title)}</h2><p class="hint" style="margin:0 0 10px">${m?'Tap a square when you have done it. Get a full row, column or diagonal to share your card on your profile.':'Log in to play.'}</p>${bviewBtns()}${bingoGrid(l.cells,l.marks,m?l.id:'')}${m?`<p class="hint">${bingoSet(l.cells,l.marks).size}/25 squares${done?' · 🎉 Bingo!':''}</p><div class="actions">${done?`<button class="btn" data-a="bshare" data-id="${l.id}">${shared?'Update my profile card':'Share my card on my profile'}</button>`:''}${shared?`<button class="btn ghost" data-a="bunshare" data-id="${l.id}">Remove from my profile</button>`:''}</div>`:''}</section>`};
