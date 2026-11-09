@@ -4,7 +4,7 @@ import nodemailer from "nodemailer";
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual, createHash } from "node:crypto";
 
 const redis = Redis.fromEnv({ automaticDeserialization: false });
-const PIECES = ["users", "posts", "lists", "msgs", "meta"];
+const PIECES = ["users", "posts", "lists", "msgs", "clubs", "cmsgs", "meta"];
 const META = ["reports", "pick", "suspended", "sessions", "resets", "fails"];
 const pack = v => gzipSync(JSON.stringify(v)).toString("base64");
 const unpack = s => JSON.parse(gunzipSync(Buffer.from(s, "base64")).toString());
@@ -46,7 +46,7 @@ const checkPw = (pw, h) => {
   return a.length === b.length && timingSafeEqual(a, b);
 };
 const emailOk = e => e.length <= 120 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
-const fresh = () => ({ users: [], posts: [], lists: [], msgs: [], reports: [], pick: null, suspended: [], sessions: {}, resets: {}, fails: {} });
+const fresh = () => ({ users: [], posts: [], lists: [], msgs: [], clubs: [], cmsgs: [], reports: [], pick: null, suspended: [], sessions: {}, resets: {}, fails: {} });
 const U = (db, id) => db.users.find(u => u.id === id);
 
 function cleanTop(t) {
@@ -78,6 +78,17 @@ function blockedSet(db, uid) {
   if (!uid) return s;
   db.users.forEach(u => { if (u.id === uid) u.blocked.forEach(x => s.add(x)); else if (u.blocked.includes(uid)) s.add(u.id); });
   return s;
+}
+function addPeople(db, c, uid, ids) {
+  const bs = blockedSet(db, uid);
+  (Array.isArray(ids) ? ids : []).slice(0, 60).forEach(x => {
+    if (typeof x !== "string" || c.members.includes(x) || bs.has(x) || !U(db, x) || c.members.length >= 50) return;
+    c.members.push(x);
+  });
+}
+function clubMsgs(db, cid, uid) {
+  const bs = blockedSet(db, uid);
+  return db.cmsgs.filter(x => x.club === cid && !bs.has(x.by)).sort((a, b) => a.ts - b.ts).slice(-200);
 }
 function note(db, to, kind, from, pid) {
   const u = U(db, to);
@@ -118,6 +129,10 @@ function out(db, uid, extra) {
       profiles: db.users.map(u => pub(u, uid)), posts,
       lists: db.lists.filter(l => !bs.has(l.by)).sort((a, b) => b.ts - a.ts), pick: db.pick || null
     },
+    clubs: db.clubs.filter(c => !!uid && c.members.includes(uid)).sort((a, b) => b.ts - a.ts).map(c => ({
+      id: c.id, name: c.name, emoji: c.emoji, desc: c.desc, by: c.by, ts: c.ts, n: c.members.length, joined: true, m: c.members
+    })),
+    cmsgs: [],
     me: me ? me.id : null, msgs: [], notes: [], blocked: [], email: "", admin, reports: [], suspended: []
   };
   if (me) {
@@ -164,7 +179,8 @@ export default async function handler(req, res) {
     if (u && !db.suspended.includes(u.id)) uid = u.id;
   }
   const extra = {};
-  let dirty = a !== "state" && a !== "read";
+  let dirty = a !== "state" && a !== "read" && a !== "club";
+  const C = id => db.clubs.find(c => c.id === id) || bad("Club not found");
   const me = () => (uid && U(db, uid)) || bad("Log in first");
   const P = id => db.posts.find(p => p.id === id) || bad("Post not found");
   const isAdmin = () => { const m = uid && U(db, uid); return !!(m && ADMIN && m.handle === ADMIN); };
@@ -307,6 +323,66 @@ export default async function handler(req, res) {
         db.msgs = db.msgs.filter(k => k.id !== x.id);
         break;
       }
+      case "newclub": {
+        const m = me(), name = clip(d.name, 40);
+        if (!name) bad("Give your club a name");
+        if (db.clubs.filter(c => c.by === m.id).length >= 5) bad("You can create up to 5 clubs");
+        if (db.clubs.length >= 300) bad("There are too many clubs right now");
+        const c = { id: id8(), name, emoji: clip(d.emoji, 8) || "🍊", desc: clip(d.desc, 140), by: m.id, ts: Date.now(), members: [m.id] };
+        addPeople(db, c, m.id, d.members);
+        db.clubs.push(c); extra.club = c.id;
+        break;
+      }
+      case "addmembers": {
+        const m = me(), c = C(d.id);
+        if (!c.members.includes(m.id)) bad("Only members can add people");
+        addPeople(db, c, m.id, d.members);
+        break;
+      }
+      case "kick": {
+        const m = me(), c = C(d.id);
+        if (c.by !== m.id && !isAdmin()) bad("Only the club owner can remove people");
+        if (d.uid === c.by) bad("The owner cannot be removed");
+        c.members = c.members.filter(x => x !== d.uid);
+        break;
+      }
+      case "leaveclub": {
+        const m = me(), c = C(d.id);
+        if (c.by === m.id) bad("You own this club. Delete it instead.");
+        c.members = c.members.filter(x => x !== m.id);
+        break;
+      }
+      case "club": {
+        const m = me(), c = C(d.id);
+        if (!c.members.includes(m.id)) bad("Join this club first");
+        extra.cmsgs = clubMsgs(db, c.id, uid);
+        break;
+      }
+      case "sendclub": {
+        const m = me(), c = C(d.id), t = clip(d.t, 500);
+        if (!c.members.includes(m.id)) bad("Join this club first");
+        if (!t) bad("Write a message first");
+        db.cmsgs.push({ id: id8(), club: c.id, by: m.id, t, ts: Date.now() });
+        const mine = db.cmsgs.filter(x => x.club === c.id);
+        if (mine.length > 500) { const drop = new Set(mine.slice(0, mine.length - 500)); db.cmsgs = db.cmsgs.filter(x => !drop.has(x)); }
+        extra.cmsgs = clubMsgs(db, c.id, uid);
+        break;
+      }
+      case "delclubmsg": {
+        const m = me(), c = C(d.club), x = db.cmsgs.find(k => k.id === d.id && k.club === c.id);
+        if (!x) bad("Message not found");
+        if (x.by !== m.id && c.by !== m.id && !isAdmin()) bad("Not allowed");
+        db.cmsgs = db.cmsgs.filter(k => k !== x);
+        extra.cmsgs = clubMsgs(db, c.id, uid);
+        break;
+      }
+      case "delclub": {
+        const m = me(), c = C(d.id);
+        if (c.by !== m.id && !isAdmin()) bad("Not allowed");
+        db.clubs = db.clubs.filter(x => x !== c);
+        db.cmsgs = db.cmsgs.filter(x => x.club !== c.id);
+        break;
+      }
       case "readnotes": me().notes.forEach(n => { n.read = true; }); break;
 
       case "addwatch": {
@@ -387,6 +463,10 @@ export default async function handler(req, res) {
           p.comments = p.comments.filter(c => c.by !== id);
           p.comments.forEach(c => { c.replies = (c.replies || []).filter(r => r.by !== id); });
         });
+        db.clubs.forEach(c => { c.members = c.members.filter(x => x !== id); });
+        const gone = new Set(db.clubs.filter(c => c.by === id).map(c => c.id));
+        db.clubs = db.clubs.filter(c => c.by !== id);
+        db.cmsgs = db.cmsgs.filter(x => x.by !== id && !gone.has(x.club));
         db.lists = db.lists.filter(l => l.by !== id);
         db.msgs = db.msgs.filter(x => x.from !== id && x.to !== id);
         db.reports = db.reports.filter(r => r.by !== id && db.posts.some(p => p.id === r.pid));
