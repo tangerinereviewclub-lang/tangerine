@@ -207,7 +207,7 @@ function joinView(){return `<section class="panel"><h2>Log in</h2>
 
 function composeView(){const u=me();
  if(!u)return `<section class="panel"><h2>Write a post</h2><p>Create a profile to publish reviews and blogs.</p><button class="btn" data-a="join">Create a profile</button></section>`;
- return `<section class="panel"><h2>Share a slice as ${esc(u.name)}</h2>${pre&&pre.prompt?`<p class="hint">Replying to the weekly prompt: <b>${esc(pre.ptitle)}</b></p>`:''}
+ return `<section class="panel"><h2>Share a slice as ${esc(u.name)}</h2>${pre&&pre.prompt?`<p style="margin:0 0 6px;padding:8px 12px;background:var(--os);border-radius:10px">💭 You are answering the weekly prompt: <b>${esc(pre.ptitle)}</b></p>`:''}${pre&&pre.pick?`<p style="margin:0 0 6px;padding:8px 12px;background:var(--os);border-radius:10px">🍊 Reviewing the Fresh pick of the week. It shows in the feed, on your profile and in your diary.</p>`:''}
  <div class="row"><div><label for="f-type">Media type</label><select id="f-type">${TYPES.slice(1).map(t=>`<option${pre&&pre.type===t?' selected':''}>${t}</option>`).join('')}</select></div>
  <div><label for="f-media">Media title</label><input id="f-media" maxlength="80"${pre?` value="${esc(pre.media)}"`:''}></div></div>
  <label>Your rating</label><div class="stars" id="f-stars">${[1,2,3,4,5].map(n=>`<button type="button" class="${n<=rating?'on':''}" data-n="${n}" aria-label="${n} stars">🍊</button>`).join('')}</div>
@@ -227,7 +227,7 @@ const card=p=>`<article class="post"><button class="open" data-a="open" data-id=
 function feedView(){const fl=(me()&&me().following)||[];
  const list=db.posts.filter(p=>filter==='All'||(filter==='Following'?fl.includes(p.by):p.type===filter));
  if(sort==='liked')list.sort((a,b)=>b.likedBy.length-a.likedBy.length||b.ts-a.ts);else if(sort==='comm')list.sort((a,b)=>b.comments.length-a.comments.length||b.ts-a.ts);
- return bannerBox()+pickBanner()+promptBox()+pollBox()+bingoBox()+composeView()+`<div class="filters"><select id="sort" aria-label="Sort posts" style="width:auto"><option value="new"${sort==='new'?' selected':''}>Newest</option><option value="liked"${sort==='liked'?' selected':''}>Most liked</option><option value="comm"${sort==='comm'?' selected':''}>Most commented</option></select>${TYPES.concat(me()?['Following']:[]).map(t=>`<button class="chip" data-a="filter" data-t="${t}" aria-pressed="${t===filter}">${t}</button>`).join('')}</div>`+
+ return bannerBox()+composeView()+pickBanner()+promptBox()+pollBox()+bingoBox()+`<div class="filters"><select id="sort" aria-label="Sort posts" style="width:auto"><option value="new"${sort==='new'?' selected':''}>Newest</option><option value="liked"${sort==='liked'?' selected':''}>Most liked</option><option value="comm"${sort==='comm'?' selected':''}>Most commented</option></select>${TYPES.concat(me()?['Following']:[]).map(t=>`<button class="chip" data-a="filter" data-t="${t}" aria-pressed="${t===filter}">${t}</button>`).join('')}</div>`+
  (list.length?(feedPosts=list,feedShown='IntersectionObserver' in window?Math.min(feedWant,list.length):list.length,`<div id="feed-list">${list.slice(0,feedShown).map(card).join('')}</div>${feedShown<list.length?'<div id="more" style="height:1px"></div>':''}`):`<p class="empty">${filter==='Following'?'Nothing here yet. Use Find people to follow someone.':'No fruit on the tree yet. Be the first to post.'}</p>`)}
 
 const postTools=p=>{const u=me();if(!u)return'';const own=u.id===p.by;
@@ -240,7 +240,7 @@ function commentHtml(p,c,i){const u=me();
  const reps=(c.replies||[]).map((r,j)=>r.hidden?'':`<div class="cm" style="margin-left:34px">${av(user(r.by),'sm')}<div><button class="link" data-a="profile" data-id="${r.by}">${esc(user(r.by).name)}</button> ${lk(r.t)}${u&&(u.id===r.by||u.id===p.by||isAdmin())?` <button class="link" data-a="delr" data-id="${p.id}" data-i="${i}" data-j="${j}">Delete</button>`:''}</div></div>`).join('');
  const form=view.rp===i&&u?`<div class="cform" style="margin-left:34px"><input id="r-t" maxlength="300" placeholder="Reply as ${esc(u.name)}"><button class="btn" data-a="sendr" data-id="${p.id}" data-i="${i}">Reply</button><button class="btn ghost" data-a="open" data-id="${p.id}">Cancel</button></div>`:'';
  return main+reps+form}
-function editForm(p){return `<section class="panel"><h2>Edit your post</h2>
+function editForm(p){return `<section class="panel"><h2>Edit your post</h2>${p.prompt&&promptOf(p.prompt)?`<p style="margin:0 0 6px;padding:8px 12px;background:var(--os);border-radius:10px">💭 Answering the weekly prompt: <b>${esc(promptOf(p.prompt).title)}</b></p>`:''}
  <div class="row"><div><label for="f-type">Media type</label><select id="f-type">${TYPES.slice(1).map(t=>`<option${t===p.type?' selected':''}>${t}</option>`).join('')}</select></div>
  <div><label for="f-media">Media title</label><input id="f-media" maxlength="80" value="${esc(p.media)}"></div></div>
  <label>Your rating</label><div class="stars" id="f-stars">${[1,2,3,4,5].map(n=>`<button type="button" class="${n<=rating?'on':''}" data-n="${n}" aria-label="${n} stars">🍊</button>`).join('')}</div>
@@ -249,7 +249,7 @@ function editForm(p){return `<section class="panel"><h2>Edit your post</h2>
  <div class="actions">${p.draft?`<button class="btn" data-a="savepost" data-id="${p.id}" data-draft="0">Publish</button><button class="btn ghost" data-a="savepost" data-id="${p.id}" data-draft="1">Save draft</button>`:`<button class="btn" data-a="savepost" data-id="${p.id}" data-draft="0">Save changes</button>`}<button class="btn ghost" data-a="open" data-id="${p.id}">Cancel</button></div></section>`}
 function postView(p){const u=me();if(view.edit&&u&&u.id===p.by)return editForm(p);
  return `<button class="btn ghost" style="margin-bottom:14px" data-a="feed">Back to all posts</button>
- <article class="post"><h3>${esc(p.title)}</h3>${meta(p)}${bodyHtml(p,1)}${p.draft?'<p class="hint">Draft: only you can see this. Edit it to publish.</p>':actions(p)}
+ <article class="post"><h3>${esc(p.title)}</h3>${meta(p)}${bodyHtml(p,1)}${p.draft?'<p class="hint">'+(p.prompt&&promptOf(p.prompt)?'💭 Answering the weekly prompt: <b>'+esc(promptOf(p.prompt).title)+'</b>. ':'')+'Draft: only you can see this. Edit it to publish.</p>':actions(p)}
  ${postTools(p)}
  <div class="comments"${p.draft?' hidden':''}><h3 style="font-size:1.1rem;margin-bottom:6px">Comments (${p.comments.length})</h3>
  ${p.comments.map((c,i)=>commentHtml(p,c,i)).join('')||'<p class="empty" style="padding:6px 0">No comments yet. Be the first to squeeze one in.</p>'}
@@ -293,6 +293,10 @@ function searchRes(q){q=q.trim().toLowerCase().replace(/^@/,'');
  return people+`<h2 style="margin:18px 0 10px;color:var(--od)">Posts</h2>`+(ps.length?ps.map(card).join(''):'<p class="empty">No posts found.</p>')}
 const membersPanel=()=>{if(!db.owner)return'';const rows=memberRows('');
  return `<section class="panel"><h2>Member list (owner only)</h2><p class="hint">Copy the table and paste it into Google Sheets.</p><div class="actions" style="margin:8px 0 12px"><button class="btn" data-a="copymembers">📋 Copy table</button></div>${rows.length?`<div class="tblwrap"><table class="mtable" id="m-table"><thead><tr>${MCOLS.map(c=>`<th>${c[0]}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${MCOLS.map(c=>c[1]==='handle'?`<td><button class="link" data-a="profile" data-id="${r.u.id}">@${esc(r.handle)}</button></td>`:`<td>${esc(r[c[1]])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'<p class="hint">No members yet.</p>'}</section>`};
+const statsPanel=()=>{if(!isAdmin())return'';
+ const tally=(key,label)=>{const m={};db.posts.forEach(p=>{const k=key(p);if(!k)return;const x=m[k]||(m[k]={l:label(p),p:0,c:0,k:0});x.p++;x.k+=p.likedBy.length;x.c+=p.comments.reduce((s,c)=>s+(c.hidden?0:1)+(c.replies||[]).length,0)});return Object.values(m).sort((a,b)=>(b.p+b.c)-(a.p+a.c)||b.k-a.k).slice(0,10)};
+ const tbl=(t,rows)=>`<h3 style="margin:14px 0 6px">${t}</h3>`+(rows.length?`<div class="tblwrap"><table class="mtable"><thead><tr><th>#</th><th>Topic</th><th>Posts</th><th>Comments</th><th>Likes</th></tr></thead><tbody>${rows.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.l)}</td><td>${x.p}</td><td>${x.c}</td><td>${x.k}</td></tr>`).join('')}</tbody></table></div>`:'<p class="hint">Nothing yet.</p>');
+ return `<section class="panel"><h2>📈 Most talked about (admin)</h2><p class="hint">Ranked by posts plus comments and replies.</p>${tbl('Titles',tally(p=>(p.media||'').trim().toLowerCase(),p=>p.media))}${tbl('Categories',tally(p=>p.type,p=>p.type))}${tbl('Weekly prompts',tally(p=>p.prompt,p=>(promptOf(p.prompt)||{}).title||'Deleted prompt'))}</section>`};
 const searchView=()=>`<section class="panel"><h2>Search</h2><input id="s-q" placeholder="Search people, reviews or titles" autocomplete="off"></section><div id="s-res">${searchRes('')}</div>`;
 
 const threads=()=>{const m={};(db.msgs||[]).forEach(x=>{const o=x.from===db.me?x.to:x.from;(m[o]=m[o]||[]).push(x)});return Object.entries(m).map(([o,l])=>({o,l,last:l[l.length-1]})).sort((a,b)=>b.last.ts-a.last.ts)};
@@ -330,6 +334,7 @@ function settingsView(){if(!me())return inboxView();
  <section class="panel"><h2>Blocked people</h2>${(db.blocked||[]).length?db.blocked.map(u=>`<div style="display:flex;align-items:center;gap:12px;padding:6px 0">${av(u)}<span style="flex:1">${esc(u.name)} <span class="hint">@${esc(u.handle)}</span></span><button class="btn ghost" data-a="block" data-id="${u.id}">Unblock</button></div>`).join(''):'<p class="hint">You have not blocked anyone.</p>'}</section>
  ${isAdmin()?`<section class="panel"><h2>Email check (admin)</h2><p class="hint">Sends a test email to your own address and tells you exactly what is wrong if it fails. Password reset emails use the same setup.</p><div class="actions"><button class="btn" data-a="mailtest">Send test email</button></div></section>`:''}
  ${isAdmin()?`<section class="panel"><h2>Fresh pick of the week</h2><div class="row"><div><label for="fp-t">Category</label><select id="fp-t">${TYPES.slice(1).map(t=>`<option${db.pick&&db.pick.type===t?' selected':''}>${t}</option>`).join('')}</select></div><div><label for="fp-m">Title</label><input id="fp-m" maxlength="80" value="${db.pick?esc(db.pick.media):''}"></div></div><label for="fp-n">Why it is a fresh pick (optional)</label><input id="fp-n" maxlength="200" value="${db.pick?esc(db.pick.note||''):''}"><div class="actions"><button class="btn" data-a="setpick">Save pick</button><button class="btn ghost" data-a="clearpick">Remove pick</button></div></section>`:''}
+ ${statsPanel()}
  ${membersPanel()}
  ${adminTools()}
  ${isAdmin()?`<section class="panel"><h2>Reports</h2>${(db.reports||[]).length?db.reports.map(r=>`<div class="cm"><div style="flex:1">${esc(r.kind)} reported by ${esc(user(r.by).name)}: ${esc(r.reason||'no reason given')}</div><button class="link" data-a="open" data-id="${r.pid}">View</button>${repAuthor(r)}<button class="link" data-a="dismissr" data-id="${r.id}">Dismiss</button></div>`).join(''):'<p class="hint">No reports.</p>'}<h3 style="margin:14px 0 6px">Suspended accounts</h3>${(db.suspended||[]).length?db.suspended.map(id=>`<div class="cm"><span style="flex:1">${esc(user(id).name)} <span class="hint">@${esc(user(id).handle)}</span></span><button class="link" data-a="suspend" data-id="${id}">Unsuspend</button></div>`).join(''):'<p class="hint">None.</p>'}</section>`:''}
@@ -467,6 +472,7 @@ function render(){
  else if(view.n==='features')body=featuresView();
  else if(view.n==='feat')body=featView(view.id);
  else if(view.n==='featform')body=featForm(view.id);
+ else if(view.n==='compose')body='<button class="btn ghost" style="margin-bottom:14px" data-a="feed">Back to all posts</button>'+composeView();
  else if(view.n==='post'){const p=postById(view.id);body=p?postView(p):feedView()}
  else if(view.n==='profile')body=profileView(user(view.id));
  else body=feedView();
@@ -550,7 +556,7 @@ app.addEventListener('click',async e=>{
  else if(a==='suspend'){const was=(db.suspended||[]).includes(id);if(!was&&!confirm('Suspend this account? They will be logged out and unable to log in.'))return;if(await api('suspend',{id})){toast(was?'Account unsuspended':'Account suspended');render()}}
  else if(a==='setpick'){if(await api('setpick',{type:g('fp-t'),media:g('fp-m'),note:g('fp-n')})){toast('Fresh pick saved');render()}}
  else if(a==='clearpick'){if(await api('setpick',{})){toast('Fresh pick removed');render()}}
- else if(a==='pickreview'){pre={type:db.pick.type,media:db.pick.media};rating=0;go({n:'feed'})}
+ else if(a==='pickreview'){pre={type:db.pick.type,media:db.pick.media,pick:true};rating=0;go({n:'compose'})}
  else if(a==='notes'){go({n:'notes'});api('readnotes').then(()=>refreshBar())}
  else if(a==='settings')go({n:'settings'});
  else if(a==='reveal'){rev.add(id);const y=window.scrollY;render();window.scrollTo(0,y)}
@@ -579,7 +585,7 @@ app.addEventListener('click',async e=>{
  else if(a==='savedraft'){if(!needUser())return;
   const d={type:g('f-type'),media:g('f-media'),title:g('f-media'),rating,text:g('f-text'),spoiler:$('f-spoil').checked,draft:true};
   if(!d.media){toast('Add a media title to save a draft');return}
-  if(await api('publish',{...d,prompt:pre&&pre.prompt})){pre=null;rating=0;render();toast('Draft saved. Find it on your profile.')}}
+  if(await api('publish',{...d,prompt:pre&&pre.prompt})){const wp=pre&&pre.prompt;pre=null;rating=0;toast('Draft saved. Find it on your profile.');const nd=(db.drafts||[]).filter(x=>x.by===db.me).sort((a,b)=>b.ts-a.ts)[0];if(wp&&nd)go({n:'post',id:nd.id});else render()}}
  else if(a==='open')go({n:'post',id});
  else if(a==='profile'){const u=user(id);pickAv=u.avatar;go({n:'profile',id})}
  else if(a==='filter'){filter=b.dataset.t;feedWant=20;render()}
@@ -608,11 +614,11 @@ app.addEventListener('click',async e=>{
   const d={type:g('f-type'),media:g('f-media'),title:g('f-media'),rating,text:g('f-text'),spoiler:$('f-spoil').checked};
   if(!d.media||!d.text){toast('Add a media title and your review first');return}
   if(!rating){toast('Pick a star rating first');return}
-  if(await api('publish',{...d,wid:pre&&pre.wid,prompt:pre&&pre.prompt})){pre=null;rating=0;render();toast('Slice shared! 🍊')}}
+  if(await api('publish',{...d,wid:pre&&pre.wid,prompt:pre&&pre.prompt})){const jump=pre&&(pre.prompt||pre.pick);pre=null;rating=0;toast('Slice shared! 🍊');const np=db.posts.filter(x=>x.by===db.me).sort((a,b)=>b.ts-a.ts)[0];if(jump&&np)go({n:'post',id:np.id});else render()}}
  else if(a==='follow'){if(!needUser())return;
   if(await api('follow',{id})){if($('s-res'))$('s-res').innerHTML=searchRes($('s-q').value);else render()}}
  else if(a==='prompt')go({n:'prompt',id});
- else if(a==='promptreply'){const k=promptOf(id);if(!k)return;if(!needUser())return;pre={type:'',media:'',prompt:id,ptitle:k.title};rating=0;go({n:'feed'})}
+ else if(a==='promptreply'){const k=promptOf(id);if(!k)return;if(!needUser())return;pre={type:'',media:'',prompt:id,ptitle:k.title};rating=0;go({n:'compose'})}
  else if(a==='vote'){if(!needUser())return;const y=window.scrollY;if(await api('pollvote',{id,i:+b.dataset.i,c:b.dataset.c===undefined?undefined:+b.dataset.c})){render();window.scrollTo(0,y)}}
  else if(a==='setbanner'){if(!g('bn-h')){toast('Add a headline first');return}if(await api('setbanner',{title:g('bn-h'),text:g('bn-t')})){toast('Announcement pinned');render()}}
  else if(a==='clearbanner'){if(await api('setbanner',{title:'',text:''})){toast('Announcement removed');render()}}
