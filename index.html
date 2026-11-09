@@ -6,6 +6,7 @@
 <title>Tangerine Review Club</title>
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/logo.png">
+<link rel="alternate" type="application/rss+xml" title="Tangerine Review Club: Feature Picks" href="/api?feed=1">
 <script>try{var t=localStorage.getItem('bb-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -106,19 +107,21 @@ const TOPS=[['movies','Top 4 movies','Movie'],['albums','Top 4 albums','Album'],
 const topInputs=(p,t)=>TOPS.map(([k,l,n])=>`<label>${l}</label><div class="row">${[0,1,2,3].map(i=>`<input id="${p}-${k}-${i}" maxlength="60" placeholder="${n} ${i+1}" aria-label="${l} ${i+1}" value="${esc(((t&&t[k])||[])[i]||'')}">`).join('')}</div>`).join('');
 const readTops=p=>{const o={};TOPS.forEach(([k])=>{o[k]=[0,1,2,3].map(i=>{const el=document.getElementById(p+'-'+k+'-'+i);return el?el.value.trim():''})});return o};
 const topsView=u=>`<section class="panel"><h2>Top 4</h2><div class="tops">${TOPS.map(([k,l])=>{const a=((u.top||{})[k]||[]).filter(Boolean);return `<div class="topcard"><h3>${l.replace('Top 4 ','')}</h3>${a.length?`<ol>${a.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>`:'<p class="hint">Nothing picked yet.</p>'}</div>`}).join('')}</div></section>`;
-const AVATARS=['🍊','🧡','🦊','🐯','🎃','🥕','🏀','🔥','🥭','🐱'];
+const AVATARS=['🍊','🧡','🟠','🔶','🦊','🐯','🎃','🥕','🏀','🔥','🥭','🐱'];
 let db={me:null,profiles:[],posts:[]}, view={n:'feed'}, filter='All', rating=0, sort='new', rev=new Set(), pre=null, dcat='All', dyear='All', clubMsgs=[], feedPosts=[], feedShown=0, feedWant=20, obs=null, pickAv=AVATARS[0], TOKEN='';
 try{TOKEN=localStorage.getItem('tg-token')||''}catch(e){}
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const user=id=>db.profiles.find(u=>u.id===id)||{id:'x',name:'Deleted user',handle:'deleted',bio:'',avatar:'🍊'};
 const me=()=>db.me?db.profiles.find(u=>u.id===db.me):null;
+const postById=id=>db.posts.find(x=>x.id===id)||(db.drafts||[]).find(x=>x.id===id);
+const promptOf=id=>(db.prompts||[]).find(x=>x.id===id);
 function toast(m){const t=$('tg-toast');t.textContent=m;t.classList.add('show');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove('show'),2300)}
 async function api(a,d){
  try{const r=await fetch('/api',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+TOKEN},body:JSON.stringify({a,d})});
   const j=await r.json();if(j.error){toast(j.error);return null}
   if(j.token!==undefined){TOKEN=j.token;try{localStorage.setItem('tg-token',TOKEN)}catch(e){}}
-  db=j.db;db.me=j.me;db.msgs=j.msgs||[];db.notes=j.notes||[];db.blocked=j.blocked||[];db.admin=!!j.admin;db.reports=j.reports||[];db.email=j.email||'';db.suspended=j.suspended||[];db.clubs=j.clubs||[];db.features=j.features||[];db.isCore=!!j.isCore;db.isEditor=!!j.isEditor;db.core=j.core||{};if(j.cmsgs)clubMsgs=j.cmsgs;return j}
+  db=j.db;db.me=j.me;db.msgs=j.msgs||[];db.notes=j.notes||[];db.blocked=j.blocked||[];db.admin=!!j.admin;db.reports=j.reports||[];db.email=j.email||'';db.suspended=j.suspended||[];db.clubs=j.clubs||[];db.features=j.features||[];db.owner=!!j.owner;db.admins=j.admins||[];db.drafts=(db.posts||[]).filter(p=>p.draft);db.posts=(db.posts||[]).filter(p=>!p.draft);db.isCore=!!j.isCore;db.isEditor=!!j.isEditor;db.core=j.core||{};if(j.cmsgs)clubMsgs=j.cmsgs;return j}
  catch(e){toast('Network problem, try again');return null}}
 function ago(ts){const m=Math.round((Date.now()-ts)/60000);if(m<1)return'just now';if(m<60)return m+' min ago';const h=Math.round(m/60);if(h<24)return h+' h ago';return Math.round(h/24)+' d ago'}
 const excerpt=t=>{t=t.replace(/\s+/g,' ');return t.length>150?t.slice(0,150).trim()+'...':t};
@@ -145,10 +148,10 @@ const igFields=(p,u)=>`<label for="${p}-ig">Instagram (optional)</label><input i
  <p class="hint">Optional. It shows on your profile as a social link.</p>
  <label for="${p}-l0">More social links (optional, up to 2)</label><div class="row"><input id="${p}-l0" maxlength="200" placeholder="Letterboxd, Goodreads, Spotify..." value="${esc(((u&&u.links)||[])[0]||'')}"><input id="${p}-l1" maxlength="200" placeholder="Another link" value="${esc(((u&&u.links)||[])[1]||'')}"></div>`;
 const readIg=p=>({insta:$(p+'-ig').value.trim(),igPrivate:$(p+'-igp').checked,links:[$(p+'-l0').value.trim(),$(p+'-l1').value.trim()]});
-const PRON=['she/her','he/him','they/them'];
-const pronFields=(p,u)=>`<label>Pronouns (optional)</label><div style="display:flex;gap:16px;flex-wrap:wrap">${PRON.map((x,i)=>`<label style="display:flex;align-items:center;gap:6px;font-weight:500;margin:4px 0"><input type="checkbox" id="${p}-pr${i}" style="width:auto"${u&&(u.pronouns||[]).includes(x)?' checked':''}>${x}</label>`).join('')}</div><p class="hint">Optional. Pick any that apply, or none. They show next to your username.</p>`;
-const readPron=p=>({pronouns:PRON.filter((x,i)=>$(p+'-pr'+i)&&$(p+'-pr'+i).checked)});
-const pronTxt=u=>(u.pronouns||[]).length?' · '+u.pronouns.map(esc).join(' · '):'';
+const pronFields=(p,u)=>`<label for="${p}-pr">Pronouns (optional)</label><input id="${p}-pr" maxlength="30" placeholder="e.g. she/her, he/him, they/them" autocapitalize="none" value="${esc(pronStr(u))}"><p class="hint">Optional. Type whatever you like. It shows next to your username.</p>`;
+const pronStr=u=>!u?'':Array.isArray(u.pronouns)?u.pronouns.join(' / '):(u.pronouns||'');
+const readPron=p=>({pronouns:$(p+'-pr')?$(p+'-pr').value.trim():''});
+const pronTxt=u=>pronStr(u)?' · '+esc(pronStr(u)):'';
 const host=h=>{try{return new URL(h).hostname.replace(/^www\./,'')}catch(e){return h}};
 const profLinks=u=>{const out=[];
  if(u.insta)out.push(`<a class="link" href="https://instagram.com/${esc(u.insta)}" target="_blank" rel="noopener noreferrer nofollow">📷 @${esc(u.insta)}${u.igPrivate?' (private, only you see this)':''}</a>`);
@@ -175,7 +178,7 @@ function joinView(){return `<section class="panel"><h2>Log in</h2>
 
 function composeView(){const u=me();
  if(!u)return `<section class="panel"><h2>Write a post</h2><p>Create a profile to publish reviews and blogs.</p><button class="btn" data-a="join">Create a profile</button></section>`;
- return `<section class="panel"><h2>Share a slice as ${esc(u.name)}</h2>
+ return `<section class="panel"><h2>Share a slice as ${esc(u.name)}</h2>${pre&&pre.prompt?`<p class="hint">Replying to the weekly prompt: <b>${esc(pre.ptitle)}</b></p>`:''}
  <div class="row"><div><label for="f-type">Media type</label><select id="f-type">${TYPES.slice(1).map(t=>`<option${pre&&pre.type===t?' selected':''}>${t}</option>`).join('')}</select></div>
  <div><label for="f-media">Media title</label><input id="f-media" maxlength="80"${pre?` value="${esc(pre.media)}"`:''}></div></div>
  <label for="f-title">Post headline</label><input id="f-title" maxlength="100" placeholder="e.g. Is this movie worth watching?">
@@ -183,21 +186,21 @@ function composeView(){const u=me();
  <label>Your rating</label><div class="stars" id="f-stars">${[1,2,3,4,5].map(n=>`<button type="button" class="${n<=rating?'on':''}" data-n="${n}" aria-label="${n} stars">🍊</button>`).join('')}</div>
  <label for="f-text">Your review or blog</label><textarea id="f-text" placeholder="What did you think?"></textarea>
  <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="f-spoil" style="width:auto">This post contains spoilers</label>
- <div class="actions"><button class="btn" data-a="publish">Share a slice</button></div></section>`}
+ <div class="actions"><button class="btn" data-a="publish">Share a slice</button><button class="btn ghost" data-a="savedraft">Save as draft</button></div></section>`}
 
 function actions(p){const u=me(),liked=u&&p.likedBy.includes(u.id);
  return `<div class="actions"><button class="act" data-a="like" data-id="${p.id}" aria-label="Like" aria-pressed="${!!liked}"><span class="tl${liked?'':' off'}" aria-hidden="true">🍊</span> ${p.likedBy.length}</button>
- <button class="act" data-a="open" data-id="${p.id}">💬 ${p.comments.length}</button><button class="act" data-a="share" data-id="${p.id}">Share</button></div>`}
+ <button class="act" data-a="open" data-id="${p.id}">💬 ${p.comments.length}</button><button class="act" data-a="share" data-id="${p.id}">Share</button><button class="act" data-a="sharecard" data-id="${p.id}">🖼️ Card</button></div>`}
 const lk=t=>esc(t).replace(/@([a-z0-9_]{3,20})/gi,(m,h)=>{const u=db.profiles.find(x=>x.handle===h.toLowerCase());return u?`<button class="link" data-a="profile" data-id="${u.id}">@${esc(u.handle)}</button>`:m});
 const bodyHtml=(p,full)=>p.spoiler&&!rev.has(p.id)?`<div class="body"><button class="btn ghost" data-a="reveal" data-id="${p.id}">⚠️ Contains spoilers. Tap to show</button></div>`:`<div class="body">${lk(full?p.text:excerpt(p.text))}</div>`;
-const meta=p=>`<div class="meta">${userLink(user(p.by))}<span class="tag">${esc(p.type)}</span><span>${esc(p.media)}</span><span class="rate" aria-label="${p.rating} out of 5">${stars(p.rating)}</span><span>${ago(p.ts)}${p.edited?' (edited)':''}</span></div>`;
+const meta=p=>`<div class="meta">${userLink(user(p.by))}<span class="tag">${esc(p.type)}</span>${p.draft?'<span class="tag">Draft</span>':''}${p.prompt&&promptOf(p.prompt)?`<button class="link" data-a="prompt" data-id="${p.prompt}">💭 ${esc(promptOf(p.prompt).title)}</button>`:''}<span>${esc(p.media)}</span><span class="rate" aria-label="${p.rating} out of 5">${stars(p.rating)}</span><span>${ago(p.ts)}${p.edited?' (edited)':''}</span></div>`;
 const card=p=>`<article class="post"><button class="open" data-a="open" data-id="${p.id}">${esc(p.title)}</button>${meta(p)}
  ${bodyHtml(p)}<div class="actions"><button class="btn ghost" data-a="open" data-id="${p.id}">Read post</button></div>${actions(p)}</article>`;
 
 function feedView(){const fl=(me()&&me().following)||[];
  const list=db.posts.filter(p=>filter==='All'||(filter==='Following'?fl.includes(p.by):p.type===filter));
  if(sort==='liked')list.sort((a,b)=>b.likedBy.length-a.likedBy.length||b.ts-a.ts);else if(sort==='comm')list.sort((a,b)=>b.comments.length-a.comments.length||b.ts-a.ts);
- return pickBanner()+composeView()+`<div class="filters"><select id="sort" aria-label="Sort posts" style="width:auto"><option value="new"${sort==='new'?' selected':''}>Newest</option><option value="liked"${sort==='liked'?' selected':''}>Most liked</option><option value="comm"${sort==='comm'?' selected':''}>Most commented</option></select>${TYPES.concat(me()?['Following']:[]).map(t=>`<button class="chip" data-a="filter" data-t="${t}" aria-pressed="${t===filter}">${t}</button>`).join('')}</div>`+
+ return bannerBox()+pickBanner()+promptBox()+pollBox()+composeView()+`<div class="filters"><select id="sort" aria-label="Sort posts" style="width:auto"><option value="new"${sort==='new'?' selected':''}>Newest</option><option value="liked"${sort==='liked'?' selected':''}>Most liked</option><option value="comm"${sort==='comm'?' selected':''}>Most commented</option></select>${TYPES.concat(me()?['Following']:[]).map(t=>`<button class="chip" data-a="filter" data-t="${t}" aria-pressed="${t===filter}">${t}</button>`).join('')}</div>`+
  (list.length?(feedPosts=list,feedShown='IntersectionObserver' in window?Math.min(feedWant,list.length):list.length,`<div id="feed-list">${list.slice(0,feedShown).map(card).join('')}</div>${feedShown<list.length?'<div id="more" style="height:1px"></div>':''}`):`<p class="empty">${filter==='Following'?'Nothing here yet. Use Find people to follow someone.':'No fruit on the tree yet. Be the first to post.'}</p>`)}
 
 const postTools=p=>{const u=me();if(!u)return'';const own=u.id===p.by;
@@ -218,12 +221,12 @@ function editForm(p){return `<section class="panel"><h2>Edit your post</h2>
  <label>Your rating</label><div class="stars" id="f-stars">${[1,2,3,4,5].map(n=>`<button type="button" class="${n<=rating?'on':''}" data-n="${n}" aria-label="${n} stars">🍊</button>`).join('')}</div>
  <label for="f-text">Your review or blog</label><textarea id="f-text">${esc(p.text)}</textarea>
  <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="f-spoil" style="width:auto"${p.spoiler?' checked':''}>This post contains spoilers</label>
- <div class="actions"><button class="btn" data-a="savepost" data-id="${p.id}">Save changes</button><button class="btn ghost" data-a="open" data-id="${p.id}">Cancel</button></div></section>`}
+ <div class="actions">${p.draft?`<button class="btn" data-a="savepost" data-id="${p.id}" data-draft="0">Publish</button><button class="btn ghost" data-a="savepost" data-id="${p.id}" data-draft="1">Save draft</button>`:`<button class="btn" data-a="savepost" data-id="${p.id}" data-draft="0">Save changes</button>`}<button class="btn ghost" data-a="open" data-id="${p.id}">Cancel</button></div></section>`}
 function postView(p){const u=me();if(view.edit&&u&&u.id===p.by)return editForm(p);
  return `<button class="btn ghost" style="margin-bottom:14px" data-a="feed">Back to all posts</button>
- <article class="post"><h3>${esc(p.title)}</h3>${meta(p)}${bodyHtml(p,1)}${actions(p)}
+ <article class="post"><h3>${esc(p.title)}</h3>${meta(p)}${bodyHtml(p,1)}${p.draft?'<p class="hint">Draft: only you can see this. Edit it to publish.</p>':actions(p)}
  ${postTools(p)}
- <div class="comments"><h3 style="font-size:1.1rem;margin-bottom:6px">Comments (${p.comments.length})</h3>
+ <div class="comments"${p.draft?' hidden':''}><h3 style="font-size:1.1rem;margin-bottom:6px">Comments (${p.comments.length})</h3>
  ${p.comments.map((c,i)=>commentHtml(p,c,i)).join('')||'<p class="empty" style="padding:6px 0">No comments yet. Be the first to squeeze one in.</p>'}
  ${u?`<div class="cform"><input id="c-t" maxlength="300" placeholder="Comment as ${esc(u.name)}"><button class="btn" data-a="send" data-id="${p.id}">Squeeze it in</button></div>`
  :`<div class="actions"><button class="btn" data-a="join">Create a profile to comment</button></div>`}</div></article>`}
@@ -243,7 +246,7 @@ function profileView(u){const mine=me()&&me().id===u.id, posts=db.posts.filter(p
  ${pronFields('e',u)}
  ${igFields('e',u)}
  <label>Avatar </label>${avPicker(pickAv)}<div class="actions"><button class="btn" data-a="saveprofile">Save profile</button></div></section>`:''}
- <h2 style="margin:0 0 12px;color:var(--od)">Posts by ${esc(u.name)}</h2>${posts.length?posts.map(card).join(''):'<p class="empty">No posts yet.</p>'}`}
+ ${draftsView(u)}<h2 style="margin:0 0 12px;color:var(--od)">Posts by ${esc(u.name)}</h2>${posts.length?posts.map(card).join(''):'<p class="empty">No posts yet.</p>'}`}
 
 function searchRes(q){q=q.trim().toLowerCase().replace(/^@/,'');
  const l=db.profiles.filter(u=>!q||u.handle.includes(q)||u.name.toLowerCase().includes(q));
@@ -288,6 +291,7 @@ function settingsView(){if(!me())return inboxView();
  <section class="panel"><h2>Blocked people</h2>${(db.blocked||[]).length?db.blocked.map(u=>`<div style="display:flex;align-items:center;gap:12px;padding:6px 0">${av(u)}<span style="flex:1">${esc(u.name)} <span class="hint">@${esc(u.handle)}</span></span><button class="btn ghost" data-a="block" data-id="${u.id}">Unblock</button></div>`).join(''):'<p class="hint">You have not blocked anyone.</p>'}</section>
  ${isAdmin()?`<section class="panel"><h2>Email check (admin)</h2><p class="hint">Sends a test email to your own address and tells you exactly what is wrong if it fails. Password reset emails use the same setup.</p><div class="actions"><button class="btn" data-a="mailtest">Send test email</button></div></section>`:''}
  ${isAdmin()?`<section class="panel"><h2>Fresh pick of the week</h2><div class="row"><div><label for="fp-t">Category</label><select id="fp-t">${TYPES.slice(1).map(t=>`<option${db.pick&&db.pick.type===t?' selected':''}>${t}</option>`).join('')}</select></div><div><label for="fp-m">Title</label><input id="fp-m" maxlength="80" value="${db.pick?esc(db.pick.media):''}"></div></div><label for="fp-n">Why it is a fresh pick (optional)</label><input id="fp-n" maxlength="200" value="${db.pick?esc(db.pick.note||''):''}"><div class="actions"><button class="btn" data-a="setpick">Save pick</button><button class="btn ghost" data-a="clearpick">Remove pick</button></div></section>`:''}
+ ${adminTools()}
  ${isAdmin()?`<section class="panel"><h2>Reports</h2>${(db.reports||[]).length?db.reports.map(r=>`<div class="cm"><div style="flex:1">${esc(r.kind)} reported by ${esc(user(r.by).name)}: ${esc(r.reason||'no reason given')}</div><button class="link" data-a="open" data-id="${r.pid}">View</button>${repAuthor(r)}<button class="link" data-a="dismissr" data-id="${r.id}">Dismiss</button></div>`).join(''):'<p class="hint">No reports.</p>'}<h3 style="margin:14px 0 6px">Suspended accounts</h3>${(db.suspended||[]).length?db.suspended.map(id=>`<div class="cm"><span style="flex:1">${esc(user(id).name)} <span class="hint">@${esc(user(id).handle)}</span></span><button class="link" data-a="suspend" data-id="${id}">Unsuspend</button></div>`).join(''):'<p class="hint">None.</p>'}</section>`:''}
  <section class="panel"><h2>Delete account</h2><p class="hint">This permanently deletes your profile, posts, comments and messages.</p><label for="da-pw">Password</label><input id="da-pw" type="password" autocomplete="current-password"><div class="actions"><button class="btn danger" data-a="delacct">Delete my account</button></div></section>`}
 const PL={Movie:['movie','movies'],Documentary:['documentary','documentaries'],Book:['book','books'],Game:['game','games'],Show:['show','shows'],Anime:['anime','anime'],Music:['music','music'],Musical:['musical','musicals'],Other:['other post','other posts']};
@@ -343,7 +347,7 @@ function featuresView(){const all=feats(),m=me(),adm=isEd();
  const coreBox=isAdmin()?`<section class="panel"><h2>Zest Team 🍊</h2><p class="hint">Only Zest Team members can send pieces to Feature Picks. Writers write and submit pieces. Editors can also edit anyone's piece and approve, send back or publish. A writer's piece never goes live until an editor approves it.</p>
   ${coreIds.length?coreIds.map(id=>`<div style="display:flex;align-items:center;gap:10px;padding:4px 0;flex-wrap:wrap">${av(user(id),'sm')}<span style="flex:1 1 140px">${esc(user(id).name)} <span class="hint">@${esc(user(id).handle)}</span></span>${roleSel(id,core[id])}<button class="btn ghost" data-a="setcore" data-id="${id}" data-role="">Remove</button></div>`).join(''):'<p class="hint">No one yet.</p>'}
   <label for="core-add">Add a member</label><div class="cform"><select id="core-add">${db.profiles.filter(u=>!core[u.id]&&u.id!==db.me).map(u=>`<option value="${u.id}">${esc(u.name)} (@${esc(u.handle)})</option>`).join('')}</select><select id="core-role" aria-label="Role" style="width:auto"><option value="writer">Writer</option><option value="editor">Editor</option></select><button class="btn" data-a="setcoreadd">Add to Zest Team</button></div></section>`:'';
- return `<section class="panel"><h2>Feature Picks🧺</h2><p style="margin:0">Featured articles and posts from our beloved Tangerine writers. To be featured, email <a class="link" href="mailto:tangerinereviewclub@gmail.com">tangerinereviewclub@gmail.com</a></p>
+ return `<section class="panel"><h2>Feature Picks🧺</h2><p style="margin:0">Featured articles and posts from our beloved Tangerine writers. To be featured, email <a class="link" href="mailto:tangerinereviewclub@gmail.com">tangerinereviewclub@gmail.com</a></p><p class="hint" style="margin:8px 0 0"><a class="link" href="/api?feed=1" target="_blank" rel="noopener">📡 RSS feed</a></p>
   ${db.isCore?'<div class="actions"><button class="btn" data-a="featnew">Write a piece</button></div>':''}</section>
   ${coreBox}
   ${queue.length?`<h2 style="margin:0 0 12px;color:var(--od)">Waiting for your approval (${queue.length})</h2>${queue.map(f=>fCard(f,true)).join('')}`:''}
@@ -354,7 +358,7 @@ function featView(id){const f=feats().find(x=>x.id===id);if(!f)return featuresVi
  <article class="post"><h3>${esc(f.title)}</h3><div class="meta">${userLink(user(f.by))}${fMedia(f)}${f.tag?`<span class="tag">${esc(f.tag)}</span>`:''}<span>${ago(f.publishedAt||f.ts)}${f.edited?' (edited)':''}</span>${f.status!=='published'?`<span class="tag">${FSTAT[f.status]||''}</span>`:''}</div>
  ${f.dek?`<p style="font-weight:700">${esc(f.dek)}</p>`:''}<div class="body">${lk(f.text)}</div>
  ${f.status==='rejected'&&f.note?`<p class="hint">Editor's note: ${esc(f.note)}</p>`:''}
- <div class="actions">${featTools(f)}</div></article>`}
+ <div class="actions">${f.status==='published'?`<button class="btn ghost" data-a="sharefeat" data-id="${f.id}">Share link</button>`:''}${featTools(f)}</div></article>`}
 function featForm(id){const f=id?feats().find(x=>x.id===id):null,adm=isAdmin(),ed=isEd();
  return `<section class="panel"><h2>${f?'Edit piece':'Write a piece'}</h2>
  <label for="ff-title">Headline</label><input id="ff-title" maxlength="120" value="${f?esc(f.title):''}">
@@ -366,6 +370,45 @@ function featForm(id){const f=id?feats().find(x=>x.id===id):null,adm=isAdmin(),e
  ${ed?`<label style="display:flex;align-items:center;gap:8px;font-weight:500"><input type="checkbox" id="ff-pub" style="width:auto">Publish right away</label>`:'<p class="hint">Your piece goes to the editor first. It is published only after approval.</p>'}
  <div class="actions"><button class="btn" data-a="featsave" data-id="${id||''}">${ed?'Save':'Send to the editor'}</button><button class="btn ghost" data-a="features">Cancel</button></div></section>`}
 
+const draftsView=u=>{const l=(db.drafts||[]).filter(p=>p.by===u.id);return me()&&me().id===u.id&&l.length?`<section class="panel"><h2>Your drafts</h2>${l.map(p=>`<div class="cm" style="align-items:center;flex-wrap:wrap"><span style="flex:1 1 200px">${esc(p.title)}${p.media?' <span class="hint">'+esc(p.type)+' - '+esc(p.media)+'</span>':''}</span><button class="btn ghost" data-a="editp" data-id="${p.id}">Edit</button><button class="link" data-a="open" data-id="${p.id}">Open</button></div>`).join('')}</section>`:''};
+const bannerBox=()=>db.banner?`<section class="panel" style="background:var(--os);border-color:var(--o)"><h2>📣 Announcement</h2><div class="body">${lk(db.banner.text)}</div></section>`:'';
+const promptBox=()=>{const k=(db.prompts||[])[0];if(!k)return'';const n=db.posts.filter(p=>p.prompt===k.id).length;
+ return `<section class="panel"><h2>💭 Weekly prompt</h2><div style="font-weight:700;font-size:1.1rem">${esc(k.title)}</div>${k.desc?`<p style="margin:6px 0 0">${esc(k.desc)}</p>`:''}<div class="actions">${me()?`<button class="btn" data-a="promptreply" data-id="${k.id}">Reply with a post</button>`:`<button class="btn" data-a="join">Log in to reply</button>`}<button class="btn ghost" data-a="prompt" data-id="${k.id}">See replies (${n})</button></div></section>`};
+function promptView(id){const k=promptOf(id);if(!k)return feedView();const l=db.posts.filter(p=>p.prompt===id);
+ return `<button class="btn ghost" style="margin-bottom:14px" data-a="feed">Back to all posts</button><section class="panel"><h2>💭 ${esc(k.title)}</h2>${k.desc?`<p style="margin:0 0 6px">${esc(k.desc)}</p>`:''}<p class="hint" style="margin:0">${l.length} repl${l.length===1?'y':'ies'}</p>${me()?`<div class="actions"><button class="btn" data-a="promptreply" data-id="${k.id}">Reply with a post</button></div>`:''}</section>`+(l.length?l.map(card).join(''):'<p class="empty">No replies yet. Be the first.</p>')}
+const pollCard=l=>{const tot=l.options.reduce((s,o)=>s+o.n,0);
+ return `<section class="panel"><h2>${l.kind==='thisthat'?'⚖️ This or that':'📊 Poll'}${l.closed?' (closed)':''}</h2><div style="font-weight:700;margin-bottom:8px">${esc(l.q)}</div>${l.options.map((o,i)=>{const pct=tot?Math.round(o.n*100/tot):0;return `<button class="act" style="display:block;width:100%;text-align:left;margin:6px 0;position:relative;overflow:hidden;border-radius:12px" data-a="vote" data-id="${l.id}" data-i="${i}" aria-pressed="${l.mine===i}"${l.closed?' disabled':''}><span style="position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:var(--line);opacity:.55"></span><span style="position:relative">${esc(o.t)} · ${pct}% (${o.n})</span></button>`}).join('')}<p class="hint">${tot} vote${tot===1?'':'s'}${l.mine>=0?' · tap another option to change your vote':''}</p></section>`};
+const pollBox=()=>{const l=(db.polls||[])[0];return l?pollCard(l):''};
+const adminTools=()=>{if(!isAdmin())return'';const bn=db.banner,pr=db.prompts||[],po=db.polls||[],ad=db.admins||[];
+ const owner=db.owner?`<section class="panel"><h2>Admin team</h2><p class="hint">You are an owner (listed in ADMIN_HANDLE). Admins you add here can moderate, run polls and prompts, pin announcements and approve Feature Picks. Only owners can change this list.</p>${ad.length?ad.map(id=>`<div style="display:flex;align-items:center;gap:10px;padding:4px 0;flex-wrap:wrap">${av(user(id),'sm')}<span style="flex:1 1 140px">${esc(user(id).name)} <span class="hint">@${esc(user(id).handle)}</span></span><button class="btn ghost" data-a="setadmin" data-id="${id}" data-on="0">Remove</button></div>`).join(''):'<p class="hint">No extra admins yet.</p>'}<label for="ad-add">Add an admin</label><div class="cform"><select id="ad-add">${db.profiles.filter(u=>!ad.includes(u.id)&&u.id!==db.me).map(u=>`<option value="${u.id}">${esc(u.name)} (@${esc(u.handle)})</option>`).join('')}</select><button class="btn" data-a="addadmin">Add admin</button></div></section>`:'';
+ return owner+`<section class="panel"><h2>📣 Pinned announcement</h2><label for="bn-t">Message (shown at the top of Home)</label><textarea id="bn-t" maxlength="300" style="min-height:70px">${bn?esc(bn.text):''}</textarea><div class="actions"><button class="btn" data-a="setbanner">Pin it</button>${bn?'<button class="btn ghost" data-a="clearbanner">Remove</button>':''}</div></section>
+ <section class="panel"><h2>💭 Weekly prompts</h2><p class="hint">Members reply with a post. The newest prompt shows on Home.</p><label for="pr-t">Prompt</label><input id="pr-t" maxlength="100" placeholder="e.g. Best comfort movie"><label for="pr-d">Details (optional)</label><input id="pr-d" maxlength="300"><div class="actions"><button class="btn" data-a="newprompt">Post prompt</button></div>${pr.map(k=>`<div class="cm"><span style="flex:1">${esc(k.title)} <span class="hint">${ago(k.ts)}</span></span><button class="link" data-a="delprompt" data-id="${k.id}">Delete</button></div>`).join('')}</section>
+ <section class="panel"><h2>📊 Polls and This or that</h2><p class="hint">The newest one shows on Home. This or that has exactly 2 options.</p><div class="row"><div><label for="po-k">Type</label><select id="po-k"><option value="poll">Poll (2 to 6 options)</option><option value="thisthat">This or that (2 options)</option></select></div><div><label for="po-q">Question</label><input id="po-q" maxlength="120" placeholder="e.g. Movie night snack?"></div></div><label for="po-o">Options (one per line)</label><textarea id="po-o" style="min-height:80px" placeholder="Popcorn&#10;Chips"></textarea><div class="actions"><button class="btn" data-a="newpoll">Create</button></div>${po.map(l=>`<div class="cm" style="flex-wrap:wrap"><span style="flex:1 1 200px">${esc(l.q)} <span class="hint">${l.kind==='thisthat'?'This or that':'Poll'}${l.closed?', closed':''}</span></span><button class="link" data-a="pollclose" data-id="${l.id}">${l.closed?'Reopen':'Close'}</button><button class="link" data-a="delpoll" data-id="${l.id}">Delete</button></div>`).join('')}</section>`};
+const loadImg=src=>new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=src});
+function rrect(x,l,t,w,h,r){x.beginPath();x.moveTo(l+r,t);x.arcTo(l+w,t,l+w,t+h,r);x.arcTo(l+w,t+h,l,t+h,r);x.arcTo(l,t+h,l,t,r);x.arcTo(l,t,l+w,t,r);x.closePath()}
+function wrapLines(x,text,max,maxLines){const words=String(text).split(/\s+/),lines=[];let cur='';
+ for(const w of words){const t=cur?cur+' '+w:w;if(x.measureText(t).width>max&&cur){lines.push(cur);cur=w}else cur=t}
+ if(cur)lines.push(cur);if(lines.length>maxLines){lines.length=maxLines;let l=lines[maxLines-1];while(x.measureText(l+'...').width>max&&l.length>1)l=l.slice(0,-1);lines[maxLines-1]=l+'...'}return lines}
+async function shareCard(p){
+ try{await document.fonts.ready}catch(e){}
+ const W=1080,H=1350,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+ const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,'#FFB84D');g.addColorStop(1,'#FF8A00');x.fillStyle=g;x.fillRect(0,0,W,H);
+ x.fillStyle='#FFFFFF';rrect(x,60,60,W-120,H-120,48);x.fill();
+ x.textBaseline='top';
+ try{const im=await loadImg('/logo.png');x.drawImage(im,100,100,110,110)}catch(e){}
+ x.fillStyle='#D95F00';x.font='800 44px "Bricolage Grotesque","DM Sans",sans-serif';x.fillText('Tangerine Review Club',235,130);
+ x.fillStyle='#8A6A4D';x.font='500 38px "DM Sans",sans-serif';
+ let sub=p.type+' · '+p.media;while(x.measureText(sub).width>W-200&&sub.length>4)sub=sub.slice(0,-2);if(sub!==p.type+' · '+p.media)sub+='...';
+ x.fillText(sub,100,270);
+ x.font='76px sans-serif';for(let i=0;i<5;i++){x.globalAlpha=i<p.rating?1:.22;x.fillText('🍊',100+i*92,340)}x.globalAlpha=1;
+ x.fillStyle='#3A2210';x.font='800 80px "Bricolage Grotesque","DM Sans",sans-serif';
+ wrapLines(x,p.title,W-200,6).forEach((l,i)=>x.fillText(l,100,470+i*96));
+ x.fillStyle='#8A6A4D';x.font='500 40px "DM Sans",sans-serif';x.fillText('Review by '+user(p.by).name,100,H-250);
+ x.fillStyle='#D95F00';x.font='700 38px "DM Sans",sans-serif';x.fillText(location.host,100,H-190);
+ c.toBlob(async blob=>{if(!blob){toast('Could not make the card');return}
+  const file=new File([blob],'review-card.png',{type:'image/png'});
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:p.title});return}}catch(err){if(err&&err.name==='AbortError')return}
+  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='review-card.png';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);toast('Card saved to your device')},'image/png')}
 function loadMore(){const fl=$('feed-list'),mo=$('more');if(!fl||!mo)return;const next=feedPosts.slice(feedShown,feedShown+20);fl.insertAdjacentHTML('beforeend',next.map(card).join(''));feedShown+=next.length;feedWant=feedShown;if(feedShown>=feedPosts.length){obs&&obs.disconnect();mo.remove()}}
 const refreshBar=()=>{const bb=app.querySelector('.bar');if(bb)bb.outerHTML=bar()};
 function render(){
@@ -384,10 +427,11 @@ function render(){
  else if(view.n==='settings')body=settingsView();
  else if(view.n==='chat')body=chatView(view.id);
  else if(view.n==='club')body=clubView(view.id);
+ else if(view.n==='prompt')body=promptView(view.id);
  else if(view.n==='features')body=featuresView();
  else if(view.n==='feat')body=featView(view.id);
  else if(view.n==='featform')body=featForm(view.id);
- else if(view.n==='post'){const p=db.posts.find(x=>x.id===view.id);body=p?postView(p):feedView()}
+ else if(view.n==='post'){const p=postById(view.id);body=p?postView(p):feedView()}
  else if(view.n==='profile')body=profileView(user(view.id));
  else body=feedView();
  app.innerHTML=bar()+body;
@@ -408,7 +452,7 @@ app.addEventListener('click',async e=>{
  const st=e.target.closest('#f-stars button');
  if(st){rating=rating===+st.dataset.n?0:+st.dataset.n;app.querySelectorAll('#f-stars button').forEach(x=>x.classList.toggle('on',+x.dataset.n<=rating));return}
  const b=e.target.closest('[data-a]');if(!b)return;
- const a=b.dataset.a, id=b.dataset.id, p=db.posts.find(x=>x.id===id), g=i=>$(i)?$(i).value.trim():'';
+ const a=b.dataset.a, id=b.dataset.id, p=postById(id), g=i=>$(i)?$(i).value.trim():'';
  if(a==='feed'){pre=null;feedWant=20;go({n:'feed'})}
  else if(a==='join'){pickAv=AVATARS[0];go({n:'join'})}
  else if(a==='searchview')go({n:'search'});
@@ -490,9 +534,15 @@ app.addEventListener('click',async e=>{
  else if(a==='editp'){rating=p.rating;go({n:'post',id,edit:true})}
  else if(a==='editc')go({n:'post',id:view.id,ec:+b.dataset.i},true);
  else if(a==='savec'){const t=g('ce-t');if(!t){toast('Comment cannot be empty');return}if(await api('editcomment',{id,i:+b.dataset.i,t})){go({n:'post',id},true);toast('Comment updated')}}
- else if(a==='savepost'){const d={id,type:g('f-type'),media:g('f-media'),title:g('f-title'),rating,text:g('f-text'),spoiler:$('f-spoil').checked};
-  if(!d.media||!d.title||!d.text){toast('Add a media title, headline and review first');return}
-  if(await api('editpost',d)){rating=0;toast('Post updated');go({n:'post',id})}}
+ else if(a==='savepost'){const dr=b.dataset.draft==='1',d={id,type:g('f-type'),media:g('f-media'),title:g('f-title'),rating,text:g('f-text'),spoiler:$('f-spoil').checked,draft:dr};
+  if(dr?!d.title:(!d.media||!d.title||!d.text)){toast(dr?'Add a headline first':'Add a media title, headline and review first');return}
+  if(p&&p.draft&&!dr&&!rating){toast('Pick a star rating first');return}
+  const was=p&&p.draft;
+  if(await api('editpost',d)){rating=0;toast(dr?'Draft saved':was?'Published! 🍊':'Post updated');go({n:'post',id})}}
+ else if(a==='savedraft'){if(!needUser())return;
+  const d={type:g('f-type'),media:g('f-media'),title:g('f-title'),rating,text:g('f-text'),spoiler:$('f-spoil').checked,draft:true};
+  if(!d.title){toast('Add a headline to save a draft');return}
+  if(await api('publish',{...d,prompt:pre&&pre.prompt})){pre=null;rating=0;render();toast('Draft saved. Find it on your profile.')}}
  else if(a==='open')go({n:'post',id});
  else if(a==='profile'){const u=user(id);pickAv=u.avatar;go({n:'profile',id})}
  else if(a==='filter'){filter=b.dataset.t;feedWant=20;render()}
@@ -521,9 +571,25 @@ app.addEventListener('click',async e=>{
   const d={type:g('f-type'),media:g('f-media'),title:g('f-title'),rating,text:g('f-text'),spoiler:$('f-spoil').checked};
   if(!d.media||!d.title||!d.text){toast('Add a media title, headline and review first');return}
   if(!rating){toast('Pick a star rating first');return}
-  if(await api('publish',{...d,wid:pre&&pre.wid})){pre=null;rating=0;render();toast('Slice shared! 🍊')}}
+  if(await api('publish',{...d,wid:pre&&pre.wid,prompt:pre&&pre.prompt})){pre=null;rating=0;render();toast('Slice shared! 🍊')}}
  else if(a==='follow'){if(!needUser())return;
   if(await api('follow',{id})){if($('s-res'))$('s-res').innerHTML=searchRes($('s-q').value);else render()}}
+ else if(a==='prompt')go({n:'prompt',id});
+ else if(a==='promptreply'){const k=promptOf(id);if(!k)return;if(!needUser())return;pre={type:'',media:'',prompt:id,ptitle:k.title};rating=0;go({n:'feed'})}
+ else if(a==='vote'){if(!needUser())return;const y=window.scrollY;if(await api('pollvote',{id,i:+b.dataset.i})){render();window.scrollTo(0,y)}}
+ else if(a==='setbanner'){if(await api('setbanner',{text:g('bn-t')})){toast('Announcement pinned');render()}}
+ else if(a==='clearbanner'){if(await api('setbanner',{text:''})){toast('Announcement removed');render()}}
+ else if(a==='newprompt'){if(!g('pr-t')){toast('Write the prompt first');return}if(await api('saveprompt',{title:g('pr-t'),desc:g('pr-d')})){toast('Prompt posted');render()}}
+ else if(a==='delprompt'){if(!confirm('Delete this prompt? Replies stay as normal posts.'))return;if(await api('delprompt',{id}))render()}
+ else if(a==='newpoll'){if(await api('savepoll',{kind:g('po-k'),q:g('po-q'),options:$('po-o').value.split('\n')})){toast('Created');render()}}
+ else if(a==='pollclose'){if(await api('pollclose',{id}))render()}
+ else if(a==='delpoll'){if(!confirm('Delete this poll?'))return;if(await api('delpoll',{id}))render()}
+ else if(a==='addadmin'){const v=$('ad-add')&&$('ad-add').value;if(v&&await api('setadmin',{id:v,on:true})){toast('Admin added');render()}}
+ else if(a==='setadmin'){if(!confirm('Remove this admin?'))return;if(await api('setadmin',{id,on:false})){toast('Admin removed');render()}}
+ else if(a==='sharefeat'){const url=location.origin+location.pathname+'#feature-'+id,f=feats().find(x=>x.id===id);
+  try{if(navigator.share){await navigator.share({title:f.title,url});return}}catch(err){if(err&&err.name==='AbortError')return}
+  try{await copyText(url);toast('Link copied')}catch(err){toast(fallbackCopy(url)?'Link copied':url)}}
+ else if(a==='sharecard'){if(p)shareCard(p)}
  else if(a==='share'){
   const txt=`${p.title} - a ${p.type.toLowerCase()} review of ${p.media} (${p.rating}/5) by ${user(p.by).name}`;
   try{if(navigator.share){await navigator.share({title:p.title,text:txt});return}}catch(err){if(err&&err.name==='AbortError')return}
@@ -534,7 +600,7 @@ function curTheme(){return document.documentElement.dataset.theme||(matchMedia('
 function paintTheme(){const d=curTheme()==='dark';tb.textContent=d?'☀️ Light mode':'🌙 Dark mode';tb.setAttribute('aria-label',d?'Switch to light mode':'Switch to dark mode')}
 tb.addEventListener('click',()=>{const n=curTheme()==='dark'?'light':'dark';document.documentElement.dataset.theme=n;try{localStorage.setItem('bb-theme',n)}catch(e){}paintTheme()});
 paintTheme();
-api('state').then(()=>{const h=location.hash;if(h.startsWith('#reset='))view={n:'reset',token:h.slice(7)};else if(h.startsWith('#list-'))view={n:'list',id:h.slice(6)};else if(h==='#feature-picks')view={n:'features'};render();try{history.replaceState({v:view},'')}catch(e){}});
+api('state').then(()=>{const h=location.hash;if(h.startsWith('#reset='))view={n:'reset',token:h.slice(7)};else if(h.startsWith('#list-'))view={n:'list',id:h.slice(6)};else if(h==='#feature-picks')view={n:'features'};else if(h.startsWith('#feature-'))view={n:'feat',id:h.slice(9)};render();try{history.replaceState({v:view},'')}catch(e){}});
 let tick=0;setInterval(()=>{if(document.hidden||!me())return;if(view.n!=='chat'&&view.n!=='club'&&++tick%3)return;
  if(view.n==='chat'){const id=view.id;api('read',{id}).then(r=>{if(r&&view.n==='chat'&&$('m-list')){$('m-list').innerHTML=chatList(id);refreshBar()}})}
  else if(view.n==='club'){const id=view.id;api('club',{id}).then(r=>{if(r&&view.n==='club'&&$('cm-list')){const l=$('cm-list'),atEnd=l.scrollHeight-l.scrollTop-l.clientHeight<60;l.innerHTML=clubList();if(atEnd)l.scrollTop=l.scrollHeight}})}
