@@ -5,7 +5,7 @@ import { randomBytes, randomUUID, scryptSync, timingSafeEqual, createHash } from
 
 const redis = Redis.fromEnv({ automaticDeserialization: false });
 const PIECES = ["users", "posts", "lists", "msgs", "clubs", "cmsgs", "features", "meta"];
-const META = ["reports", "pick", "suspended", "sessions", "resets", "fails", "core", "admins", "banner", "prompts", "polls"];
+const META = ["reports", "pick", "suspended", "sessions", "resets", "fails", "core", "admins", "banner", "prompts", "polls", "bingos"];
 const pack = v => gzipSync(JSON.stringify(v)).toString("base64");
 const unpack = s => JSON.parse(gunzipSync(Buffer.from(s, "base64")).toString());
 async function load() {
@@ -49,7 +49,7 @@ const checkPw = (pw, h) => {
   return a.length === b.length && timingSafeEqual(a, b);
 };
 const emailOk = e => e.length <= 120 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
-const fresh = () => ({ users: [], posts: [], lists: [], msgs: [], clubs: [], cmsgs: [], features: [], core: {}, admins: [], banner: null, prompts: [], polls: [], reports: [], pick: null, suspended: [], sessions: {}, resets: {}, fails: {} });
+const fresh = () => ({ users: [], posts: [], lists: [], msgs: [], clubs: [], cmsgs: [], features: [], core: {}, admins: [], banner: null, prompts: [], polls: [], bingos: [], reports: [], pick: null, suspended: [], sessions: {}, resets: {}, fails: {} });
 const U = (db, id) => db.users.find(u => u.id === id);
 
 function cleanTop(t) {
@@ -150,6 +150,7 @@ function out(db, uid, extra) {
       profiles: db.users.map(u => pub(u, uid)), posts,
       lists: db.lists.filter(l => !bs.has(l.by)).sort((a, b) => b.ts - a.ts), pick: db.pick || null,
       banner: db.banner || null,
+      bingos: db.bingos.slice().sort((a, b) => b.ts - a.ts).map(l => ({ id: l.id, title: l.title, cells: l.cells, ts: l.ts, marks: uid && l.marks[uid] ? l.marks[uid] : [] })),
       prompts: db.prompts.slice().sort((a, b) => b.ts - a.ts),
       polls: db.polls.slice().sort((a, b) => b.ts - a.ts).map(l => {
         const n = l.options.map(() => 0);
@@ -168,7 +169,12 @@ function out(db, uid, extra) {
     r.notes = me.notes.filter(n => !bs.has(n.from));
     r.blocked = me.blocked.map(x => U(db, x)).filter(Boolean).map(u => pub(u, uid));
     r.email = me.email;
-    if (admin) { r.reports = db.reports; r.suspended = db.suspended; }
+    if (admin) {
+      r.reports = db.reports; r.suspended = db.suspended;
+      const cnt = {};
+      db.posts.forEach(p => { if (!p.draft) cnt[p.by] = (cnt[p.by] || 0) + 1; });
+      r.members = db.users.map(u => ({ id: u.id, name: u.name, handle: u.handle, email: u.email || "", posts: cnt[u.id] || 0, joined: u.joined || 0, suspended: db.suspended.includes(u.id) }));
+    }
   }
   return { ...r, ...extra };
 }
@@ -245,7 +251,7 @@ export default async function handler(req, res) {
         if (db.users.some(u => u.email === email)) bad("That email already has an account");
         const u = {
           id: id8(), name, handle, email, pw: hashPw(pw), bio: clip(d.bio, 160), avatar: clip(d.avatar, 8) || "🍊",
-          following: [], top: cleanTop(d.top), pronouns: cleanPron(d), ...cleanIg(d), watch: [], blocked: [], notes: []
+          joined: Date.now(), following: [], top: cleanTop(d.top), pronouns: cleanPron(d), ...cleanIg(d), watch: [], blocked: [], notes: []
         };
         db.users.push(u);
         uid = u.id; extra.token = newSession(db, u.id);
@@ -526,6 +532,7 @@ export default async function handler(req, res) {
         delete db.core[id];
         db.admins = db.admins.filter(x => x !== id);
         db.polls.forEach(l => { delete l.votes[id]; });
+        db.bingos.forEach(l => { delete l.marks[id]; });
         db.msgs = db.msgs.filter(x => x.from !== id && x.to !== id);
         db.reports = db.reports.filter(r => r.by !== id && db.posts.some(p => p.id === r.pid));
         db.suspended = db.suspended.filter(x => x !== id);
@@ -661,6 +668,28 @@ export default async function handler(req, res) {
       case "delpoll": {
         if (!isAdmin()) bad("Admins only");
         db.polls = db.polls.filter(x => x.id !== d.id);
+        break;
+      }
+      case "savebingo": {
+        if (!isAdmin()) bad("Admins only");
+        const title = clip(d.title, 80), cells = (Array.isArray(d.cells) ? d.cells : []).map(x => clip(x, 40)).filter(Boolean);
+        if (!title) bad("Give the bingo card a title");
+        if (cells.length !== 25) bad("A bingo card needs exactly 25 squares, one per line (you have " + cells.length + ")");
+        if (db.bingos.length >= 50) bad("Delete some old bingo cards first");
+        db.bingos.push({ id: id8(), by: uid, title, cells, marks: {}, ts: Date.now() });
+        break;
+      }
+      case "delbingo": {
+        if (!isAdmin()) bad("Admins only");
+        db.bingos = db.bingos.filter(x => x.id !== d.id);
+        break;
+      }
+      case "bingomark": {
+        const m = me(), l = db.bingos.find(x => x.id === d.id) || bad("Bingo card not found");
+        const i = parseInt(d.i, 10);
+        if (!(i >= 0 && i < 25)) bad("Pick a square");
+        const a2 = l.marks[m.id] || (l.marks[m.id] = []), k = a2.indexOf(i);
+        if (k >= 0) a2.splice(k, 1); else a2.push(i);
         break;
       }
       case "report": {
