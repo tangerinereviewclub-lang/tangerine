@@ -169,7 +169,7 @@ const isAdmin=()=>!!db.admin;
 const isEd=()=>!!db.isEditor;
 const followers=u=>db.profiles.filter(x=>(x.following||[]).includes(u.id)).length;
 const fbtn=u=>{const m=me();if(!m||m.id===u.id)return'';const f=(m.following||[]).includes(u.id);return `<button class="btn ${f?'ghost':''}" data-a="follow" data-id="${u.id}">${f?'Unfollow':'Follow'}</button>`};
-function go(v,keep){view=v;try{if(keep)history.replaceState({v},'');else history.pushState({v},'')}catch(e){}render();if(!keep){const t=document.getElementById('tg');t.scrollIntoView&&t.scrollIntoView()}}
+function go(v,keep){view=v;menuOpen='';try{if(keep)history.replaceState({v},'');else history.pushState({v},'')}catch(e){}render();if(!keep){const t=document.getElementById('tg');t.scrollIntoView&&t.scrollIntoView()}}
 
 function bar(){const u=me();
   const nav=`<button class="btn ghost" data-a="feed">Home</button>`;
@@ -223,7 +223,11 @@ function composeView(){const u=me();
  <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="f-spoil" style="width:auto">This post contains spoilers</label>
  <div class="actions"><button class="btn" data-a="publish">Share a slice</button><button class="btn ghost" data-a="savedraft">Save as draft</button></div></section>`}
 
-const likersPanel=p=>p.likedBy.length?`<div style="display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center;margin:8px 0 0;padding:10px 12px;background:var(--os);border-radius:12px"><span class="hint" style="margin:0;width:100%">Liked by</span>${p.likedBy.map(id=>user(id)).filter(Boolean).map(x=>`<button class="link" data-a="profile" data-id="${x.id}" style="display:inline-flex;align-items:center;gap:6px">${av(x,'sm')}${esc(x.name)}</button>`).join('')}</div>`:'';
+const likersAll=new Set();
+let menuOpen='';
+const likersPanel=p=>{if(!p.likedBy.length)return'';const us=p.likedBy.map(id=>user(id)),all=likersAll.has(p.id),sh=all?us:us.slice(0,3),rest=us.length-sh.length;
+ const nm=x=>`<button class="link" data-a="profile" data-id="${x.id}" style="font-size:.85rem">@${esc(x.handle)}</button>`;
+ return `<div class="hint" style="margin:8px 0 0;display:flex;flex-wrap:wrap;gap:0 4px;align-items:center">Liked by ${sh.map(nm).join(', ')}${rest>0?` and <button class="link" data-a="likers" data-id="${p.id}" style="font-size:.85rem">${rest} other${rest===1?'':'s'}</button>`:(all&&us.length>3?` <button class="link" data-a="likers" data-id="${p.id}" style="font-size:.85rem">Show less</button>`:'')}</div>`};
 function actions(p,full){const u=me(),liked=u&&p.likedBy.includes(u.id);
  return `<div class="actions"><button class="act" data-a="like" data-id="${p.id}" aria-label="Like" aria-pressed="${!!liked}"><span class="tl${liked?'':' off'}" aria-hidden="true">🍊</span> ${p.likedBy.length}</button> <button class="act" data-a="open" data-id="${p.id}">💬 ${p.comments.length}</button><button class="act" data-a="share" data-id="${p.id}">Share</button></div>${full?likersPanel(p):''}`}
 const lk=t=>esc(t).replace(/@([a-z0-9_]{3,20})/gi,(m,h)=>{const u=db.profiles.find(x=>x.handle===h.toLowerCase());return u?`<button class="link" data-a="profile" data-id="${u.id}">@${esc(u.handle)}</button>`:m});
@@ -238,12 +242,12 @@ function feedView(){const fl=(me()&&me().following)||[];
  (list.length?(feedPosts=list,feedShown='IntersectionObserver' in window?Math.min(feedWant,list.length):list.length,`<div id="feed-list">${list.slice(0,feedShown).map(card).join('')}</div>${feedShown<list.length?'<div id="more" style="height:1px"></div>':''}`):`<p class="empty">${filter==='Following'?'Nothing here yet. Use Find people to follow someone.':'No fruit on the tree yet. Be the first to post.'}</p>`)}
 
 const postTools=p=>{const u=me();if(!u)return'';const own=u.id===p.by;
- return `<div class="actions">${own?`<button class="btn ghost" data-a="editp" data-id="${p.id}">Edit post</button>`:''}${own||isAdmin()?`<button class="btn danger" data-a="delete" data-id="${p.id}">Delete post</button>`:''}${own?'':`<button class="btn ghost" data-a="report" data-k="post" data-id="${p.id}">Report</button>`}</div>`};
+ return `<div class="actions">${own?`<button class="btn ghost" data-a="editp" data-id="${p.id}">Edit post</button>`:''}${own||isAdmin()?`<button class="btn danger" data-a="delete" data-id="${p.id}">Delete post</button>`:''}${own?'':`<button class="btn ghost" data-a="dots" data-id="p${p.id}" aria-label="More options" aria-expanded="${menuOpen==='p'+p.id}">\u22ef</button>${menuOpen==='p'+p.id?`<button class="btn ghost" data-a="report" data-k="post" data-id="${p.id}">Report</button>`:''}`}</div>`};
 function commentHtml(p,c,i){const u=me();
  if(c.hidden)return `<div class="cm"><span class="hint">Comment hidden (blocked user).</span></div>`;
  const own=u&&u.id===c.by, mod=u&&(own||u.id===p.by||isAdmin());
  const main=view.ec===i&&own?`<div class="cm">${av(u,'sm')}<div class="cform" style="flex:1;margin:0"><input id="ce-t" maxlength="300" value="${esc(c.t)}"><button class="btn" data-a="savec" data-id="${p.id}" data-i="${i}">Save</button><button class="btn ghost" data-a="open" data-id="${p.id}">Cancel</button></div></div>`
- :`<div class="cm">${av(user(c.by),'sm')}<div><button class="link" data-a="profile" data-id="${c.by}">${esc(user(c.by).name)}</button> ${lk(c.t)}${c.edited?' <span class="hint">(edited)</span>':''}${u?` <button class="link" data-a="replyto" data-i="${i}">Reply</button>`:''}${own?` <button class="link" data-a="editc" data-i="${i}">Edit</button>`:''}${mod?` <button class="link" data-a="delc" data-id="${p.id}" data-i="${i}">Delete</button>`:''}${u&&!own?` <button class="link" data-a="report" data-k="comment" data-id="${p.id}" data-i="${i}">Report</button>`:''}</div></div>`;
+ :`<div class="cm">${av(user(c.by),'sm')}<div><button class="link" data-a="profile" data-id="${c.by}">${esc(user(c.by).name)}</button> ${lk(c.t)}${c.edited?' <span class="hint">(edited)</span>':''}${u?` <button class="link" data-a="replyto" data-i="${i}">Reply</button>`:''}${own?` <button class="link" data-a="editc" data-i="${i}">Edit</button>`:''}${mod?` <button class="link" data-a="delc" data-id="${p.id}" data-i="${i}">Delete</button>`:''}${u&&!own?` <button class="link" data-a="dots" data-id="c${p.id}-${i}" aria-label="More options" aria-expanded="${menuOpen==='c'+p.id+'-'+i}">\u22ef</button>${menuOpen==='c'+p.id+'-'+i?` <button class="link" data-a="report" data-k="comment" data-id="${p.id}" data-i="${i}">Report</button>`:''}`:''}</div></div>`;
  const reps=(c.replies||[]).map((r,j)=>r.hidden?'':`<div class="cm" style="margin-left:34px">${av(user(r.by),'sm')}<div><button class="link" data-a="profile" data-id="${r.by}">${esc(user(r.by).name)}</button> ${lk(r.t)}${u&&(u.id===r.by||u.id===p.by||isAdmin())?` <button class="link" data-a="delr" data-id="${p.id}" data-i="${i}" data-j="${j}">Delete</button>`:''}</div></div>`).join('');
  const form=view.rp===i&&u?`<div class="cform" style="margin-left:34px"><input id="r-t" maxlength="300" placeholder="Reply as ${esc(u.name)}"><button class="btn" data-a="sendr" data-id="${p.id}" data-i="${i}">Reply</button><button class="btn ghost" data-a="open" data-id="${p.id}">Cancel</button></div>`:'';
  return main+reps+form}
@@ -261,7 +265,7 @@ function postView(p){const u=me();if(view.edit&&u&&u.id===p.by)return editForm(p
  ${postTools(p)}
  <div class="comments"${p.draft?' hidden':''}><h3 style="font-size:1.1rem;margin-bottom:6px">Comments (${p.comments.length})</h3>
  ${p.comments.map((c,i)=>commentHtml(p,c,i)).join('')||'<p class="empty" style="padding:6px 0">No comments yet. Be the first to squeeze one in.</p>'}
- ${u?`<div class="cform"><input id="c-t" maxlength="300" placeholder="Comment as ${esc(u.name)}"><button class="btn" data-a="send" data-id="${p.id}">Squeeze it in</button></div>`
+ ${u?`<div class="cform"><input id="c-t" maxlength="300" placeholder="Comment as ${esc(u.name)}"><button class="btn" data-a="send" data-id="${p.id}">Comment</button></div>`
  :`<div class="actions"><button class="btn" data-a="join">Create a profile to comment</button></div>`}</div></article>`}
 
 function profileView(u){const mine=me()&&me().id===u.id, posts=db.posts.filter(p=>p.by===u.id), shown=posts;
@@ -574,7 +578,7 @@ app.addEventListener('click',async e=>{
  else if(a==='replyto')go({n:'post',id:view.id,rp:+b.dataset.i},true);
  else if(a==='sendr'){const t=g('r-t');if(!t){toast('Write a reply first');return}if(await api('reply',{id,i:+b.dataset.i,t})){go({n:'post',id},true);toast('Reply posted')}}
  else if(a==='delr'){if(!confirm('Delete this reply?'))return;if(await api('delreply',{id,i:+b.dataset.i,j:+b.dataset.j}))go({n:'post',id},true)}
- else if(a==='report'){const reason=prompt('Why are you reporting this? (optional)');if(reason===null)return;
+ else if(a==='report'){menuOpen='';render();const reason=prompt('Why are you reporting this? (optional)');if(reason===null)return;
   if(await api('report',{k:b.dataset.k,id,i:b.dataset.i===undefined?undefined:+b.dataset.i,reason}))toast('Thanks, your report was sent')}
  else if(a==='block'){const un=b.textContent==='Unblock';
   if(!un&&!confirm('Block this person? You will no longer see their posts or messages, and they will no longer see yours.'))return;
@@ -616,6 +620,8 @@ app.addEventListener('click',async e=>{
   if(!g('e-name')){toast('Display name cannot be empty');return}
   const r=await api('saveprofile',{name:g('e-name'),handle:g('e-handle').toLowerCase().replace(/^@/,''),bio:g('e-bio'),avatar:pickAv,top:readTops('e'),...readPron('e'),...readIg('e')});
   if(r){toast('Profile saved');render()}}
+ else if(a==='likers'){if(likersAll.has(id))likersAll.delete(id);else likersAll.add(id);const y=window.scrollY;render();window.scrollTo(0,y)}
+ else if(a==='dots'){menuOpen=menuOpen===id?'':id;const y=window.scrollY;render();window.scrollTo(0,y)}
  else if(a==='like'){if(!needUser())return;const y=window.scrollY;if(await api('like',{id})){if($('s-res'))$('s-res').innerHTML=searchRes($('s-q').value);else render();window.scrollTo(0,y)}}
  else if(a==='send'){if(!needUser())return;const t=g('c-t');if(!t){toast('Write a comment first');return}
   if(await api('comment',{id,t})){render();toast('Comment posted')}}
