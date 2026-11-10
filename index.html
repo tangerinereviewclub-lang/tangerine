@@ -174,7 +174,7 @@ function go(v,keep){view=v;menuOpen='';try{if(keep)history.replaceState({v},'');
 function bar(){const u=me();
   const nav=`<button class="btn ghost" data-a="feed">Home</button>`;
   const lists=`<button class="btn ghost" data-a="lists">Lists 📋</button><button class="btn ghost" data-a="features">Feature Picks🧺</button><button class="btn ghost" data-a="searchview">Search 🔍</button>`;
-  return `<div class="bar">`+(u?`<button class="who" data-a="profile" data-id="${u.id}">${av(u)}${esc(u.handle)}</button>${nav}<button class="btn ghost" data-a="diary" data-id="${u.id}">Diary 📒</button>${lists}<button class="btn ghost" data-a="inbox" aria-label="Messages" title="Messages">✉️${unread()?` (${unread()})`:''}</button><button class="btn ghost" data-a="notes" aria-label="Alerts" title="Alerts">🔔${unreadN()?` (${unreadN()})`:''}</button><button class="btn ghost" data-a="settings" aria-label="Settings" title="Settings">⚙️</button><button class="btn ghost" data-a="logout">Log out</button>`
+  return `<div class="bar">`+(u?`<button class="who" data-a="profile" data-id="${u.id}">${av(u)}${esc(u.handle)}</button>${nav}<button class="btn ghost" data-a="diary" data-id="${u.id}">Diary 📒</button><button class="btn ghost" data-a="streaks">Streaks 🔥</button>${lists}<button class="btn ghost" data-a="inbox" aria-label="Messages" title="Messages">✉️${unread()?` (${unread()})`:''}</button><button class="btn ghost" data-a="notes" aria-label="Alerts" title="Alerts">🔔${unreadN()?` (${unreadN()})`:''}</button><button class="btn ghost" data-a="settings" aria-label="Settings" title="Settings">⚙️</button><button class="btn ghost" data-a="logout">Log out</button>`
   :`<button class="btn" data-a="join">Sign up or log in</button>${nav}${lists}`)+`</div>`}
 
 function avPicker(sel){return `<div class="avpick" id="avpick" role="group" aria-label="Pick an avatar">${AVATARS.map(a=>`<button type="button" data-a="pickav" data-v="${a}" aria-pressed="${a===sel}">${a}</button>`).join('')}</div>`}
@@ -215,8 +215,8 @@ function joinView(){return `<section class="panel"><h2>Log in</h2>
 function composeView(){const u=me();
  if(!u)return `<section class="panel"><h2>Write a post</h2><p>Create a profile to publish reviews and blogs.</p><button class="btn" data-a="join">Create a profile</button></section>`;
  return `<section class="panel"><h2>Share a slice as ${esc(u.name)}</h2>${pre&&pre.prompt?`<p style="margin:0 0 6px;padding:8px 12px;background:var(--os);border-radius:10px">💭 You are answering the weekly prompt: <b>${esc(pre.ptitle)}</b></p>`:''}${pre&&pre.pick?`<p style="margin:0 0 6px;padding:8px 12px;background:var(--os);border-radius:10px">🍊 Reviewing the Fresh pick of the week. It shows in the feed, on your profile and in your diary.</p>`:''}
- <div class="row"><div><label for="f-type">Media type</label><select id="f-type">${TYPES.slice(1).map(t=>`<option${pre&&pre.type===t?' selected':''}>${t}</option>`).join('')}</select></div>
- <div><label for="f-media">Media title</label><input id="f-media" maxlength="80"${pre?` value="${esc(pre.media)}"`:''}></div></div>
+ <div class="row"><div><label for="f-type">Category</label><select id="f-type">${TYPES.slice(1).map(t=>`<option${pre&&pre.type===t?' selected':''}>${t}</option>`).join('')}</select></div>
+ <div><label for="f-media">Title</label><input id="f-media" maxlength="80"${pre?` value="${esc(pre.media)}"`:''}></div></div>
  <label>Your rating</label><div class="stars" id="f-stars">${[1,2,3,4,5].map(n=>`<button type="button" class="${n<=rating?'on':''}" data-n="${n}" aria-label="${n} stars">🍊</button>`).join('')}</div>
  <label for="f-title">Headline</label><input id="f-title" maxlength="100" placeholder="Give your post a headline (optional)">
  <label for="f-text">Your review or blog</label><textarea class="write" id="f-text" maxlength="10000" placeholder="What did you think? Write as much as you like, the box grows with you."></textarea><p class="hint" id="f-count">0 words</p>
@@ -225,9 +225,10 @@ function composeView(){const u=me();
 
 const likersAll=new Set();
 let menuOpen='';
-const likersPanel=p=>{if(!p.likedBy.length)return'';const us=p.likedBy.map(id=>user(id)),all=likersAll.has(p.id),sh=all?us:us.slice(0,3),rest=us.length-sh.length;
- const nm=x=>`<button class="link" data-a="profile" data-id="${x.id}" style="font-size:.85rem">@${esc(x.handle)}</button>`;
- return `<div class="hint" style="margin:8px 0 0;display:flex;flex-wrap:wrap;gap:0 4px;align-items:center">Liked by ${sh.map(nm).join(', ')}${rest>0?` and <button class="link" data-a="likers" data-id="${p.id}" style="font-size:.85rem">${rest} other${rest===1?'':'s'}</button>`:(all&&us.length>3?` <button class="link" data-a="likers" data-id="${p.id}" style="font-size:.85rem">Show less</button>`:'')}</div>`};
+const likersPanel=p=>{if(!p.likedBy.length)return'';const us=p.likedBy.map(id=>user(id)),all=likersAll.has(p.id),sh=all?us:us.slice(0,2),rest=us.length-sh.length;
+ const st='font-size:.85rem;color:inherit;font-weight:700';
+ const nm=x=>`<button class="link" data-a="profile" data-id="${x.id}" style="${st}">${esc(x.handle)}</button>`;
+ return `<div class="hint" style="margin:8px 0 0;display:flex;flex-wrap:wrap;gap:0 4px;align-items:center">Liked by ${sh.map(nm).join(', ')}${rest>0?` and <button class="link" data-a="likers" data-id="${p.id}" style="${st}">${rest} other${rest===1?'':'s'}</button>`:(all&&us.length>2?` <button class="link" data-a="likers" data-id="${p.id}" style="${st}">Show less</button>`:'')}</div>`};
 function actions(p,full){const u=me(),liked=u&&p.likedBy.includes(u.id);
  return `<div class="actions"><button class="act" data-a="like" data-id="${p.id}" aria-label="Like" aria-pressed="${!!liked}"><span class="tl${liked?'':' off'}" aria-hidden="true">🍊</span> ${p.likedBy.length}</button> <button class="act" data-a="open" data-id="${p.id}">💬 ${p.comments.length}</button><button class="act" data-a="share" data-id="${p.id}">Share</button></div>${full?likersPanel(p):''}`}
 const lk=t=>esc(t).replace(/@([a-z0-9_]{3,20})/gi,(m,h)=>{const u=db.profiles.find(x=>x.handle===h.toLowerCase());return u?`<button class="link" data-a="profile" data-id="${u.id}">@${esc(u.handle)}</button>`:m});
@@ -252,8 +253,8 @@ function commentHtml(p,c,i){const u=me();
  const form=view.rp===i&&u?`<div class="cform" style="margin-left:34px"><input id="r-t" maxlength="300" placeholder="Reply as ${esc(u.name)}"><button class="btn" data-a="sendr" data-id="${p.id}" data-i="${i}">Reply</button><button class="btn ghost" data-a="open" data-id="${p.id}">Cancel</button></div>`:'';
  return main+reps+form}
 function editForm(p){return `<section class="panel"><h2>Edit your post</h2>${p.prompt&&promptOf(p.prompt)?`<p style="margin:0 0 6px;padding:8px 12px;background:var(--os);border-radius:10px">💭 Answering the weekly prompt: <b>${esc(promptOf(p.prompt).title)}</b></p>`:''}
- <div class="row"><div><label for="f-type">Media type</label><select id="f-type">${TYPES.slice(1).map(t=>`<option${t===p.type?' selected':''}>${t}</option>`).join('')}</select></div>
- <div><label for="f-media">Media title</label><input id="f-media" maxlength="80" value="${esc(p.media)}"></div></div>
+ <div class="row"><div><label for="f-type">Category</label><select id="f-type">${TYPES.slice(1).map(t=>`<option${t===p.type?' selected':''}>${t}</option>`).join('')}</select></div>
+ <div><label for="f-media">Title</label><input id="f-media" maxlength="80" value="${esc(p.media)}"></div></div>
  <label>Your rating</label><div class="stars" id="f-stars">${[1,2,3,4,5].map(n=>`<button type="button" class="${n<=rating?'on':''}" data-n="${n}" aria-label="${n} stars">🍊</button>`).join('')}</div>
  <label for="f-title">Headline</label><input id="f-title" maxlength="100" placeholder="Give your post a headline (optional)" value="${p.title!==p.media?esc(p.title):''}">
  <label for="f-text">Your review or blog</label><textarea class="write" id="f-text" maxlength="10000">${esc(p.text)}</textarea><p class="hint" id="f-count">0 words</p>
@@ -430,7 +431,7 @@ function featForm(id){const f=id?feats().find(x=>x.id===id):null,adm=isAdmin(),e
  <label for="ff-title">Headline</label><input id="ff-title" maxlength="120" value="${f?esc(f.title):''}">
  <label for="ff-dek">Subtitle (optional)</label><input id="ff-dek" maxlength="200" value="${f?esc(f.dek||''):''}">
  <label for="ff-tag">Tag (optional, e.g. Interview, Essay)</label><input id="ff-tag" maxlength="30" value="${f?esc(f.tag||''):''}">
- <div class="row"><div><label for="ff-type">Media type (optional)</label><select id="ff-type"><option value="">None</option>${TYPES.slice(1).map(t=>`<option${f&&f.type===t?' selected':''}>${t}</option>`).join('')}</select></div><div><label for="ff-media">Media title (optional)</label><input id="ff-media" maxlength="80" value="${f?esc(f.media||''):''}"></div></div>
+ <div class="row"><div><label for="ff-type">Category (optional)</label><select id="ff-type"><option value="">None</option>${TYPES.slice(1).map(t=>`<option${f&&f.type===t?' selected':''}>${t}</option>`).join('')}</select></div><div><label for="ff-media">Title (optional)</label><input id="ff-media" maxlength="80" value="${f?esc(f.media||''):''}"></div></div>
  <label for="ff-text">Article</label><textarea id="ff-text" style="min-height:260px">${f?esc(f.text):''}</textarea>
  ${adm&&!f?`<label for="ff-as">Posting for a core member who emailed it? Their username (optional)</label><input id="ff-as" maxlength="20" placeholder="e.g. lacyreads" autocapitalize="none">`:''}
  ${ed?`<label style="display:flex;align-items:center;gap:8px;font-weight:500"><input type="checkbox" id="ff-pub" style="width:auto">Publish right away</label>`:'<p class="hint">Your piece goes to the editor first. It is published only after approval.</p>'}
@@ -455,6 +456,29 @@ const adminTools=()=>{if(!isAdmin())return'';const bn=db.banner,pr=db.prompts||[
  return owner+bingoAdmin+`<section class="panel"><h2>📣 Pinned announcement</h2><label for="bn-h">Headline (shown at the top of Home)</label><input id="bn-h" maxlength="100" value="${bn?esc(bn.title||''):''}" placeholder="e.g. New bingo card is live!"><label for="bn-t">Body (optional)</label><textarea id="bn-t" maxlength="1000" style="min-height:70px">${bn?esc(bn.text||''):''}</textarea><div class="actions"><button class="btn" data-a="setbanner">Pin it</button>${bn?'<button class="btn ghost" data-a="clearbanner">Remove</button>':''}</div></section>
  <section class="panel"><h2>💭 Weekly prompts</h2><p class="hint">Members reply with a post. The newest prompt shows on Home.</p>${ep?`<p class="hint"><b>Editing:</b> ${esc(ep.title)}</p>`:''}<label for="pr-t">Prompt</label><input id="pr-t" maxlength="100" placeholder="e.g. Best comfort movie" value="${ep?esc(ep.title):''}"><label for="pr-d">Details (optional)</label><input id="pr-d" maxlength="300" value="${ep?esc(ep.desc||''):''}"><div class="actions"><button class="btn" data-a="newprompt">${ep?'Save changes':'Post prompt'}</button>${ep?`<button class="btn ghost" data-a="cancelEdit" data-k="prompt">Cancel</button>`:''}</div>${pr.map(k=>`<div class="cm"><span style="flex:1">${esc(k.title)} <span class="hint">${ago(k.ts)}${k.edited?' (edited)':''}</span></span><button class="link" data-a="editprompt" data-id="${k.id}">Edit</button><button class="link" data-a="delprompt" data-id="${k.id}">Delete</button></div>`).join('')}</section>
  <section class="panel"><h2>📊 Polls and This or that</h2><p class="hint">The newest one shows on Home. For This or that, write one pair per line with a | between the two choices.</p>${el?`<p class="hint"><b>Editing:</b> ${esc(el.q)}. Votes are kept. If you change what an option means, old votes will count for the new wording.</p>`:''}<div class="row"><div><label for="po-k">Type</label><select id="po-k"${el?' disabled':''}><option value="poll"${el&&el.kind==='poll'?' selected':''}>Poll (2 to 6 options)</option><option value="thisthat"${el&&el.kind==='thisthat'?' selected':''}>This or that (3 to 9 lines, like Pizza | Burgers)</option></select></div><div><label for="po-q">Question</label><input id="po-q" maxlength="120" placeholder="e.g. Movie night snack?" value="${el?esc(el.q):''}"></div></div><label for="po-o">Options (one per line)</label><textarea id="po-o" style="min-height:80px" placeholder="Popcorn&#10;Chips">${el?esc(el.kind==='thisthat'?(el.pairs||[]).map(p=>p.a+' | '+p.b).join('\n'):(el.options||[]).map(o=>o.t).join('\n')):''}</textarea><div class="actions"><button class="btn" data-a="newpoll">${el?'Save changes':'Create'}</button>${el?`<button class="btn ghost" data-a="cancelEdit" data-k="poll">Cancel</button>`:''}</div>${po.map(l=>`<div class="cm" style="flex-wrap:wrap"><span style="flex:1 1 200px">${esc(l.q)} <span class="hint">${l.kind==='thisthat'?'This or that':'Poll'}${l.closed?', closed':''}</span></span><button class="link" data-a="editpoll" data-id="${l.id}">Edit</button><button class="link" data-a="pollclose" data-id="${l.id}">${l.closed?'Reopen':'Close'}</button><button class="link" data-a="delpoll" data-id="${l.id}">Delete</button></div>`).join('')}</section>`};
+
+/* ---------- Streaks 🔥 (saved on this device) ---------- */
+const VERB={Movie:'watched',Documentary:'watched',Show:'watched',Anime:'watched',Musical:'watched',Book:'read',Game:'played',Music:'listened to',Other:'did'};
+const skey=()=>'tg-streaks-'+db.me;
+const getStreaks=()=>{try{return JSON.parse(localStorage.getItem(skey())||'[]')}catch(e){return[]}};
+const putStreaks=l=>{try{localStorage.setItem(skey(),JSON.stringify(l));return true}catch(e){toast('Could not save streaks on this device');return false}};
+const dkey=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const pkey=(d,f)=>{const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());if(f==='weekly')x.setDate(x.getDate()-((x.getDay()+6)%7));return dkey(x)};
+const pprev=(k,f)=>{const a=k.split('-').map(Number),x=new Date(a[0],a[1]-1,a[2]);x.setDate(x.getDate()-(f==='daily'?1:7));return dkey(x)};
+function streakStats(st){const set=new Set(st.logs||[]),now=pkey(new Date(),st.freq),done=set.has(now);
+ let k=done?now:pprev(now,st.freq),cur=0;while(set.has(k)){cur++;k=pprev(k,st.freq)}
+ let best=0;(st.logs||[]).forEach(l=>{if(set.has(pprev(l,st.freq)))return;let n=0,x=l;while(set.has(x)){n++;x=pprevInv(x,st.freq)}best=Math.max(best,n)});
+ return {cur,best:Math.max(best,cur),done,total:set.size}}
+const pprevInv=(k,f)=>{const a=k.split('-').map(Number),x=new Date(a[0],a[1]-1,a[2]);x.setDate(x.getDate()+(f==='daily'?1:7));return dkey(x)};
+function streaksView(){if(!me())return `<section class="panel"><p>Log in to start a streak.</p><button class="btn" data-a="join">Log in</button></section>`;
+ const l=getStreaks();
+ return `<section class="panel"><h2>Streaks 🔥</h2><p class="hint" style="margin:0 0 6px">Pick a category and how often you want to watch, read or play. Tap the button each time you do it to keep your streak going.</p>
+ <div class="row"><div><label for="st-c">Category</label><select id="st-c">${TYPES.slice(1).map(t=>`<option>${t}</option>`).join('')}</select></div><div><label for="st-f">How often</label><select id="st-f"><option value="daily">Daily</option><option value="weekly">Weekly</option></select></div></div>
+ <div class="actions"><button class="btn" data-a="newstreak">Start streak</button></div><p class="hint">Streaks are saved on this device.</p></section>`+
+ (l.length?l.map(st=>{const x=streakStats(st),unit=st.freq==='daily'?'day':'week',v=VERB[st.cat]||'did';
+  return `<section class="panel"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"><h3 style="font-size:1.2rem">${esc(st.cat)} · ${st.freq==='daily'?'Daily':'Weekly'}</h3><span style="font-size:1.4rem;font-weight:800;color:var(--od)">🔥 ${x.cur} ${unit}${x.cur===1?'':'s'}</span></div>
+  <p class="hint" style="margin:6px 0 0">Best: ${x.best} ${unit}${x.best===1?'':'s'} · Total logged: ${x.total}</p>
+  <div class="actions"><button class="btn${x.done?' ghost':''}" data-a="streaklog" data-id="${st.id}">${x.done?'✓ Logged '+(st.freq==='daily'?'today':'this week')+' (tap to undo)':'I '+v+' something '+(st.freq==='daily'?'today':'this week')}</button><button class="btn danger" data-a="delstreak" data-id="${st.id}">Delete</button></div></section>`}).join(''):'<p class="empty">No streaks yet. Start one above.</p>')}
 const aboutView=()=>`<button class="btn ghost" style="margin-bottom:14px" data-a="feed">Back to home</button>
  <section class="panel"><h2 style="font-size:1.6rem">About us</h2>
  <h3 style="font-size:1.5rem;font-weight:800;line-height:1.2;color:var(--od);margin:0 0 14px">Tangerine Review Club is where opinions get peeled, sliced and shared. 🍊</h3>
@@ -483,6 +507,7 @@ function render(){
  else if(view.n==='club')body=clubView(view.id);
  else if(view.n==='prompt')body=promptView(view.id);
  else if(view.n==='about')body=aboutView();
+ else if(view.n==='streaks')body=streaksView();
  else if(view.n==='features')body=featuresView();
  else if(view.n==='feat')body=featView(view.id);
  else if(view.n==='featform')body=featForm(view.id);
@@ -552,6 +577,11 @@ app.addEventListener('click',async e=>{
  else if(a==='addw'){if(!g('w-media')){toast('Add a title first');return}if(await api('addwatch',{type:g('w-type'),media:g('w-media')}))render()}
  else if(a==='delw'){if(await api('delwatch',{id}))render()}
  else if(a==='donew'){const x=(me().watch||[]).find(w=>w.id===id);if(!x)return;pre={type:x.type,media:x.media,wid:id};rating=0;toast('Write your review to move it into your diary');go({n:'feed'})}
+ else if(a==='streaks'){if(!needUser())return;go({n:'streaks'})}
+ else if(a==='newstreak'){const cat=g('st-c'),freq=g('st-f'),l=getStreaks();if(l.some(x=>x.cat===cat&&x.freq===freq)){toast('You already have that streak');return}
+  l.push({id:'s'+Date.now().toString(36),cat,freq,logs:[],ts:Date.now()});if(putStreaks(l)){toast('Streak started 🔥');render()}}
+ else if(a==='streaklog'){const l=getStreaks(),st=l.find(x=>x.id===id);if(!st)return;const k=pkey(new Date(),st.freq),i=st.logs.indexOf(k);if(i>=0)st.logs.splice(i,1);else st.logs.push(k);if(putStreaks(l)){render();if(i<0)toast('Logged! Keep it going 🔥')}}
+ else if(a==='delstreak'){if(!confirm('Delete this streak?'))return;if(putStreaks(getStreaks().filter(x=>x.id!==id)))render()}
  else if(a==='lists')go({n:'lists'});
  else if(a==='list')go({n:'list',id});
  else if(a==='newlist'){if(!needUser())return;go({n:'listform'})}
@@ -593,13 +623,13 @@ app.addEventListener('click',async e=>{
  else if(a==='savec'){const t=g('ce-t');if(!t){toast('Comment cannot be empty');return}if(await api('editcomment',{id,i:+b.dataset.i,t})){go({n:'post',id},true);toast('Comment updated')}}
  else if(a==='savepost'){const dr=b.dataset.draft==='1',d={id,type:g('f-type'),media:g('f-media'),rating,text:g('f-text'),spoiler:$('f-spoil').checked,draft:dr};
   d.title=g('f-title')||d.media;
-  if(dr?!d.media:(!d.media||!d.text)){toast(dr?'Add a media title first':'Add a media title and your review first');return}
+  if(dr?!d.media:(!d.media||!d.text)){toast(dr?'Add a title first':'Add a title and your review first');return}
   if(p&&p.draft&&!dr&&!rating){toast('Pick a star rating first');return}
   const was=p&&p.draft;
   if(await api('editpost',d)){rating=0;toast(dr?'Draft saved':was?'Published! 🍊':'Post updated');go({n:'post',id})}}
  else if(a==='savedraft'){if(!needUser())return;
   const d={type:g('f-type'),media:g('f-media'),title:g('f-title')||g('f-media'),rating,text:g('f-text'),spoiler:$('f-spoil').checked,draft:true};
-  if(!d.media){toast('Add a media title to save a draft');return}
+  if(!d.media){toast('Add a title to save a draft');return}
   if(await api('publish',{...d,prompt:pre&&pre.prompt})){const wp=pre&&pre.prompt;pre=null;rating=0;toast('Draft saved. Find it on your profile.');const nd=(db.drafts||[]).filter(x=>x.by===db.me).sort((a,b)=>b.ts-a.ts)[0];if(wp&&nd)go({n:'post',id:nd.id});else render()}}
  else if(a==='open')go({n:'post',id});
  else if(a==='profile'){const u=user(id);pickAv=u.avatar;psort='new';go({n:'profile',id})}
@@ -629,7 +659,7 @@ app.addEventListener('click',async e=>{
   if(await api('delete',{id})){toast('Post deleted');go({n:'feed'})}}
  else if(a==='publish'){if(!needUser())return;
   const d={type:g('f-type'),media:g('f-media'),title:g('f-title')||g('f-media'),rating,text:g('f-text'),spoiler:$('f-spoil').checked};
-  if(!d.media||!d.text){toast('Add a media title and your review first');return}
+  if(!d.media||!d.text){toast('Add a title and your review first');return}
   if(!rating){toast('Pick a star rating first');return}
   if(await api('publish',{...d,wid:pre&&pre.wid,prompt:pre&&pre.prompt})){const jump=pre&&(pre.prompt||pre.pick);pre=null;rating=0;toast('Slice shared! 🍊');const np=db.posts.filter(x=>x.by===db.me).sort((a,b)=>b.ts-a.ts)[0];if(jump&&np)go({n:'post',id:np.id});else render()}}
  else if(a==='follow'){if(!needUser())return;
