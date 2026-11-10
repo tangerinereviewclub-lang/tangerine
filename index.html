@@ -79,6 +79,8 @@ body{margin:0;background:var(--bg)}
 #tg .stats b{color:var(--od);font-size:1.15rem}
 #tg .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-weight:700;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9}
 #tg .toast.show{opacity:1}
+#tg .side{margin-left:auto;align-self:flex-start;margin-top:26px;display:flex;flex-direction:column;gap:8px}
+#tg .side .theme{margin:0;text-align:center}
 #tg .theme{margin-left:auto;align-self:flex-start;margin-top:26px;background:var(--os);color:var(--od);border:2px solid var(--line);border-radius:999px;padding:7px 14px;font-weight:700;cursor:pointer}
 #tg .tops{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
 #tg .topcard{border:2px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--os)}
@@ -121,8 +123,8 @@ body{margin:0;background:var(--bg)}
 <div id="tg">
   <header class="top">
     <img class="logo" src="/logo.png" alt="Tangerine Review Club logo" width="96" height="96">
-    <div class="grow"><h1>Tangerine Review Club</h1><p>A juicy review is a good review. Sign up, post a slice, and share what you watch, read and play.</p></div>
-    <button class="theme" id="theme-btn" type="button"></button>
+    <div class="grow"><h1>Tangerine Review Club</h1><p>Fresh takes, honest reviews, juicy conversation. Sign up, post a slice, and share what you watch, read and play.</p></div>
+    <div class="side"><button class="theme" id="about-btn" type="button">🍊 About us</button><button class="theme" id="theme-btn" type="button"></button></div>
   </header>
   <div id="tg-app"><p class="empty">Loading...</p></div>
   <div class="toast" id="tg-toast" role="status"></div>
@@ -136,6 +138,8 @@ const TOPS=[['movies','Top 4 movies','Movie'],['albums','Top 4 albums','Album'],
 const topInputs=(p,t)=>TOPS.map(([k,l,n])=>`<label>${l}</label><div class="row">${[0,1,2,3].map(i=>`<input id="${p}-${k}-${i}" maxlength="60" placeholder="${n} ${i+1}" aria-label="${l} ${i+1}" value="${esc(((t&&t[k])||[])[i]||'')}">`).join('')}</div>`).join('');
 const readTops=p=>{const o={};TOPS.forEach(([k])=>{o[k]=[0,1,2,3].map(i=>{const el=document.getElementById(p+'-'+k+'-'+i);return el?el.value.trim():''})});return o};
 const topsView=u=>`<section class="panel"><h2>Top 4</h2><div class="tops">${TOPS.map(([k,l])=>{const a=((u.top||{})[k]||[]).filter(Boolean);return `<div class="topcard"><h3>${l.replace('Top 4 ','')}</h3>${a.length?`<ol>${a.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>`:'<p class="hint">Nothing picked yet.</p>'}</div>`}).join('')}</div></section>`;
+const ABOUT_INSTA='tangerinereviews'; /* put your Instagram username here, e.g. 'tangerinereviewclub' */
+const ABOUT_EMAIL='tangerinereviewclub@gmail.com';
 const AVATARS=['🍊','🧡','🟠','🔶','🦊','🐯','🎃','🥕','🏀','🔥','🥭','🐱'];
 let db={me:null,profiles:[],posts:[]}, view={n:'feed'}, filter='All', rating=0, sort='new', rev=new Set(), pre=null, dcat='All', dyear='All', clubMsgs=[], feedPosts=[], feedShown=0, feedWant=20, obs=null, pickAv=AVATARS[0], TOKEN='';
 try{TOKEN=localStorage.getItem('tg-token')||''}catch(e){}
@@ -453,6 +457,13 @@ const adminTools=()=>{if(!isAdmin())return'';const bn=db.banner,pr=db.prompts||[
  return owner+bingoAdmin+`<section class="panel"><h2>📣 Pinned announcement</h2><label for="bn-h">Headline (shown at the top of Home)</label><input id="bn-h" maxlength="100" value="${bn?esc(bn.title||''):''}" placeholder="e.g. New bingo card is live!"><label for="bn-t">Body (optional)</label><textarea id="bn-t" maxlength="1000" style="min-height:70px">${bn?esc(bn.text||''):''}</textarea><div class="actions"><button class="btn" data-a="setbanner">Pin it</button>${bn?'<button class="btn ghost" data-a="clearbanner">Remove</button>':''}</div></section>
  <section class="panel"><h2>💭 Weekly prompts</h2><p class="hint">Members reply with a post. The newest prompt shows on Home.</p>${ep?`<p class="hint"><b>Editing:</b> ${esc(ep.title)}</p>`:''}<label for="pr-t">Prompt</label><input id="pr-t" maxlength="100" placeholder="e.g. Best comfort movie" value="${ep?esc(ep.title):''}"><label for="pr-d">Details (optional)</label><input id="pr-d" maxlength="300" value="${ep?esc(ep.desc||''):''}"><div class="actions"><button class="btn" data-a="newprompt">${ep?'Save changes':'Post prompt'}</button>${ep?`<button class="btn ghost" data-a="cancelEdit" data-k="prompt">Cancel</button>`:''}</div>${pr.map(k=>`<div class="cm"><span style="flex:1">${esc(k.title)} <span class="hint">${ago(k.ts)}${k.edited?' (edited)':''}</span></span><button class="link" data-a="editprompt" data-id="${k.id}">Edit</button><button class="link" data-a="delprompt" data-id="${k.id}">Delete</button></div>`).join('')}</section>
  <section class="panel"><h2>📊 Polls and This or that</h2><p class="hint">The newest one shows on Home. For This or that, write one pair per line with a | between the two choices.</p>${el?`<p class="hint"><b>Editing:</b> ${esc(el.q)}. Votes are kept. If you change what an option means, old votes will count for the new wording.</p>`:''}<div class="row"><div><label for="po-k">Type</label><select id="po-k"${el?' disabled':''}><option value="poll"${el&&el.kind==='poll'?' selected':''}>Poll (2 to 6 options)</option><option value="thisthat"${el&&el.kind==='thisthat'?' selected':''}>This or that (3 to 9 lines, like Pizza | Burgers)</option></select></div><div><label for="po-q">Question</label><input id="po-q" maxlength="120" placeholder="e.g. Movie night snack?" value="${el?esc(el.q):''}"></div></div><label for="po-o">Options (one per line)</label><textarea id="po-o" style="min-height:80px" placeholder="Popcorn&#10;Chips">${el?esc(el.kind==='thisthat'?(el.pairs||[]).map(p=>p.a+' | '+p.b).join('\n'):(el.options||[]).map(o=>o.t).join('\n')):''}</textarea><div class="actions"><button class="btn" data-a="newpoll">${el?'Save changes':'Create'}</button>${el?`<button class="btn ghost" data-a="cancelEdit" data-k="poll">Cancel</button>`:''}</div>${po.map(l=>`<div class="cm" style="flex-wrap:wrap"><span style="flex:1 1 200px">${esc(l.q)} <span class="hint">${l.kind==='thisthat'?'This or that':'Poll'}${l.closed?', closed':''}</span></span><button class="link" data-a="editpoll" data-id="${l.id}">Edit</button><button class="link" data-a="pollclose" data-id="${l.id}">${l.closed?'Reopen':'Close'}</button><button class="link" data-a="delpoll" data-id="${l.id}">Delete</button></div>`).join('')}</section>`};
+const aboutView=()=>`<button class="btn ghost" style="margin-bottom:14px" data-a="feed">Back to home</button>
+ <section class="panel"><h2 style="font-size:1.6rem">About us</h2>
+ <h3 style="font-size:1.5rem;font-weight:800;line-height:1.2;color:var(--od);margin:0 0 14px">Tangerine Review Club is where opinions get peeled, sliced and shared. 🍊</h3>
+ <p>It's a space where people review and talk about all kinds of media and pop culture. Movies, documentaries, books, games, shows, anime, music and musicals all have a place, and so does anything else that doesn't fit those categories.</p>
+ <p>Rate it with tangerines, from one to five. Write a quick take or a full blog. Squeeze in a comment, answer the weekly prompt, vote in a poll, and watch the conversation get juicy. Keep a diary of everything you've peeled through, build a watchlist of what's ripening next, follow people whose taste you trust, and gather your favorites in clubs.</p>
+ <h3 style="font-size:1.1rem;margin:18px 0 8px;color:var(--od)">Follow us</h3>
+ <div style="display:flex;gap:18px;flex-wrap:wrap">${ABOUT_INSTA?`<a class="link" href="https://instagram.com/${esc(ABOUT_INSTA)}" target="_blank" rel="noopener noreferrer">📷 @${esc(ABOUT_INSTA)}</a>`:''}<a class="link" href="mailto:${esc(ABOUT_EMAIL)}">✉️ ${esc(ABOUT_EMAIL)}</a></div></section>`;
 function loadMore(){const fl=$('feed-list'),mo=$('more');if(!fl||!mo)return;const next=feedPosts.slice(feedShown,feedShown+20);fl.insertAdjacentHTML('beforeend',next.map(card).join(''));feedShown+=next.length;feedWant=feedShown;if(feedShown>=feedPosts.length){obs&&obs.disconnect();mo.remove()}}
 const grow=t=>{t.style.height='auto';t.style.height=Math.max(t.scrollHeight+2,260)+'px';const c=$('f-count');if(c){const v=t.value.trim(),n=v?v.split(/\s+/).length:0;c.textContent=n+' word'+(n===1?'':'s')}};
 const refreshBar=()=>{const bb=app.querySelector('.bar');if(bb)bb.outerHTML=bar()};
@@ -473,6 +484,7 @@ function render(){
  else if(view.n==='chat')body=chatView(view.id);
  else if(view.n==='club')body=clubView(view.id);
  else if(view.n==='prompt')body=promptView(view.id);
+ else if(view.n==='about')body=aboutView();
  else if(view.n==='features')body=featuresView();
  else if(view.n==='feat')body=featView(view.id);
  else if(view.n==='featform')body=featForm(view.id);
@@ -657,6 +669,7 @@ function curTheme(){return document.documentElement.dataset.theme||(matchMedia('
 function paintTheme(){const d=curTheme()==='dark';tb.textContent=d?'☀️ Light mode':'🌙 Dark mode';tb.setAttribute('aria-label',d?'Switch to light mode':'Switch to dark mode')}
 tb.addEventListener('click',()=>{const n=curTheme()==='dark'?'light':'dark';document.documentElement.dataset.theme=n;try{localStorage.setItem('bb-theme',n)}catch(e){}paintTheme()});
 paintTheme();
+$('about-btn').addEventListener('click',()=>go({n:'about'}));
 api('state').then(()=>{const h=location.hash;if(h.startsWith('#reset='))view={n:'reset',token:h.slice(7)};else if(h.startsWith('#list-'))view={n:'list',id:h.slice(6)};else if(h==='#feature-picks')view={n:'features'};else if(h.startsWith('#feature-'))view={n:'feat',id:h.slice(9)};render();try{history.replaceState({v:view},'')}catch(e){}});
 let tick=0;setInterval(()=>{if(document.hidden||!me())return;if(view.n!=='chat'&&view.n!=='club'&&++tick%3)return;
  if(view.n==='chat'){const id=view.id;api('read',{id}).then(r=>{if(r&&view.n==='chat'&&$('m-list')){$('m-list').innerHTML=chatList(id);refreshBar()}})}
