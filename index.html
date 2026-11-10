@@ -141,6 +141,8 @@ const topsView=u=>`<section class="panel"><h2>Top 4</h2><div class="tops">${TOPS
 const ABOUT_INSTA='tangerinereviews'; /* put your Instagram username here, e.g. 'tangerinereviewclub' */
 const ABOUT_EMAIL='tangerinereviewclub@gmail.com';
 const AVATARS=['🍊','🧡','🟠','🔶','🦊','🐯','🎃','🥕','🏀','🔥','🥭','🐱'];
+let psort='new';
+const sortPosts=(l,k)=>{l=l.slice();if(k==='old')l.sort((a,b)=>a.ts-b.ts);else if(k==='liked')l.sort((a,b)=>b.likedBy.length-a.likedBy.length||b.ts-a.ts);else if(k==='comm')l.sort((a,b)=>b.comments.length-a.comments.length||b.ts-a.ts);else l.sort((a,b)=>b.ts-a.ts);return l};
 let db={me:null,profiles:[],posts:[]}, view={n:'feed'}, filter='All', rating=0, sort='new', rev=new Set(), pre=null, dcat='All', dyear='All', clubMsgs=[], feedPosts=[], feedShown=0, feedWant=20, obs=null, pickAv=AVATARS[0], TOKEN='';
 try{TOKEN=localStorage.getItem('tg-token')||''}catch(e){}
 const $=id=>document.getElementById(id);
@@ -232,8 +234,7 @@ const card=p=>`<article class="post"><button class="open" data-a="open" data-id=
 
 function feedView(){const fl=(me()&&me().following)||[];
  const list=db.posts.filter(p=>filter==='All'||(filter==='Following'?fl.includes(p.by):p.type===filter));
- if(sort==='liked')list.sort((a,b)=>b.likedBy.length-a.likedBy.length||b.ts-a.ts);else if(sort==='comm')list.sort((a,b)=>b.comments.length-a.comments.length||b.ts-a.ts);
- return bannerBox()+composeView()+pickBanner()+promptBox()+pollBox()+bingoBox()+`<div class="filters"><select id="sort" aria-label="Sort posts" style="width:auto"><option value="new"${sort==='new'?' selected':''}>Newest</option><option value="liked"${sort==='liked'?' selected':''}>Most liked</option><option value="comm"${sort==='comm'?' selected':''}>Most commented</option></select>${TYPES.concat(me()?['Following']:[]).map(t=>`<button class="chip" data-a="filter" data-t="${t}" aria-pressed="${t===filter}">${t}</button>`).join('')}</div>`+
+  return bannerBox()+composeView()+pickBanner()+promptBox()+pollBox()+bingoBox()+`<div class="filters">${TYPES.concat(me()?['Following']:[]).map(t=>`<button class="chip" data-a="filter" data-t="${t}" aria-pressed="${t===filter}">${t}</button>`).join('')}</div>`+
  (list.length?(feedPosts=list,feedShown='IntersectionObserver' in window?Math.min(feedWant,list.length):list.length,`<div id="feed-list">${list.slice(0,feedShown).map(card).join('')}</div>${feedShown<list.length?'<div id="more" style="height:1px"></div>':''}`):`<p class="empty">${filter==='Following'?'Nothing here yet. Use Find people to follow someone.':'No fruit on the tree yet. Be the first to post.'}</p>`)}
 
 const postTools=p=>{const u=me();if(!u)return'';const own=u.id===p.by;
@@ -279,7 +280,7 @@ function profileView(u){const mine=me()&&me().id===u.id, posts=db.posts.filter(p
  ${pronFields('e',u)}
  ${igFields('e',u)}
  <label>Avatar </label>${avPicker(pickAv)}<div class="actions"><button class="btn" data-a="saveprofile">Save profile</button></div></section>`:''}
- ${draftsView(u)}<h2 style="margin:0 0 12px;color:var(--od)">Posts by ${esc(u.name)}</h2>${posts.length?posts.map(card).join(''):'<p class="empty">No posts yet.</p>'}`}
+ ${draftsView(u)}<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 12px"><h2 style="color:var(--od)">Posts by ${esc(u.name)}</h2>${posts.length>1?`<select id="psort" aria-label="Sort posts" style="width:auto"><option value="new"${psort==='new'?' selected':''}>Newest</option><option value="old"${psort==='old'?' selected':''}>Oldest</option><option value="liked"${psort==='liked'?' selected':''}>Most liked</option><option value="comm"${psort==='comm'?' selected':''}>Most commented</option></select>`:''}</div>${posts.length?sortPosts(posts,psort).map(card).join(''):'<p class="empty">No posts yet.</p>'}`}
 
 function memberRows(q){q=q.trim().toLowerCase().replace(/^@/,'');
  const posts={},likes={},fol={},ext={};
@@ -503,7 +504,7 @@ function copyText(t){return navigator.clipboard&&navigator.clipboard.writeText?n
 function fallbackCopy(t){const x=document.createElement('textarea');x.value=t;document.body.appendChild(x);x.select();let ok=false;try{ok=document.execCommand('copy')}catch(e){}x.remove();return ok}
 function needUser(){if(me())return true;toast('Create a profile or log in first');go({n:'join'});return false}
 
-app.addEventListener('change',e=>{if(e.target.dataset.rolefor){api('setcore',{id:e.target.dataset.rolefor,role:e.target.value}).then(r=>{if(r){toast('Role updated');render()}});return}if(e.target.id==='sort'){sort=e.target.value;feedWant=20;render()}if(e.target.id==='dyear'){dyear=e.target.value;render()}});
+app.addEventListener('change',e=>{if(e.target.dataset.rolefor){api('setcore',{id:e.target.dataset.rolefor,role:e.target.value}).then(r=>{if(r){toast('Role updated');render()}});return}if(e.target.id==='psort'){psort=e.target.value;const y=window.scrollY;render();window.scrollTo(0,y)}if(e.target.id==='dyear'){dyear=e.target.value;render()}});
 app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='m-t'){e.preventDefault();app.querySelector('[data-a="sendm"]').click()}});
 app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='cm-t'){e.preventDefault();app.querySelector('[data-a="sendclub"]').click()}});
 app.addEventListener('input',e=>{if(e.target.id==='f-text')grow(e.target);if(e.target.id==='cl-q')$('cl-res').innerHTML=clRes(e.target.value);if(e.target.id==='pm-q')$('pm-res').innerHTML=pmRes(e.target.value);if(e.target.id==='s-q')$('s-res').innerHTML=searchRes(e.target.value);});
@@ -604,7 +605,7 @@ app.addEventListener('click',async e=>{
   if(!d.media){toast('Add a media title to save a draft');return}
   if(await api('publish',{...d,prompt:pre&&pre.prompt})){const wp=pre&&pre.prompt;pre=null;rating=0;toast('Draft saved. Find it on your profile.');const nd=(db.drafts||[]).filter(x=>x.by===db.me).sort((a,b)=>b.ts-a.ts)[0];if(wp&&nd)go({n:'post',id:nd.id});else render()}}
  else if(a==='open')go({n:'post',id});
- else if(a==='profile'){const u=user(id);pickAv=u.avatar;go({n:'profile',id})}
+ else if(a==='profile'){const u=user(id);pickAv=u.avatar;psort='new';go({n:'profile',id})}
  else if(a==='filter'){filter=b.dataset.t;feedWant=20;render()}
  else if(a==='pickav'){pickAv=b.dataset.v;app.querySelectorAll('#avpick button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.v===pickAv))}
  else if(a==='create'){
