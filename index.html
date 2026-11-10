@@ -38,6 +38,8 @@ body{margin:0;background:var(--bg)}
 #tg label{display:block;font-size:.85rem;font-weight:700;color:var(--mut);margin:10px 0 4px}
 #tg input,#tg select,#tg textarea{width:100%;padding:10px 12px;border:2px solid var(--line);border-radius:10px;background:var(--bg)}
 #tg textarea{min-height:100px;resize:vertical}
+#tg textarea.write{min-height:260px;font-size:1.05rem;line-height:1.7;overflow:hidden;padding:14px 16px}
+#tg input.hl{font-family:"Bricolage Grotesque","DM Sans",sans-serif;font-size:1.3rem;font-weight:800}
 #tg .hint{font-size:.85rem;color:var(--mut);margin:6px 0 0}
 #tg .stars{display:flex;gap:2px}
 #tg .stars button{background:none;border:0;font-size:1.7rem;cursor:pointer;color:var(--line);padding:0 2px;line-height:1}
@@ -172,7 +174,7 @@ function bar(){const u=me();
 
 function avPicker(sel){return `<div class="avpick" id="avpick" role="group" aria-label="Pick an avatar">${AVATARS.map(a=>`<button type="button" data-a="pickav" data-v="${a}" aria-pressed="${a===sel}">${a}</button>`).join('')}</div>`}
 
-const igFields=(p,u)=>`<label for="${p}-ig">Instagram (optional)</label><input id="${p}-ig" maxlength="60" placeholder="e.g. ash.reviews" autocapitalize="none" value="${esc((u&&u.insta)||'')}">
+const igFields=(p,u)=>`<label for="${p}-ig">Instagram (optional)</label><input id="${p}-ig" maxlength="60" placeholder="e.g. lacy" autocapitalize="none" value="${esc((u&&u.insta)||'')}">
  <label style="display:flex;align-items:center;gap:8px;font-weight:500"><input type="checkbox" id="${p}-igp" style="width:auto"${u&&u.igPrivate?' checked':''}>Keep my Instagram private (only I can see it)</label>
  <p class="hint">Optional. It shows on your profile as a social link.</p>
  <label for="${p}-l0">More social links (optional, up to 2)</label><div class="row"><input id="${p}-l0" maxlength="200" placeholder="Letterboxd, Goodreads, Spotify..." value="${esc(((u&&u.links)||[])[0]||'')}"><input id="${p}-l1" maxlength="200" placeholder="Another link" value="${esc(((u&&u.links)||[])[1]||'')}"></div>`;
@@ -187,12 +189,12 @@ const profLinks=u=>{const out=[];
  (u.links||[]).filter(x=>/^https?:\/\//.test(x)).forEach(x=>out.push(`<a class="link" href="${esc(x)}" target="_blank" rel="noopener noreferrer nofollow">🔗 ${esc(host(x))}</a>`));
  return out.length?`<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px">${out.join('')}</div>`:''};
 function joinView(){return `<section class="panel"><h2>Log in</h2>
- <label for="l-handle">Username or email</label><input id="l-handle" maxlength="120" placeholder="e.g. ash_reviews" autocapitalize="none">
+ <label for="l-handle">Username or email</label><input id="l-handle" maxlength="120" placeholder="e.g. lacy" autocapitalize="none">
  <label for="l-pw">Password</label><input id="l-pw" type="password" autocomplete="current-password">
  <div class="actions"><button class="btn" data-a="loginname">Log in</button><button class="btn ghost" data-a="forgot">Forgot password?</button></div></section>
  <section class="panel"><h2>New here? Create your profile</h2>
- <div class="row"><div><label for="j-name">Display name</label><input id="j-name" maxlength="30" placeholder="e.g. Ash"></div>
- <div><label for="j-handle">Username</label><input id="j-handle" maxlength="20" placeholder="e.g. ash_reviews" autocapitalize="none"></div></div>
+ <div class="row"><div><label for="j-name">Display name</label><input id="j-name" maxlength="30" placeholder="e.g. Lacy"></div>
+ <div><label for="j-handle">Username</label><input id="j-handle" maxlength="20" placeholder="e.g. lacy" autocapitalize="none"></div></div>
  <p class="hint">Username: 3 to 20 letters, numbers or underscores. Each username is unique.</p>
  <label for="j-pw">Password</label><input id="j-pw" type="password" autocomplete="new-password" placeholder="At least 6 characters">
  <label for="j-em">Email</label><input id="j-em" type="email" autocomplete="email" placeholder="you@example.com"><p class="hint">Private: never shown to anyone. You can log in with it and use it to reset your password. One email per account.</p>
@@ -211,7 +213,8 @@ function composeView(){const u=me();
  <div class="row"><div><label for="f-type">Media type</label><select id="f-type">${TYPES.slice(1).map(t=>`<option${pre&&pre.type===t?' selected':''}>${t}</option>`).join('')}</select></div>
  <div><label for="f-media">Media title</label><input id="f-media" maxlength="80"${pre?` value="${esc(pre.media)}"`:''}></div></div>
  <label>Your rating</label><div class="stars" id="f-stars">${[1,2,3,4,5].map(n=>`<button type="button" class="${n<=rating?'on':''}" data-n="${n}" aria-label="${n} stars">🍊</button>`).join('')}</div>
- <label for="f-text">Your review or blog</label><textarea id="f-text" placeholder="What did you think?"></textarea>
+ <label for="f-title">Headline</label><input class="hl" id="f-title" maxlength="100" placeholder="Give your post a headline (optional)">
+ <label for="f-text">Your review or blog</label><textarea class="write" id="f-text" maxlength="10000" placeholder="What did you think? Write as much as you like, the box grows with you."></textarea><p class="hint" id="f-count">0 words</p>
  <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="f-spoil" style="width:auto">This post contains spoilers</label>
  <div class="actions"><button class="btn" data-a="publish">Share a slice</button><button class="btn ghost" data-a="savedraft">Save as draft</button></div></section>`}
 
@@ -244,7 +247,8 @@ function editForm(p){return `<section class="panel"><h2>Edit your post</h2>${p.p
  <div class="row"><div><label for="f-type">Media type</label><select id="f-type">${TYPES.slice(1).map(t=>`<option${t===p.type?' selected':''}>${t}</option>`).join('')}</select></div>
  <div><label for="f-media">Media title</label><input id="f-media" maxlength="80" value="${esc(p.media)}"></div></div>
  <label>Your rating</label><div class="stars" id="f-stars">${[1,2,3,4,5].map(n=>`<button type="button" class="${n<=rating?'on':''}" data-n="${n}" aria-label="${n} stars">🍊</button>`).join('')}</div>
- <label for="f-text">Your review or blog</label><textarea id="f-text">${esc(p.text)}</textarea>
+ <label for="f-title">Headline</label><input class="hl" id="f-title" maxlength="100" placeholder="Give your post a headline (optional)" value="${p.title!==p.media?esc(p.title):''}">
+ <label for="f-text">Your review or blog</label><textarea class="write" id="f-text" maxlength="10000">${esc(p.text)}</textarea><p class="hint" id="f-count">0 words</p>
  <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="f-spoil" style="width:auto"${p.spoiler?' checked':''}>This post contains spoilers</label>
  <div class="actions">${p.draft?`<button class="btn" data-a="savepost" data-id="${p.id}" data-draft="0">Publish</button><button class="btn ghost" data-a="savepost" data-id="${p.id}" data-draft="1">Save draft</button>`:`<button class="btn" data-a="savepost" data-id="${p.id}" data-draft="0">Save changes</button>`}<button class="btn ghost" data-a="open" data-id="${p.id}">Cancel</button></div></section>`}
 function postView(p){const u=me();if(view.edit&&u&&u.id===p.by)return editForm(p);
@@ -427,7 +431,7 @@ function featForm(id){const f=id?feats().find(x=>x.id===id):null,adm=isAdmin(),e
  <label for="ff-tag">Tag (optional, e.g. Interview, Essay)</label><input id="ff-tag" maxlength="30" value="${f?esc(f.tag||''):''}">
  <div class="row"><div><label for="ff-type">Media type (optional)</label><select id="ff-type"><option value="">None</option>${TYPES.slice(1).map(t=>`<option${f&&f.type===t?' selected':''}>${t}</option>`).join('')}</select></div><div><label for="ff-media">Media title (optional)</label><input id="ff-media" maxlength="80" value="${f?esc(f.media||''):''}"></div></div>
  <label for="ff-text">Article</label><textarea id="ff-text" style="min-height:260px">${f?esc(f.text):''}</textarea>
- ${adm&&!f?`<label for="ff-as">Posting for a core member who emailed it? Their username (optional)</label><input id="ff-as" maxlength="20" placeholder="e.g. ash_reviews" autocapitalize="none">`:''}
+ ${adm&&!f?`<label for="ff-as">Posting for a core member who emailed it? Their username (optional)</label><input id="ff-as" maxlength="20" placeholder="e.g. lacy" autocapitalize="none">`:''}
  ${ed?`<label style="display:flex;align-items:center;gap:8px;font-weight:500"><input type="checkbox" id="ff-pub" style="width:auto">Publish right away</label>`:'<p class="hint">Your piece goes to the editor first. It is published only after approval.</p>'}
  <div class="actions"><button class="btn" data-a="featsave" data-id="${id||''}">${ed?'Save':'Send to the editor'}</button><button class="btn ghost" data-a="features">Cancel</button></div></section>`}
 
@@ -451,6 +455,7 @@ const adminTools=()=>{if(!isAdmin())return'';const bn=db.banner,pr=db.prompts||[
  <section class="panel"><h2>💭 Weekly prompts</h2><p class="hint">Members reply with a post. The newest prompt shows on Home.</p>${ep?`<p class="hint"><b>Editing:</b> ${esc(ep.title)}</p>`:''}<label for="pr-t">Prompt</label><input id="pr-t" maxlength="100" placeholder="e.g. Best comfort movie" value="${ep?esc(ep.title):''}"><label for="pr-d">Details (optional)</label><input id="pr-d" maxlength="300" value="${ep?esc(ep.desc||''):''}"><div class="actions"><button class="btn" data-a="newprompt">${ep?'Save changes':'Post prompt'}</button>${ep?`<button class="btn ghost" data-a="cancelEdit" data-k="prompt">Cancel</button>`:''}</div>${pr.map(k=>`<div class="cm"><span style="flex:1">${esc(k.title)} <span class="hint">${ago(k.ts)}${k.edited?' (edited)':''}</span></span><button class="link" data-a="editprompt" data-id="${k.id}">Edit</button><button class="link" data-a="delprompt" data-id="${k.id}">Delete</button></div>`).join('')}</section>
  <section class="panel"><h2>📊 Polls and This or that</h2><p class="hint">The newest one shows on Home. For This or that, write one pair per line with a | between the two choices.</p>${el?`<p class="hint"><b>Editing:</b> ${esc(el.q)}. Votes are kept. If you change what an option means, old votes will count for the new wording.</p>`:''}<div class="row"><div><label for="po-k">Type</label><select id="po-k"${el?' disabled':''}><option value="poll"${el&&el.kind==='poll'?' selected':''}>Poll (2 to 6 options)</option><option value="thisthat"${el&&el.kind==='thisthat'?' selected':''}>This or that (3 to 9 lines, like Pizza | Burgers)</option></select></div><div><label for="po-q">Question</label><input id="po-q" maxlength="120" placeholder="e.g. Movie night snack?" value="${el?esc(el.q):''}"></div></div><label for="po-o">Options (one per line)</label><textarea id="po-o" style="min-height:80px" placeholder="Popcorn&#10;Chips">${el?esc(el.kind==='thisthat'?(el.pairs||[]).map(p=>p.a+' | '+p.b).join('\n'):(el.options||[]).map(o=>o.t).join('\n')):''}</textarea><div class="actions"><button class="btn" data-a="newpoll">${el?'Save changes':'Create'}</button>${el?`<button class="btn ghost" data-a="cancelEdit" data-k="poll">Cancel</button>`:''}</div>${po.map(l=>`<div class="cm" style="flex-wrap:wrap"><span style="flex:1 1 200px">${esc(l.q)} <span class="hint">${l.kind==='thisthat'?'This or that':'Poll'}${l.closed?', closed':''}</span></span><button class="link" data-a="editpoll" data-id="${l.id}">Edit</button><button class="link" data-a="pollclose" data-id="${l.id}">${l.closed?'Reopen':'Close'}</button><button class="link" data-a="delpoll" data-id="${l.id}">Delete</button></div>`).join('')}</section>`};
 function loadMore(){const fl=$('feed-list'),mo=$('more');if(!fl||!mo)return;const next=feedPosts.slice(feedShown,feedShown+20);fl.insertAdjacentHTML('beforeend',next.map(card).join(''));feedShown+=next.length;feedWant=feedShown;if(feedShown>=feedPosts.length){obs&&obs.disconnect();mo.remove()}}
+const grow=t=>{t.style.height='auto';t.style.height=Math.max(t.scrollHeight+2,260)+'px';const c=$('f-count');if(c){const v=t.value.trim(),n=v?v.split(/\s+/).length:0;c.textContent=n+' word'+(n===1?'':'s')}};
 const refreshBar=()=>{const bb=app.querySelector('.bar');if(bb)bb.outerHTML=bar()};
 function render(){
  let body;
@@ -479,6 +484,7 @@ function render(){
  app.innerHTML=bar()+body;
  if(obs){obs.disconnect();obs=null}
  const mo=$('more');if(mo){obs=new IntersectionObserver(es=>{if(es[0].isIntersecting)loadMore()},{rootMargin:'500px'});obs.observe(mo)}
+ const ft=$('f-text');if(ft)grow(ft);
 }
 
 window.addEventListener('popstate',e=>{view=(e.state&&e.state.v)||{n:'feed'};render();window.scrollTo(0,0)});
@@ -489,7 +495,7 @@ function needUser(){if(me())return true;toast('Create a profile or log in first'
 app.addEventListener('change',e=>{if(e.target.dataset.rolefor){api('setcore',{id:e.target.dataset.rolefor,role:e.target.value}).then(r=>{if(r){toast('Role updated');render()}});return}if(e.target.id==='sort'){sort=e.target.value;feedWant=20;render()}if(e.target.id==='dyear'){dyear=e.target.value;render()}});
 app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='m-t'){e.preventDefault();app.querySelector('[data-a="sendm"]').click()}});
 app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='cm-t'){e.preventDefault();app.querySelector('[data-a="sendclub"]').click()}});
-app.addEventListener('input',e=>{if(e.target.id==='cl-q')$('cl-res').innerHTML=clRes(e.target.value);if(e.target.id==='pm-q')$('pm-res').innerHTML=pmRes(e.target.value);if(e.target.id==='s-q')$('s-res').innerHTML=searchRes(e.target.value);});
+app.addEventListener('input',e=>{if(e.target.id==='f-text')grow(e.target);if(e.target.id==='cl-q')$('cl-res').innerHTML=clRes(e.target.value);if(e.target.id==='pm-q')$('pm-res').innerHTML=pmRes(e.target.value);if(e.target.id==='s-q')$('s-res').innerHTML=searchRes(e.target.value);});
 app.addEventListener('click',async e=>{
  const st=e.target.closest('#f-stars button');
  if(st){rating=rating===+st.dataset.n?0:+st.dataset.n;app.querySelectorAll('#f-stars button').forEach(x=>x.classList.toggle('on',+x.dataset.n<=rating));return}
@@ -577,13 +583,13 @@ app.addEventListener('click',async e=>{
  else if(a==='editc')go({n:'post',id:view.id,ec:+b.dataset.i},true);
  else if(a==='savec'){const t=g('ce-t');if(!t){toast('Comment cannot be empty');return}if(await api('editcomment',{id,i:+b.dataset.i,t})){go({n:'post',id},true);toast('Comment updated')}}
  else if(a==='savepost'){const dr=b.dataset.draft==='1',d={id,type:g('f-type'),media:g('f-media'),rating,text:g('f-text'),spoiler:$('f-spoil').checked,draft:dr};
-  d.title=p&&p.title&&p.title!==p.media?p.title:d.media;
+  d.title=g('f-title')||d.media;
   if(dr?!d.media:(!d.media||!d.text)){toast(dr?'Add a media title first':'Add a media title and your review first');return}
   if(p&&p.draft&&!dr&&!rating){toast('Pick a star rating first');return}
   const was=p&&p.draft;
   if(await api('editpost',d)){rating=0;toast(dr?'Draft saved':was?'Published! 🍊':'Post updated');go({n:'post',id})}}
  else if(a==='savedraft'){if(!needUser())return;
-  const d={type:g('f-type'),media:g('f-media'),title:g('f-media'),rating,text:g('f-text'),spoiler:$('f-spoil').checked,draft:true};
+  const d={type:g('f-type'),media:g('f-media'),title:g('f-title')||g('f-media'),rating,text:g('f-text'),spoiler:$('f-spoil').checked,draft:true};
   if(!d.media){toast('Add a media title to save a draft');return}
   if(await api('publish',{...d,prompt:pre&&pre.prompt})){const wp=pre&&pre.prompt;pre=null;rating=0;toast('Draft saved. Find it on your profile.');const nd=(db.drafts||[]).filter(x=>x.by===db.me).sort((a,b)=>b.ts-a.ts)[0];if(wp&&nd)go({n:'post',id:nd.id});else render()}}
  else if(a==='open')go({n:'post',id});
@@ -611,7 +617,7 @@ app.addEventListener('click',async e=>{
  else if(a==='delete'){if(b.dataset.c!=='1'){b.dataset.c='1';b.textContent='Click again to confirm delete';return}
   if(await api('delete',{id})){toast('Post deleted');go({n:'feed'})}}
  else if(a==='publish'){if(!needUser())return;
-  const d={type:g('f-type'),media:g('f-media'),title:g('f-media'),rating,text:g('f-text'),spoiler:$('f-spoil').checked};
+  const d={type:g('f-type'),media:g('f-media'),title:g('f-title')||g('f-media'),rating,text:g('f-text'),spoiler:$('f-spoil').checked};
   if(!d.media||!d.text){toast('Add a media title and your review first');return}
   if(!rating){toast('Pick a star rating first');return}
   if(await api('publish',{...d,wid:pre&&pre.wid,prompt:pre&&pre.prompt})){const jump=pre&&(pre.prompt||pre.pick);pre=null;rating=0;toast('Slice shared! 🍊');const np=db.posts.filter(x=>x.by===db.me).sort((a,b)=>b.ts-a.ts)[0];if(jump&&np)go({n:'post',id:np.id});else render()}}
