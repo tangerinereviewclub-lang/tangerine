@@ -66,7 +66,6 @@ body{margin:0;background:var(--bg)}
 #tg .actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
 #tg .act{background:var(--os);border:0;border-radius:999px;padding:7px 14px;cursor:pointer;font-weight:700;color:var(--od)}
 #tg .act[aria-pressed="true"]{background:var(--o);color:#fff}
-#tg .act[data-a="repost"][aria-pressed="true"]{background:var(--os);color:var(--od);box-shadow:inset 0 0 0 2px var(--o)}
 #tg .act[data-a="like"][aria-pressed="true"]{background:var(--os);color:var(--od);box-shadow:inset 0 0 0 2px var(--o)}
 #tg .tl.off{filter:grayscale(1);opacity:.55}
 #tg .comments{margin-top:14px;border-top:2px dashed var(--line);padding-top:12px}
@@ -224,21 +223,17 @@ function composeView(){const u=me();
  <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="f-spoil" style="width:auto">This post contains spoilers</label>
  <div class="actions"><button class="btn" data-a="publish">Share a slice</button><button class="btn ghost" data-a="savedraft">Save as draft</button></div></section>`}
 
-const likersOpen=new Set();
-const repCount=p=>(db.reposts||[]).filter(x=>x.pid===p.id).length;
-const likersPanel=p=>likersOpen.has(p.id)&&p.likedBy.length?`<div style="display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center;margin:8px 0 0;padding:10px 12px;background:var(--os);border-radius:12px"><span class="hint" style="margin:0;width:100%">Liked by</span>${p.likedBy.map(id=>user(id)).filter(Boolean).map(x=>`<button class="link" data-a="profile" data-id="${x.id}" style="display:inline-flex;align-items:center;gap:6px">${av(x,'sm')}${esc(x.name)}</button>`).join('')}</div>`:'';
-function actions(p){const u=me(),liked=u&&p.likedBy.includes(u.id),rc=repCount(p),rp=u&&(db.reposts||[]).some(x=>x.pid===p.id&&x.by===u.id),own=u&&u.id===p.by;
- return `<div class="actions"><button class="act" data-a="like" data-id="${p.id}" aria-label="Like" aria-pressed="${!!liked}"><span class="tl${liked?'':' off'}" aria-hidden="true">🍊</span> ${p.likedBy.length}</button>${p.likedBy.length?`<button class="link" data-a="likers" data-id="${p.id}" aria-expanded="${likersOpen.has(p.id)}">${likersOpen.has(p.id)?'Hide likes':'Who liked'}</button>`:''}
- <button class="act" data-a="open" data-id="${p.id}">💬 ${p.comments.length}</button>${own?(rc?`<span class="hint" style="margin:0">${rc} repost${rc===1?'':'s'}</span>`:''):`<button class="act" data-a="repost" data-id="${p.id}" aria-pressed="${!!rp}">${rp?'Reposted':'Repost'}${rc?' '+rc:''}</button>`}<button class="act" data-a="share" data-id="${p.id}">Share</button></div>${likersPanel(p)}`}
+const likersPanel=p=>p.likedBy.length?`<div style="display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center;margin:8px 0 0;padding:10px 12px;background:var(--os);border-radius:12px"><span class="hint" style="margin:0;width:100%">Liked by</span>${p.likedBy.map(id=>user(id)).filter(Boolean).map(x=>`<button class="link" data-a="profile" data-id="${x.id}" style="display:inline-flex;align-items:center;gap:6px">${av(x,'sm')}${esc(x.name)}</button>`).join('')}</div>`:'';
+function actions(p,full){const u=me(),liked=u&&p.likedBy.includes(u.id);
+ return `<div class="actions"><button class="act" data-a="like" data-id="${p.id}" aria-label="Like" aria-pressed="${!!liked}"><span class="tl${liked?'':' off'}" aria-hidden="true">🍊</span> ${p.likedBy.length}</button> <button class="act" data-a="open" data-id="${p.id}">💬 ${p.comments.length}</button><button class="act" data-a="share" data-id="${p.id}">Share</button></div>${full?likersPanel(p):''}`}
 const lk=t=>esc(t).replace(/@([a-z0-9_]{3,20})/gi,(m,h)=>{const u=db.profiles.find(x=>x.handle===h.toLowerCase());return u?`<button class="link" data-a="profile" data-id="${u.id}">@${esc(u.handle)}</button>`:m});
 const bodyHtml=(p,full)=>p.spoiler&&!rev.has(p.id)?`<div class="body"><button class="btn ghost" data-a="reveal" data-id="${p.id}">⚠️ Contains spoilers. Tap to show</button></div>`:`<div class="body">${lk(full?p.text:excerpt(p.text))}</div>`;
 const meta=p=>`<div class="meta">${userLink(user(p.by))}<span class="tag">${esc(p.type)}</span>${p.draft?'<span class="tag">Draft</span>':''}${p.prompt&&promptOf(p.prompt)?`<button class="link" data-a="prompt" data-id="${p.prompt}">💭 ${esc(promptOf(p.prompt).title)}</button>`:''}${p.media!==p.title?`<span>${esc(p.media)}</span>`:''}<span class="rate" aria-label="${p.rating} out of 5">${stars(p.rating)}</span><span>${ago(p._ots||p.ts)}${p.edited?' (edited)':''}</span></div>`;
-const card=p=>`<article class="post">${p._rp?`<div class="hint" style="margin:0 0 6px">Reposted by ${userLink(user(p._rp.by))}</div>`:''}<button class="open" data-a="open" data-id="${p.id}">${esc(p.title)}</button>${meta(p)}
+const card=p=>`<article class="post"><button class="open" data-a="open" data-id="${p.id}">${esc(p.title)}</button>${meta(p)}
  ${bodyHtml(p)}<div class="actions"><button class="btn ghost" data-a="open" data-id="${p.id}">Read post</button></div>${actions(p)}</article>`;
 
-const rpClones=()=>(db.reposts||[]).map(r=>{const p=db.posts.find(x=>x.id===r.pid);return p?{...p,ts:r.ts,_ots:p.ts,_rp:r}:null}).filter(Boolean);
 function feedView(){const fl=(me()&&me().following)||[];
- const list=db.posts.concat(rpClones()).filter(p=>filter==='All'||(filter==='Following'?fl.includes(p.by)||(p._rp&&fl.includes(p._rp.by)):p.type===filter)).sort((a,b)=>b.ts-a.ts);
+ const list=db.posts.filter(p=>filter==='All'||(filter==='Following'?fl.includes(p.by):p.type===filter)).sort((a,b)=>b.ts-a.ts);
   return bannerBox()+composeView()+pickBanner()+promptBox()+pollBox()+bingoBox()+`<div class="filters">${TYPES.concat(me()?['Following']:[]).map(t=>`<button class="chip" data-a="filter" data-t="${t}" aria-pressed="${t===filter}">${t}</button>`).join('')}</div>`+
  (list.length?(feedPosts=list,feedShown='IntersectionObserver' in window?Math.min(feedWant,list.length):list.length,`<div id="feed-list">${list.slice(0,feedShown).map(card).join('')}</div>${feedShown<list.length?'<div id="more" style="height:1px"></div>':''}`):`<p class="empty">${filter==='Following'?'Nothing here yet. Use Find people to follow someone.':'No fruit on the tree yet. Be the first to post.'}</p>`)}
 
@@ -262,14 +257,14 @@ function editForm(p){return `<section class="panel"><h2>Edit your post</h2>${p.p
  <div class="actions">${p.draft?`<button class="btn" data-a="savepost" data-id="${p.id}" data-draft="0">Publish</button><button class="btn ghost" data-a="savepost" data-id="${p.id}" data-draft="1">Save draft</button>`:`<button class="btn" data-a="savepost" data-id="${p.id}" data-draft="0">Save changes</button>`}<button class="btn ghost" data-a="open" data-id="${p.id}">Cancel</button></div></section>`}
 function postView(p){const u=me();if(view.edit&&u&&u.id===p.by)return editForm(p);
  return `<button class="btn ghost" style="margin-bottom:14px" data-a="feed">Back to all posts</button>
- <article class="post"><h3>${esc(p.title)}</h3>${meta(p)}${bodyHtml(p,1)}${p.draft?'<p class="hint">'+(p.prompt&&promptOf(p.prompt)?'💭 Answering the weekly prompt: <b>'+esc(promptOf(p.prompt).title)+'</b>. ':'')+'Draft: only you can see this. Edit it to publish.</p>':actions(p)}
+ <article class="post"><h3>${esc(p.title)}</h3>${meta(p)}${bodyHtml(p,1)}${p.draft?'<p class="hint">'+(p.prompt&&promptOf(p.prompt)?'💭 Answering the weekly prompt: <b>'+esc(promptOf(p.prompt).title)+'</b>. ':'')+'Draft: only you can see this. Edit it to publish.</p>':actions(p,1)}
  ${postTools(p)}
  <div class="comments"${p.draft?' hidden':''}><h3 style="font-size:1.1rem;margin-bottom:6px">Comments (${p.comments.length})</h3>
  ${p.comments.map((c,i)=>commentHtml(p,c,i)).join('')||'<p class="empty" style="padding:6px 0">No comments yet. Be the first to squeeze one in.</p>'}
  ${u?`<div class="cform"><input id="c-t" maxlength="300" placeholder="Comment as ${esc(u.name)}"><button class="btn" data-a="send" data-id="${p.id}">Squeeze it in</button></div>`
  :`<div class="actions"><button class="btn" data-a="join">Create a profile to comment</button></div>`}</div></article>`}
 
-function profileView(u){const mine=me()&&me().id===u.id, posts=db.posts.filter(p=>p.by===u.id), shown=posts.concat(rpClones().filter(p=>p._rp.by===u.id));
+function profileView(u){const mine=me()&&me().id===u.id, posts=db.posts.filter(p=>p.by===u.id), shown=posts;
  const likes=posts.reduce((s,p)=>s+p.likedBy.length,0);
  return `<section class="panel"><div class="phead">${av(u,'lg')}<div><h2>${esc(u.name)}</h2><div style="color:var(--mut)">@${esc(u.handle)}${pronTxt(u)}</div>
  <div class="stats"><span><b>${posts.length}</b> posts</span><span><b>${likes}</b> likes</span><span><b>${followers(u)}</b> followers</span><span><b>${(u.following||[]).length}</b> following</span></div>
@@ -621,8 +616,6 @@ app.addEventListener('click',async e=>{
   if(!g('e-name')){toast('Display name cannot be empty');return}
   const r=await api('saveprofile',{name:g('e-name'),handle:g('e-handle').toLowerCase().replace(/^@/,''),bio:g('e-bio'),avatar:pickAv,top:readTops('e'),...readPron('e'),...readIg('e')});
   if(r){toast('Profile saved');render()}}
- else if(a==='likers'){if(likersOpen.has(id))likersOpen.delete(id);else likersOpen.add(id);const y=window.scrollY;if($('s-res'))$('s-res').innerHTML=searchRes($('s-q').value);else render();window.scrollTo(0,y)}
- else if(a==='repost'){if(!needUser())return;const y=window.scrollY;const was=(db.reposts||[]).some(x=>x.pid===id&&x.by===db.me);if(await api('repost',{id})){if($('s-res'))$('s-res').innerHTML=searchRes($('s-q').value);else render();window.scrollTo(0,y);toast(was?'Repost removed':'Reposted to your profile and feed')}}
  else if(a==='like'){if(!needUser())return;const y=window.scrollY;if(await api('like',{id})){if($('s-res'))$('s-res').innerHTML=searchRes($('s-q').value);else render();window.scrollTo(0,y)}}
  else if(a==='send'){if(!needUser())return;const t=g('c-t');if(!t){toast('Write a comment first');return}
   if(await api('comment',{id,t})){render();toast('Comment posted')}}
@@ -661,9 +654,8 @@ app.addEventListener('click',async e=>{
  else if(a==='copymembers'){const t=membersTsv('');
   try{await copyText(t);toast('Table copied. Paste it into Google Sheets')}catch(err){toast(fallbackCopy(t)?'Table copied. Paste it into Google Sheets':'Could not copy the table')}}
  else if(a==='share'){
-  const txt=`${p.title} - a ${p.type.toLowerCase()} review of ${p.media} (${p.rating}/5) by ${user(p.by).name}`;
-  try{if(navigator.share){await navigator.share({title:p.title,text:txt});return}}catch(err){if(err&&err.name==='AbortError')return}
-  try{await copyText(txt);toast('Copied to clipboard')}catch(err){toast(fallbackCopy(txt)?'Copied to clipboard':'Could not copy the post')}}
+  const url=location.origin+location.pathname+'#post-'+id;
+  try{await copyText(url);toast('Link copied')}catch(err){toast(fallbackCopy(url)?'Link copied':url)}}
 });
 const tb=$('theme-btn');
 function curTheme(){return document.documentElement.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}
@@ -671,7 +663,7 @@ function paintTheme(){const d=curTheme()==='dark';tb.textContent=d?'☀️ Light
 tb.addEventListener('click',()=>{const n=curTheme()==='dark'?'light':'dark';document.documentElement.dataset.theme=n;try{localStorage.setItem('bb-theme',n)}catch(e){}paintTheme()});
 paintTheme();
 $('about-btn').addEventListener('click',()=>go({n:'about'}));
-api('state').then(()=>{const h=location.hash;if(h.startsWith('#reset='))view={n:'reset',token:h.slice(7)};else if(h.startsWith('#list-'))view={n:'list',id:h.slice(6)};else if(h==='#feature-picks')view={n:'features'};else if(h.startsWith('#feature-'))view={n:'feat',id:h.slice(9)};render();try{history.replaceState({v:view},'')}catch(e){}});
+api('state').then(()=>{const h=location.hash;if(h.startsWith('#reset='))view={n:'reset',token:h.slice(7)};else if(h.startsWith('#list-'))view={n:'list',id:h.slice(6)};else if(h.startsWith('#post-')&&postById(h.slice(6)))view={n:'post',id:h.slice(6)};else if(h==='#feature-picks')view={n:'features'};else if(h.startsWith('#feature-'))view={n:'feat',id:h.slice(9)};render();try{history.replaceState({v:view},'')}catch(e){}});
 let tick=0;setInterval(()=>{if(document.hidden||!me())return;if(view.n!=='chat'&&view.n!=='club'&&++tick%3)return;
  if(view.n==='chat'){const id=view.id;api('read',{id}).then(r=>{if(r&&view.n==='chat'&&$('m-list')){$('m-list').innerHTML=chatList(id);refreshBar()}})}
  else if(view.n==='club'){const id=view.id;api('club',{id}).then(r=>{if(r&&view.n==='club'&&$('cm-list')){const l=$('cm-list'),atEnd=l.scrollHeight-l.scrollTop-l.clientHeight<60;l.innerHTML=clubList();if(atEnd)l.scrollTop=l.scrollHeight}})}
