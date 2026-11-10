@@ -174,7 +174,7 @@ function go(v,keep){view=v;menuOpen='';try{if(keep)history.replaceState({v},'');
 function bar(){const u=me();
   const nav=`<button class="btn ghost" data-a="feed">Home</button>`;
   const lists=`<button class="btn ghost" data-a="lists">Lists 📋</button><button class="btn ghost" data-a="features">Feature Picks🧺</button><button class="btn ghost" data-a="searchview">Search 🔍</button>`;
-  return `<div class="bar">`+(u?`<button class="who" data-a="profile" data-id="${u.id}">${av(u)}${esc(u.handle)}</button>${nav}<button class="btn ghost" data-a="diary" data-id="${u.id}">Diary 📒</button><button class="btn ghost" data-a="streaks">Streaks 🔥</button>${lists}<button class="btn ghost" data-a="inbox" aria-label="Messages" title="Messages">✉️${unread()?` (${unread()})`:''}</button><button class="btn ghost" data-a="notes" aria-label="Alerts" title="Alerts">🔔${unreadN()?` (${unreadN()})`:''}</button><button class="btn ghost" data-a="settings" aria-label="Settings" title="Settings">⚙️</button><button class="btn ghost" data-a="logout">Log out</button>`
+  return `<div class="bar">`+(u?`<button class="who" data-a="profile" data-id="${u.id}">${av(u)}${esc(u.handle)}</button>${nav}<button class="btn ghost" data-a="diary" data-id="${u.id}">Diary 📒</button>${lists}<button class="btn ghost" data-a="inbox" aria-label="Messages" title="Messages">✉️${unread()?` (${unread()})`:''}</button><button class="btn ghost" data-a="notes" aria-label="Alerts" title="Alerts">🔔${unreadN()?` (${unreadN()})`:''}</button><button class="btn ghost" data-a="settings" aria-label="Settings" title="Settings">⚙️</button><button class="btn ghost" data-a="logout">Log out</button>`
   :`<button class="btn" data-a="join">Sign up or log in</button>${nav}${lists}`)+`</div>`}
 
 function avPicker(sel){return `<div class="avpick" id="avpick" role="group" aria-label="Pick an avatar">${AVATARS.map(a=>`<button type="button" data-a="pickav" data-v="${a}" aria-pressed="${a===sel}">${a}</button>`).join('')}</div>`}
@@ -276,6 +276,7 @@ function profileView(u){const mine=me()&&me().id===u.id, posts=db.posts.filter(p
  <div class="actions"><button class="btn ghost" data-a="diary" data-id="${u.id}">📔 Diary</button>${fbtn(u)}${me()&&!mine?`<button class="btn ghost" data-a="chat" data-id="${u.id}">✉️ Message</button><button class="btn ghost" data-a="block" data-id="${u.id}">🚫 Block</button>`:''}${isAdmin()&&!mine?`<button class="btn ghost" data-a="suspend" data-id="${u.id}">${(db.suspended||[]).includes(u.id)?'Unsuspend':'Suspend'}</button>`:''}</div></div></div>
  <p>${esc(u.bio)||'No bio yet.'}</p>${profLinks(u)}</section>
  ${topsView(u)}
+ ${mine?streaksSection():''}
  ${bingoShares(u)}
  ${mine?`<section class="panel"><h2>Edit your profile</h2><label for="e-name">Display name</label><input id="e-name" maxlength="30" value="${esc(u.name)}">
  <label for="e-handle">Username</label><input id="e-handle" maxlength="20" value="${esc(u.handle)}">
@@ -353,7 +354,7 @@ function settingsView(){if(!me())return inboxView();
  <section class="panel"><h2>Delete account</h2><p class="hint">This permanently deletes your profile, posts, comments and messages.</p><label for="da-pw">Password</label><input id="da-pw" type="password" autocomplete="current-password"><div class="actions"><button class="btn danger" data-a="delacct">Delete my account</button></div></section>`}
 const PL={Movie:['movie','movies'],Documentary:['documentary','documentaries'],Book:['book','books'],Game:['game','games'],Show:['show','shows'],Anime:['anime','anime'],Music:['music','music'],Musical:['musical','musicals'],Other:['other post','other posts']};
 const yr=p=>new Date(p.ts).getFullYear();
-function diaryView(u){const all=db.posts.filter(p=>p.by===u.id).sort((a,b)=>b.ts-a.ts),mine=me()&&me().id===u.id;
+function diaryView(u){const mine=me()&&me().id===u.id,sl=mine?getStreaks().flatMap(st=>(st.entries||[]).map(e=>({local:1,type:st.cat,media:e.title,rating:e.rating,text:e.text,ts:e.ts}))):[],all=db.posts.filter(p=>p.by===u.id).concat(sl).sort((a,b)=>b.ts-a.ts);
  const years=[...new Set(all.map(yr))].sort((a,b)=>b-a),inY=all.filter(p=>dyear==='All'||yr(p)===+dyear);
  const cats=[...new Set(all.map(p=>p.type))],l=inY.filter(p=>dcat==='All'||p.type===dcat);
  const n=l.length,word=dcat==='All'?(n===1?'entry':'entries'):(PL[dcat]||['entry','entries'])[n===1?0:1];
@@ -361,7 +362,7 @@ function diaryView(u){const all=db.posts.filter(p=>p.by===u.id).sort((a,b)=>b.ts
  <section class="panel"><h2>${mine?'My diary':esc(u.name)+"'s diary"}</h2>
  <div class="filters" style="margin:10px 0"><select id="dyear" aria-label="Year" style="width:auto"><option value="All">All years</option>${years.map(y=>`<option${String(y)===String(dyear)?' selected':''}>${y}</option>`).join('')}</select>${['All',...cats].map(t=>`<button class="chip" data-a="dcat" data-t="${t}" aria-pressed="${t===dcat}">${t}${t==='All'?'':' ('+inY.filter(p=>p.type===t).length+')'}</button>`).join('')}</div>
  <p style="margin:0"><b>${n}</b> ${word} ${dyear==='All'?'logged so far':'in '+dyear}</p></section>`+
- (l.length?`<section class="panel">${l.map(p=>`<div class="cm" style="align-items:center;flex-wrap:wrap"><button class="link" data-a="open" data-id="${p.id}" style="flex:1 1 240px;text-align:left">${esc(p.type)} - ${esc(p.media)} - <span class="rate">${stars(p.rating)}</span></button><span class="hint" style="margin:0">${new Date(p.ts).toLocaleDateString()}</span></div>`).join('')}</section>`:'<p class="empty">Nothing peeled yet. Share a slice to start your diary.</p>')}
+ (l.length?`<section class="panel">${l.map(p=>p.local?`<div class="cm" style="align-items:center;flex-wrap:wrap"><span style="flex:1 1 240px"><b>${esc(p.type)} - ${esc(p.media)}</b> - <span class="rate">${stars(p.rating)}</span> <span class="tag">🔥 streak</span>${p.text?`<br><span class="hint">${esc(p.text)}</span>`:''}</span><span class="hint" style="margin:0">${new Date(p.ts).toLocaleDateString()}</span></div>`:`<div class="cm" style="align-items:center;flex-wrap:wrap"><button class="link" data-a="open" data-id="${p.id}" style="flex:1 1 240px;text-align:left">${esc(p.type)} - ${esc(p.media)} - <span class="rate">${stars(p.rating)}</span></button><span class="hint" style="margin:0">${new Date(p.ts).toLocaleDateString()}</span></div>`).join('')}</section>`:'<p class="empty">Nothing peeled yet. Share a slice to start your diary.</p>')}
 const forgotView=()=>`<section class="panel"><h2>Forgot password</h2><p class="hint">Enter your username or the email you signed up with. We will email you a reset link.</p><label for="fg-w">Username or email</label><input id="fg-w" autocapitalize="none"><div class="actions"><button class="btn" data-a="sendforgot">Email me a link</button><button class="btn ghost" data-a="join">Back</button></div></section>`;
 const resetView=()=>`<section class="panel"><h2>Choose a new password</h2><label for="rs-p">New password</label><input id="rs-p" type="password" autocomplete="new-password" placeholder="At least 6 characters"><div class="actions"><button class="btn" data-a="doreset">Save and log in</button></div></section>`;
 function watchView(u){const mine=me()&&me().id===u.id,l=u.watch||[];
@@ -470,15 +471,22 @@ function streakStats(st){const set=new Set(st.logs||[]),now=pkey(new Date(),st.f
  let best=0;(st.logs||[]).forEach(l=>{if(set.has(pprev(l,st.freq)))return;let n=0,x=l;while(set.has(x)){n++;x=pprevInv(x,st.freq)}best=Math.max(best,n)});
  return {cur,best:Math.max(best,cur),done,total:set.size}}
 const pprevInv=(k,f)=>{const a=k.split('-').map(Number),x=new Date(a[0],a[1]-1,a[2]);x.setDate(x.getDate()+(f==='daily'?1:7));return dkey(x)};
-function streaksView(){if(!me())return `<section class="panel"><p>Log in to start a streak.</p><button class="btn" data-a="join">Log in</button></section>`;
+let slog=null,sRating=0;
+const streakEntry=(st,k)=>(st.entries||[]).find(e=>e.k===k);
+function streaksSection(){
  const l=getStreaks();
- return `<section class="panel"><h2>Streaks 🔥</h2><p class="hint" style="margin:0 0 6px">Pick a category and how often you want to watch, read or play. Tap the button each time you do it to keep your streak going.</p>
+ return `<section class="panel"><h2>Streaks 🔥</h2><p class="hint" style="margin:0 0 6px">Pick a category and how often you want to watch, read or play. Log each time you do it to keep your streak going. Every log shows up in your diary.</p>
  <div class="row"><div><label for="st-c">Category</label><select id="st-c">${TYPES.slice(1).map(t=>`<option>${t}</option>`).join('')}</select></div><div><label for="st-f">How often</label><select id="st-f"><option value="daily">Daily</option><option value="weekly">Weekly</option></select></div></div>
- <div class="actions"><button class="btn" data-a="newstreak">Start streak</button></div><p class="hint">Streaks are saved on this device.</p></section>`+
- (l.length?l.map(st=>{const x=streakStats(st),unit=st.freq==='daily'?'day':'week',v=VERB[st.cat]||'did';
-  return `<section class="panel"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"><h3 style="font-size:1.2rem">${esc(st.cat)} · ${st.freq==='daily'?'Daily':'Weekly'}</h3><span style="font-size:1.4rem;font-weight:800;color:var(--od)">🔥 ${x.cur} ${unit}${x.cur===1?'':'s'}</span></div>
+ <div class="actions"><button class="btn" data-a="newstreak">Start streak</button></div><p class="hint">Streaks are saved on this device.</p>`+
+ (l.length?l.map(st=>{const x=streakStats(st),unit=st.freq==='daily'?'day':'week',v=VERB[st.cat]||'did',when=st.freq==='daily'?'today':'this week',en=streakEntry(st,pkey(new Date(),st.freq));
+  return `<div class="post" style="margin:14px 0 0"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"><h3 style="font-size:1.2rem">${esc(st.cat)} · ${st.freq==='daily'?'Daily':'Weekly'}</h3><span style="font-size:1.4rem;font-weight:800;color:var(--od)">🔥 ${x.cur} ${unit}${x.cur===1?'':'s'}</span></div>
   <p class="hint" style="margin:6px 0 0">Best: ${x.best} ${unit}${x.best===1?'':'s'} · Total logged: ${x.total}</p>
-  <div class="actions"><button class="btn${x.done?' ghost':''}" data-a="streaklog" data-id="${st.id}">${x.done?'✓ Logged '+(st.freq==='daily'?'today':'this week')+' (tap to undo)':'I '+v+' something '+(st.freq==='daily'?'today':'this week')}</button><button class="btn danger" data-a="delstreak" data-id="${st.id}">Delete</button></div></section>`}).join(''):'<p class="empty">No streaks yet. Start one above.</p>')}
+  ${x.done&&en?`<p style="margin:10px 0 0"><b>${esc(en.title)}</b> <span class="rate">${stars(en.rating)}</span>${en.text?`<br><span class="hint">${esc(en.text)}</span>`:''}</p>`:''}
+  ${slog===st.id?`<div style="margin-top:10px"><label for="sl-t">What ${v==='did'?'did you do':'did you '+v.replace(' to','')}?</label><input id="sl-t" maxlength="80" placeholder="Title">
+   <label>Your rating</label><div class="stars" id="s-stars">${[1,2,3,4,5].map(n=>`<button type="button" class="${n<=sRating?'on':''}" data-n="${n}" aria-label="${n} stars">🍊</button>`).join('')}</div>
+   <label for="sl-r">Review (optional)</label><textarea id="sl-r" maxlength="2000" style="min-height:80px" placeholder="Any thoughts? It will show in your diary."></textarea>
+   <div class="actions"><button class="btn" data-a="streaksave" data-id="${st.id}">Log it</button><button class="btn ghost" data-a="streakcancel">Cancel</button></div></div>`
+  :`<div class="actions"><button class="btn${x.done?' ghost':''}" data-a="streaklog" data-id="${st.id}">${x.done?'✓ Logged '+when+' (tap to undo)':'I '+v+' something '+when}</button><button class="btn danger" data-a="delstreak" data-id="${st.id}">Delete</button></div>`}</div>`}).join(''):'<p class="empty">No streaks yet. Start one above.</p>')+`</section>`}
 const aboutView=()=>`<button class="btn ghost" style="margin-bottom:14px" data-a="feed">Back to home</button>
  <section class="panel"><h2 style="font-size:1.6rem">About us</h2>
  <h3 style="font-size:1.5rem;font-weight:800;line-height:1.2;color:var(--od);margin:0 0 14px">Tangerine Review Club is where opinions get peeled, sliced and shared. 🍊</h3>
@@ -507,7 +515,6 @@ function render(){
  else if(view.n==='club')body=clubView(view.id);
  else if(view.n==='prompt')body=promptView(view.id);
  else if(view.n==='about')body=aboutView();
- else if(view.n==='streaks')body=streaksView();
  else if(view.n==='features')body=featuresView();
  else if(view.n==='feat')body=featView(view.id);
  else if(view.n==='featform')body=featForm(view.id);
@@ -531,6 +538,8 @@ app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='m-t'){e.pr
 app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='cm-t'){e.preventDefault();app.querySelector('[data-a="sendclub"]').click()}});
 app.addEventListener('input',e=>{if(e.target.id==='f-text')grow(e.target);if(e.target.id==='cl-q')$('cl-res').innerHTML=clRes(e.target.value);if(e.target.id==='pm-q')$('pm-res').innerHTML=pmRes(e.target.value);if(e.target.id==='s-q')$('s-res').innerHTML=searchRes(e.target.value);});
 app.addEventListener('click',async e=>{
+ const ss=e.target.closest('#s-stars button');
+ if(ss){sRating=sRating===+ss.dataset.n?0:+ss.dataset.n;app.querySelectorAll('#s-stars button').forEach(x=>x.classList.toggle('on',+x.dataset.n<=sRating));return}
  const st=e.target.closest('#f-stars button');
  if(st){rating=rating===+st.dataset.n?0:+st.dataset.n;app.querySelectorAll('#f-stars button').forEach(x=>x.classList.toggle('on',+x.dataset.n<=rating));return}
  const b=e.target.closest('[data-a]');if(!b)return;
@@ -577,10 +586,18 @@ app.addEventListener('click',async e=>{
  else if(a==='addw'){if(!g('w-media')){toast('Add a title first');return}if(await api('addwatch',{type:g('w-type'),media:g('w-media')}))render()}
  else if(a==='delw'){if(await api('delwatch',{id}))render()}
  else if(a==='donew'){const x=(me().watch||[]).find(w=>w.id===id);if(!x)return;pre={type:x.type,media:x.media,wid:id};rating=0;toast('Write your review to move it into your diary');go({n:'feed'})}
- else if(a==='streaks'){if(!needUser())return;go({n:'streaks'})}
  else if(a==='newstreak'){const cat=g('st-c'),freq=g('st-f'),l=getStreaks();if(l.some(x=>x.cat===cat&&x.freq===freq)){toast('You already have that streak');return}
   l.push({id:'s'+Date.now().toString(36),cat,freq,logs:[],ts:Date.now()});if(putStreaks(l)){toast('Streak started 🔥');render()}}
- else if(a==='streaklog'){const l=getStreaks(),st=l.find(x=>x.id===id);if(!st)return;const k=pkey(new Date(),st.freq),i=st.logs.indexOf(k);if(i>=0)st.logs.splice(i,1);else st.logs.push(k);if(putStreaks(l)){render();if(i<0)toast('Logged! Keep it going 🔥')}}
+ else if(a==='streaklog'){const l=getStreaks(),st=l.find(x=>x.id===id);if(!st)return;const k=pkey(new Date(),st.freq),i=st.logs.indexOf(k);
+  if(i>=0){st.logs.splice(i,1);st.entries=(st.entries||[]).filter(e=>e.k!==k);if(putStreaks(l))render()}
+  else{slog=id;sRating=0;render();const f=$('sl-t');if(f)f.focus()}}
+ else if(a==='streakcancel'){slog=null;sRating=0;render()}
+ else if(a==='streaksave'){const l=getStreaks(),st=l.find(x=>x.id===id);if(!st)return;const title=g('sl-t');
+  if(!title){toast('Add a title first');return}
+  if(!sRating){toast('Pick a rating first');return}
+  const k=pkey(new Date(),st.freq);if(!st.logs.includes(k))st.logs.push(k);
+  st.entries=(st.entries||[]).filter(e=>e.k!==k);st.entries.push({k,title,rating:sRating,text:($('sl-r').value||'').trim(),ts:Date.now()});
+  if(putStreaks(l)){slog=null;sRating=0;render();toast('Logged! Keep it going 🔥')}}
  else if(a==='delstreak'){if(!confirm('Delete this streak?'))return;if(putStreaks(getStreaks().filter(x=>x.id!==id)))render()}
  else if(a==='lists')go({n:'lists'});
  else if(a==='list')go({n:'list',id});
