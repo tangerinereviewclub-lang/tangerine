@@ -5,7 +5,7 @@ import { randomBytes, randomUUID, scryptSync, timingSafeEqual, createHash } from
 
 const redis = Redis.fromEnv({ automaticDeserialization: false });
 const PIECES = ["users", "posts", "lists", "msgs", "clubs", "cmsgs", "features", "meta"];
-const META = ["reports", "pick", "suspended", "sessions", "resets", "fails", "core", "admins", "banner", "prompts", "polls", "bingos"];
+const META = ["reports", "pick", "suspended", "sessions", "resets", "fails", "core", "admins", "banner", "prompts", "polls", "bingos", "reposts"];
 const pack = v => gzipSync(JSON.stringify(v)).toString("base64");
 const unpack = s => JSON.parse(gunzipSync(Buffer.from(s, "base64")).toString());
 async function load() {
@@ -50,7 +50,7 @@ const checkPw = (pw, h) => {
   return a.length === b.length && timingSafeEqual(a, b);
 };
 const emailOk = e => e.length <= 120 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
-const fresh = () => ({ users: [], posts: [], lists: [], msgs: [], clubs: [], cmsgs: [], features: [], core: {}, admins: [], banner: null, prompts: [], polls: [], bingos: [], reports: [], pick: null, suspended: [], sessions: {}, resets: {}, fails: {} });
+const fresh = () => ({ users: [], posts: [], lists: [], msgs: [], clubs: [], cmsgs: [], features: [], core: {}, admins: [], banner: null, prompts: [], polls: [], bingos: [], reposts: [], reports: [], pick: null, suspended: [], sessions: {}, resets: {}, fails: {} });
 const U = (db, id) => db.users.find(u => u.id === id);
 
 function cleanTop(t) {
@@ -138,6 +138,7 @@ function out(db, uid, extra) {
   const admin = isAdminU(db, me), owner = !!(me && isAdminHandle(me.handle));
   const posts = db.posts.filter(p => !bs.has(p.by) && (!p.draft || p.by === uid)).sort((a, b) => b.ts - a.ts).map(p => ({
     ...p,
+    likedBy: p.likedBy.filter(x => !bs.has(x)),
     comments: p.comments.map(c => bs.has(c.by) ? { hidden: true, replies: [] }
       : { ...c, replies: (c.replies || []).map(r => bs.has(r.by) ? { hidden: true } : r) })
   }));
@@ -149,6 +150,7 @@ function out(db, uid, extra) {
     features, isCore, isEditor, core: admin ? db.core : {}, owner, admins: owner ? db.admins : [],
     db: {
       profiles: db.users.map(u => pub(u, uid)), posts,
+      reposts: db.reposts.filter(r => !bs.has(r.by) && posts.some(p => p.id === r.pid && !p.draft)),
       lists: db.lists.filter(l => !bs.has(l.by)).sort((a, b) => b.ts - a.ts), pick: db.pick || null,
       banner: db.banner || null,
       bingos: db.bingos.slice().sort((a, b) => b.ts - a.ts).map(l => ({ id: l.id, title: l.title, cells: l.cells, ts: l.ts, marks: uid && l.marks[uid] ? l.marks[uid] : [] })),
@@ -303,6 +305,17 @@ export default async function handler(req, res) {
         if (p.by !== m.id && !isAdmin()) bad("Not allowed");
         db.posts = db.posts.filter(x => x.id !== p.id);
         db.reports = db.reports.filter(r => r.pid !== p.id);
+        db.reposts = db.reposts.filter(r => r.pid !== p.id);
+        break;
+      }
+      case "repost": {
+        const m = me(), p = P(d.id);
+        if (p.draft) bad("Drafts cannot be reposted");
+        if (p.by === m.id) bad("You cannot repost your own post");
+        if (blockedSet(db, m.id).has(p.by)) bad("Not allowed");
+        const i = db.reposts.findIndex(r => r.pid === p.id && r.by === m.id);
+        if (i >= 0) db.reposts.splice(i, 1);
+        else { db.reposts.push({ id: id8(), pid: p.id, by: m.id, ts: Date.now() }); note(db, p.by, "repost", m.id, p.id); }
         break;
       }
       case "like": {
@@ -520,6 +533,7 @@ export default async function handler(req, res) {
           p.comments = p.comments.filter(c => c.by !== id);
           p.comments.forEach(c => { c.replies = (c.replies || []).filter(r => r.by !== id); });
         });
+        db.reposts = db.reposts.filter(r => r.by !== id && db.posts.some(p => p.id === r.pid));
         db.lists = db.lists.filter(l => l.by !== id);
         db.clubs.forEach(c => { c.members = c.members.filter(x => x !== id); });
         const gone = new Set(db.clubs.filter(c => c.by === id).map(c => c.id));
