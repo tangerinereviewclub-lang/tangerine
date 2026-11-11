@@ -124,14 +124,18 @@ body{margin:0;background:var(--bg)}
 #tg.intimes{max-width:820px}
 #tg.intimes .top{display:none}
 #tg a.btn{display:inline-block;text-decoration:none}
-#tg .tt-mast{background:var(--o);color:#3A2210;margin:0 -18px 28px;padding:14px 18px 0;box-shadow:0 0 0 100vmax var(--o);clip-path:inset(-100vmax -100vmax 0 -100vmax)}
+#tg .tt-mast{background:var(--o);color:#3A2210;margin:0 -18px;padding:14px 18px 26px;box-shadow:0 0 0 100vmax var(--o);clip-path:inset(-100vmax -100vmax 0 -100vmax)}
 #tg .tt-mast :focus-visible{outline-color:#3A2210}
 #tg .tt-back{background:none;border:0;padding:6px 0;cursor:pointer;font-weight:700;color:#3A2210;text-decoration:underline;text-underline-offset:3px}
 #tg .tt-mast h1{font-family:"Fraunces","Bricolage Grotesque",Georgia,serif;font-weight:900;font-size:clamp(2.5rem,10vw,4.8rem);letter-spacing:-.02em;line-height:.95;margin:20px 0 10px;color:#3A2210}
 #tg .tt-mast p{margin:0;max-width:42ch;font-weight:500}
-#tg .tt-nav{display:flex;gap:0 24px;flex-wrap:wrap;margin:22px 0 0}
-#tg .tt-nav button{background:none;border:0;border-bottom:5px solid transparent;padding:10px 0 9px;cursor:pointer;font-weight:700;color:#3A2210;opacity:.72}
-#tg .tt-nav button[aria-current="true"]{opacity:1;border-bottom-color:#3A2210}
+#tg .tt-nav{position:relative;display:flex;gap:2px 22px;flex-wrap:wrap;margin:0 0 28px;background:#fff;box-shadow:0 0 0 100vmax #fff;clip-path:inset(0 -100vmax)}
+#tg .tt-nav button{background:none;border:0;border-bottom:5px solid transparent;padding:10px 0 9px;cursor:pointer;font-weight:700;font-size:1rem;line-height:1.2;color:#6B4A30;transition:color .2s}
+#tg .tt-nav button[aria-current="true"]{color:#3A2210}
+#tg .tt-ind{position:absolute;left:0;top:0;height:5px;background:#FF8A00;transition:transform .35s cubic-bezier(.3,.7,.2,1),width .35s cubic-bezier(.3,.7,.2,1);pointer-events:none}
+#tg .tt-slide{animation:ttslide .34s cubic-bezier(.2,.7,.2,1)}
+@keyframes ttslide{from{opacity:0;transform:translateX(var(--dx,28px))}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){#tg .tt-slide{animation:none}#tg .tt-ind{transition:none}}
 #tg .tt-soon{padding:4px 0 24px}
 #tg .tt-soon h2{font-family:"Fraunces","Bricolage Grotesque",Georgia,serif;font-weight:900;font-size:clamp(1.9rem,6vw,2.9rem);letter-spacing:-.01em;line-height:1.05;color:var(--ink);margin:0 0 16px;max-width:20ch}
 #tg .tt-soon p{max-width:58ch;font-size:1.05rem}
@@ -469,7 +473,11 @@ function featForm(id){const f=id?feats().find(x=>x.id===id):null,adm=isAdmin(),e
 const TT=[['latest','Latest'],['movies','Movies/TV'],['books','Books'],['games','Games'],['music','Music'],['crossover','Crossover'],['magazine','Magazine'],['about','About the Times']];
 const TT_SOON={magazine:'Our issues, collected: longer reads and themed editions from the crew.',crossover:'Where movies, books, games and music meet: themed picks, mixed lists and pieces that connect them all.',music:'Album reviews, playlists and music picks from the crew will land here.'};
 const TT_DEF={head:'The first edition is on its way.',body:"The Tangerine Times is the club's own paper: features, essays and recommendations written by our crew.\n\nWe are still warming up the presses. Check back soon.",about:"The Tangerine Times is the publishing side of Tangerine Review Club. The club is where everyone posts their own slices. The Times is where our crew writes and edits longer pieces, features and picks.\n\nEvery piece is read by an editor before it goes live."};
-let timesEdit=false;
+let timesEdit=false,ttDir=1,ttLast=null;
+function ttInd(){const nav=app.querySelector('.tt-nav'),ac=nav&&nav.querySelector('[aria-current="true"]'),ind=nav&&nav.querySelector('.tt-ind');if(!ac||!ind)return;
+ const to={x:ac.offsetLeft,y:ac.offsetTop+ac.offsetHeight-5,w:ac.offsetWidth},put=p=>{ind.style.transform='translate('+p.x+'px,'+p.y+'px)';ind.style.width=p.w+'px'};
+ if(ttLast){ind.style.transition='none';put(ttLast);ind.getBoundingClientRect();ind.style.transition=''}
+ put(to);ttLast=to}
 const timesMail='mailto:'+ABOUT_EMAIL+'?subject='+encodeURIComponent('Joining the Tangerine Times');
 const timesJoin=`<div class="tt-join"><p style="font-weight:700">Want to join the Times?</p><p>We are looking for writers, editors and creatives. Email us and tell us what you would like to do.</p><a class="btn" href="${timesMail}">Email ${esc(ABOUT_EMAIL)}</a></div>`;
 const timesParas=t=>t.split(/\n\s*\n/).filter(x=>x.trim()).map(x=>`<p style="white-space:pre-line">${lk(x.trim())}</p>`).join('');
@@ -481,14 +489,14 @@ const crewBox=()=>{const cr=db.profiles.filter(u=>u.crew);
 function timesView(){
  const s=TT.some(x=>x[0]===view.s)?view.s:'latest',t=db.times||{},adm=isAdmin();
  const T={head:t.head||TT_DEF.head,body:t.body||TT_DEF.body,about:t.about||TT_DEF.about};
- const mast=`<header class="tt-mast"><button class="tt-back" data-a="feed">← Back to the Club</button><h1>The Tangerine Times</h1><p>Features, essays and picks from the Tangerine Review Club crew.</p><nav class="tt-nav" aria-label="Tangerine Times sections">${TT.map(([k,l])=>`<button data-a="timestab" data-s="${k}" aria-current="${k===s}">${l}</button>`).join('')}</nav></header>`;
+ const mast=`<header class="tt-mast"><button class="tt-back" data-a="feed">← Back to the Club</button><h1>The Tangerine Times</h1><p>Features, essays and picks from the Tangerine Review Club crew.</p></header><nav class="tt-nav" aria-label="Tangerine Times sections"><span class="tt-ind" aria-hidden="true"></span>${TT.map(([k,l])=>`<button data-a="timestab" data-s="${k}" aria-current="${k===s}">${l}</button>`).join('')}</nav>`;
  if(timesEdit&&adm)return mast+`<section class="panel"><h2>Edit the Times page</h2><label for="tt-h">Headline (front page)</label><input id="tt-h" maxlength="200" value="${esc(T.head)}"><label for="tt-b">Front page text (blank line between paragraphs)</label><textarea id="tt-b" maxlength="3000" style="min-height:160px">${esc(T.body)}</textarea><label for="tt-a">About the Times text</label><textarea id="tt-a" maxlength="3000" style="min-height:160px">${esc(T.about)}</textarea><div class="actions"><button class="btn" data-a="savetimes">Save</button><button class="btn ghost" data-a="canceltimes">Cancel</button>${db.times?`<button class="btn ghost" data-a="resettimes">Back to original text</button>`:''}</div></section>`;
  const editBtn=adm?`<div class="actions"><button class="btn ghost" data-a="edittimes">Edit this page</button></div>`:'';
  let body;
  if(s==='latest')body=`<section class="tt-soon"><h2>${esc(T.head)}</h2>${timesParas(T.body)}${timesJoin}${editBtn}</section>${adm?crewBox():''}`;
  else if(s==='about')body=`<section class="tt-soon"><h2>About the Times</h2>${timesParas(T.about)}${timesJoin}${editBtn}</section>`;
  else{const l=TT.find(x=>x[0]===s)[1];body=`<section class="tt-soon"><h2>${esc(l)} is coming soon.</h2><p>${esc(TT_SOON[s]||'Nothing has been published here yet.')}</p>${timesJoin}</section>`}
- return mast+body}
+ const dx=ttDir*28;ttDir=0;return mast+`<div class="tt-slide" style="--dx:${dx}px">${body}</div>`}
 
 const draftsView=u=>{const l=(db.drafts||[]).filter(p=>p.by===u.id);return me()&&me().id===u.id&&l.length?`<section class="panel"><h2>Your drafts</h2>${l.map(p=>`<div class="cm" style="align-items:center;flex-wrap:wrap"><span style="flex:1 1 200px">${esc(p.title)}${p.media&&p.media!==p.title?' <span class="hint">'+esc(p.type)+' - '+esc(p.media)+'</span>':''}</span><button class="btn ghost" data-a="editp" data-id="${p.id}">Edit</button><button class="link" data-a="open" data-id="${p.id}">Open</button></div>`).join('')}</section>`:''};
 const bannerBox=()=>db.banner?`<section class="panel" style="background:var(--os);border-color:var(--o)"><h2>📣 ${esc(db.banner.title||'Announcement')}</h2>${db.banner.title&&db.banner.text||(!db.banner.title&&db.banner.text)?`<div class="body">${lk(db.banner.text)}</div>`:''}</section>`:'';
@@ -575,7 +583,7 @@ function render(){
  else if(view.n==='post'){const p=postById(view.id);body=p?postView(p):feedView()}
  else if(view.n==='profile')body=profileView(user(view.id));
  else body=feedView();
- const tt=view.n==='times';$('tg').classList.toggle('intimes',tt);document.title=tt?'The Tangerine Times':'Tangerine Review Club';app.innerHTML=(tt?'':bar())+body;
+ const tt=view.n==='times';$('tg').classList.toggle('intimes',tt);document.title=tt?'The Tangerine Times':'Tangerine Review Club';app.innerHTML=(tt?'':bar())+body;if(tt)ttInd();else ttLast=null;
  if(obs){obs.disconnect();obs=null}
  const mo=$('more');if(mo){obs=new IntersectionObserver(es=>{if(es[0].isIntersecting)loadMore()},{rootMargin:'500px'});obs.observe(mo)}
  const ft=$('f-text');if(ft)grow(ft);
@@ -600,8 +608,8 @@ app.addEventListener('click',async e=>{
  if(a==='feed'){pre=null;feedWant=20;go({n:'feed'})}
  else if(a==='join'){pickAv=AVATARS[0];go({n:'join'})}
  else if(a==='searchview')go({n:'search'});
- else if(a==='times'){timesEdit=false;go({n:'times',s:'latest'})}
- else if(a==='timestab'){timesEdit=false;go({n:'times',s:b.dataset.s})}
+ else if(a==='times'){timesEdit=false;ttDir=1;ttLast=null;go({n:'times',s:'latest'})}
+ else if(a==='timestab'){timesEdit=false;const oi=TT.findIndex(x=>x[0]===(view.s||'latest')),ni=TT.findIndex(x=>x[0]===b.dataset.s);if(oi===ni)return;ttDir=ni>oi?1:-1;go({n:'times',s:b.dataset.s})}
  else if(a==='edittimes'){timesEdit=true;render()}
  else if(a==='canceltimes'){timesEdit=false;render()}
  else if(a==='savetimes'){if(await api('settimes',{head:g('tt-h'),body:$('tt-b').value,about:$('tt-a').value})){timesEdit=false;toast('Saved');render()}}
