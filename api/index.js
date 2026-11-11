@@ -5,7 +5,7 @@ import { randomBytes, randomUUID, scryptSync, timingSafeEqual, createHash } from
 
 const redis = Redis.fromEnv({ automaticDeserialization: false });
 const PIECES = ["users", "posts", "lists", "msgs", "clubs", "cmsgs", "features", "meta"];
-const META = ["reports", "pick", "suspended", "sessions", "resets", "fails", "core", "admins", "banner", "prompts", "polls", "bingos", "reposts", "about"];
+const META = ["reports", "pick", "suspended", "sessions", "resets", "fails", "core", "admins", "banner", "prompts", "polls", "bingos", "reposts", "about", "times", "crew"];
 const pack = v => gzipSync(JSON.stringify(v)).toString("base64");
 const unpack = s => JSON.parse(gunzipSync(Buffer.from(s, "base64")).toString());
 async function load() {
@@ -24,6 +24,7 @@ async function load() {
     if (typeof v === "string") db.core[k] = v === "editor" ? ["writer", "editor"] : ["writer"];
     else if (!Array.isArray(v)) delete db.core[k];
   });
+  if (!db.crew || typeof db.crew !== "object" || Array.isArray(db.crew)) db.crew = {};
   db.polls.forEach(l => { if (l.kind === "thisthat" && !l.pairs) { l.pairs = [l.options]; Object.keys(l.votes).forEach(u => { l.votes[u] = { 0: l.votes[u] }; }); l.options = []; } });
   return { db, raw };
 }
@@ -39,6 +40,7 @@ async function save(db, raw) {
 
 const TYPES = ["Movie","Documentary","Book","Game","Show","Anime","Music","Musical","Other"];
 const TOPK = ["movies","albums","books","shows","games","other"];
+const CREW_TEAMS = ["Editorial", "Community", "Creatives", "Social"];
 const DAY = 864e5;
 const ADMINS = (process.env.ADMIN_HANDLE || "").split(/[,\s]+/).map(x => x.trim().toLowerCase().replace(/^@/, "")).filter(Boolean);
 const isAdminHandle = h => ADMINS.includes(h);
@@ -58,7 +60,7 @@ const checkPw = (pw, h) => {
   return a.length === b.length && timingSafeEqual(a, b);
 };
 const emailOk = e => e.length <= 120 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
-const fresh = () => ({ users: [], posts: [], lists: [], msgs: [], clubs: [], cmsgs: [], features: [], core: {}, admins: [], banner: null, about: null, prompts: [], polls: [], bingos: [], reposts: [], reports: [], pick: null, suspended: [], sessions: {}, resets: {}, fails: {} });
+const fresh = () => ({ users: [], posts: [], lists: [], msgs: [], clubs: [], cmsgs: [], features: [], core: {}, crew: {}, admins: [], banner: null, about: null, times: null, prompts: [], polls: [], bingos: [], reposts: [], reports: [], pick: null, suspended: [], sessions: {}, resets: {}, fails: {} });
 const U = (db, id) => db.users.find(u => u.id === id);
 
 function cleanTop(t) {
@@ -159,7 +161,7 @@ function out(db, uid, extra) {
   const r = {
     features, isCore, isEditor, canWrite, core: admin ? db.core : {}, owner, admins: owner ? db.admins : [],
     db: {
-      profiles: db.users.map(u => pub(u, uid)), posts,
+      profiles: db.users.map(u => ({ ...pub(u, uid), crew: db.crew[u.id] || "", writer: rolesOf(db, u.id).includes("writer") })), posts,
       reposts: db.reposts.filter(r => !bs.has(r.by) && posts.some(p => p.id === r.pid && !p.draft)),
       lists: db.lists.filter(l => !bs.has(l.by)).sort((a, b) => b.ts - a.ts).map(l => ({
         ...l,
@@ -168,6 +170,7 @@ function out(db, uid, extra) {
       pick: db.pick || null,
       banner: db.banner || null,
       about: db.about || null,
+      times: db.times || null,
       bingos: db.bingos.slice().sort((a, b) => b.ts - a.ts).map(l => ({ id: l.id, title: l.title, cells: l.cells, ts: l.ts, marks: uid && l.marks[uid] ? l.marks[uid] : [] })),
       prompts: db.prompts.slice().sort((a, b) => b.ts - a.ts),
       polls: db.polls.slice().sort((a, b) => b.ts - a.ts).map(l => {
@@ -574,6 +577,7 @@ export default async function handler(req, res) {
         db.cmsgs = db.cmsgs.filter(x => x.by !== id && !gone.has(x.club));
         db.features = db.features.filter(f => f.by !== id);
         delete db.core[id];
+        delete db.crew[id];
         db.admins = db.admins.filter(x => x !== id);
         db.polls.forEach(l => { delete l.votes[id]; });
         db.bingos.forEach(l => { delete l.marks[id]; });
@@ -595,6 +599,20 @@ export default async function handler(req, res) {
         if (!isAdmin()) bad("Admins only");
         const head = clip(d.head, 200), body = clip(d.body, 3000);
         db.about = head || body ? { head, body, ts: Date.now() } : null;
+        break;
+      }
+      case "settimes": {
+        if (!isAdmin()) bad("Admins only");
+        const head = clip(d.head, 200), body = clip(d.body, 3000), about = clip(d.about, 3000);
+        db.times = head || body || about ? { head, body, about, ts: Date.now() } : null;
+        break;
+      }
+      case "setcrew": {
+        if (!isAdmin()) bad("Admins only");
+        const t = U(db, d.id);
+        if (!t) bad("Member not found");
+        const team = CREW_TEAMS.includes(d.team) ? d.team : "";
+        if (team) db.crew[t.id] = team; else delete db.crew[t.id];
         break;
       }
       case "mailtest": {
