@@ -40,7 +40,7 @@ async function save(db, raw) {
 
 const TYPES = ["Movie","Documentary","Book","Game","Show","Anime","Music","Musical","Other"];
 const TOPK = ["movies","albums","books","shows","games","other"];
-const CREW_TEAMS = ["Editorial", "Community", "Creatives", "Social"];
+const CREW_TEAMS = ["Editorial", "Crew"];
 const DAY = 864e5;
 const ADMINS = (process.env.ADMIN_HANDLE || "").split(/[,\s]+/).map(x => x.trim().toLowerCase().replace(/^@/, "")).filter(Boolean);
 const isAdminHandle = h => ADMINS.includes(h);
@@ -161,7 +161,7 @@ function out(db, uid, extra) {
   const r = {
     features, isCore, isEditor, canWrite, core: admin ? db.core : {}, owner, admins: owner ? db.admins : [],
     db: {
-      profiles: db.users.map(u => ({ ...pub(u, uid), crew: db.crew[u.id] || "", writer: rolesOf(db, u.id).includes("writer") })), posts,
+      profiles: db.users.map(u => ({ ...pub(u, uid), crew: db.crew[u.id] ? (db.crew[u.id] === "Editorial" ? "Editorial" : "Crew") : "" })), posts,
       reposts: db.reposts.filter(r => !bs.has(r.by) && posts.some(p => p.id === r.pid && !p.draft)),
       lists: db.lists.filter(l => !bs.has(l.by)).sort((a, b) => b.ts - a.ts).map(l => ({
         ...l,
