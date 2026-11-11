@@ -5,7 +5,7 @@ import { randomBytes, randomUUID, scryptSync, timingSafeEqual, createHash } from
 
 const redis = Redis.fromEnv({ automaticDeserialization: false });
 const PIECES = ["users", "posts", "lists", "msgs", "clubs", "cmsgs", "features", "meta"];
-const META = ["reports", "pick", "suspended", "sessions", "resets", "fails", "core", "admins", "banner", "prompts", "polls", "bingos", "reposts"];
+const META = ["reports", "pick", "suspended", "sessions", "resets", "fails", "core", "admins", "banner", "prompts", "polls", "bingos", "reposts", "about"];
 const pack = v => gzipSync(JSON.stringify(v)).toString("base64");
 const unpack = s => JSON.parse(gunzipSync(Buffer.from(s, "base64")).toString());
 async function load() {
@@ -17,6 +17,13 @@ async function load() {
     else db[k] = v || base[k];
   });
   if (Array.isArray(db.core)) { const o = {}; db.core.forEach(x => { o[x] = "writer"; }); db.core = o; }
+  /* Zest Team roles are now a list, so one person can be a writer and an editor.
+     Old single roles are converted: "writer" stays a writer, "editor" keeps both abilities it had before. */
+  Object.keys(db.core).forEach(k => {
+    const v = db.core[k];
+    if (typeof v === "string") db.core[k] = v === "editor" ? ["writer", "editor"] : ["writer"];
+    else if (!Array.isArray(v)) delete db.core[k];
+  });
   db.polls.forEach(l => { if (l.kind === "thisthat" && !l.pairs) { l.pairs = [l.options]; Object.keys(l.votes).forEach(u => { l.votes[u] = { 0: l.votes[u] }; }); l.options = []; } });
   return { db, raw };
 }
@@ -36,6 +43,7 @@ const DAY = 864e5;
 const ADMINS = (process.env.ADMIN_HANDLE || "").split(/[,\s]+/).map(x => x.trim().toLowerCase().replace(/^@/, "")).filter(Boolean);
 const isAdminHandle = h => ADMINS.includes(h);
 const isAdminU = (db, u) => !!(u && (isAdminHandle(u.handle) || db.admins.includes(u.id)));
+const rolesOf = (db, id) => (id && Array.isArray(db.core[id]) ? db.core[id] : []);
 
 class E extends Error {}
 const bad = m => { throw new E(m); };
@@ -50,7 +58,7 @@ const checkPw = (pw, h) => {
   return a.length === b.length && timingSafeEqual(a, b);
 };
 const emailOk = e => e.length <= 120 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
-const fresh = () => ({ users: [], posts: [], lists: [], msgs: [], clubs: [], cmsgs: [], features: [], core: {}, admins: [], banner: null, prompts: [], polls: [], bingos: [], reposts: [], reports: [], pick: null, suspended: [], sessions: {}, resets: {}, fails: {} });
+const fresh = () => ({ users: [], posts: [], lists: [], msgs: [], clubs: [], cmsgs: [], features: [], core: {}, admins: [], banner: null, about: null, prompts: [], polls: [], bingos: [], reposts: [], reports: [], pick: null, suspended: [], sessions: {}, resets: {}, fails: {} });
 const U = (db, id) => db.users.find(u => u.id === id);
 
 function cleanTop(t) {
@@ -142,17 +150,24 @@ function out(db, uid, extra) {
     comments: p.comments.map(c => bs.has(c.by) ? { hidden: true, replies: [] }
       : { ...c, replies: (c.replies || []).map(r => bs.has(r.by) ? { hidden: true } : r) })
   }));
-  const isCore = !!(me && (admin || db.core[me.id]));
-  const isEditor = !!(me && (admin || db.core[me.id] === "editor"));
+  const myRoles = me ? rolesOf(db, me.id) : [];
+  const isCore = !!(me && (admin || myRoles.length));
+  const isEditor = !!(me && (admin || myRoles.includes("editor")));
+  const canWrite = !!(me && (admin || myRoles.includes("writer")));
   const seeF = f => isEditor || (me && f.by === me.id) || (f.status === "published" && !bs.has(f.by));
   const features = db.features.filter(seeF).sort((a, b) => (b.publishedAt || b.ts) - (a.publishedAt || a.ts));
   const r = {
-    features, isCore, isEditor, core: admin ? db.core : {}, owner, admins: owner ? db.admins : [],
+    features, isCore, isEditor, canWrite, core: admin ? db.core : {}, owner, admins: owner ? db.admins : [],
     db: {
       profiles: db.users.map(u => pub(u, uid)), posts,
       reposts: db.reposts.filter(r => !bs.has(r.by) && posts.some(p => p.id === r.pid && !p.draft)),
-      lists: db.lists.filter(l => !bs.has(l.by)).sort((a, b) => b.ts - a.ts), pick: db.pick || null,
+      lists: db.lists.filter(l => !bs.has(l.by)).sort((a, b) => b.ts - a.ts).map(l => ({
+        ...l,
+        comments: (l.comments || []).map((c, i) => ({ ...c, i })).filter(c => !bs.has(c.by))
+      })),
+      pick: db.pick || null,
       banner: db.banner || null,
+      about: db.about || null,
       bingos: db.bingos.slice().sort((a, b) => b.ts - a.ts).map(l => ({ id: l.id, title: l.title, cells: l.cells, ts: l.ts, marks: uid && l.marks[uid] ? l.marks[uid] : [] })),
       prompts: db.prompts.slice().sort((a, b) => b.ts - a.ts),
       polls: db.polls.slice().sort((a, b) => b.ts - a.ts).map(l => {
@@ -233,7 +248,7 @@ export default async function handler(req, res) {
   const P = id => db.posts.find(p => p.id === id) || bad("Post not found");
   const isAdmin = () => isAdminU(db, uid && U(db, uid));
   const isOwner = () => { const m = uid && U(db, uid); return !!(m && isAdminHandle(m.handle)); };
-  const isEditor = () => isAdmin() || !!(uid && db.core[uid] === "editor");
+  const isEditor = () => isAdmin() || rolesOf(db, uid).includes("editor");
 
   try {
     switch (a) {
@@ -472,13 +487,30 @@ export default async function handler(req, res) {
           const l = db.lists.find(x => x.id === d.id);
           if (!l || l.by !== m.id) bad("You can only edit your own lists");
           Object.assign(l, { title, items, edited: true });
-        } else db.lists.push({ id: id8(), by: m.id, title, items, ts: Date.now() });
+        } else db.lists.push({ id: id8(), by: m.id, title, items, ts: Date.now(), comments: [] });
         break;
       }
       case "dellist": {
         const m = me(), l = db.lists.find(x => x.id === d.id);
         if (!l || (l.by !== m.id && !isAdmin())) bad("Not allowed");
         db.lists = db.lists.filter(x => x.id !== l.id);
+        break;
+      }
+      case "lcomment": {
+        const m = me(), l = db.lists.find(x => x.id === d.id) || bad("List not found"), t = clip(d.t, 300);
+        if (blockedSet(db, m.id).has(l.by)) bad("Not allowed");
+        if (!t) bad("Write a comment first");
+        l.comments = l.comments || [];
+        if (l.comments.length >= 200) bad("This list has too many comments");
+        l.comments.push({ by: m.id, t, ts: Date.now() });
+        break;
+      }
+      case "ldelcomment": {
+        const m = me(), l = db.lists.find(x => x.id === d.id) || bad("List not found"), i = parseInt(d.i, 10);
+        const c = (l.comments || [])[i];
+        if (!c) bad("Comment not found");
+        if (c.by !== m.id && l.by !== m.id && !isAdmin()) bad("Not allowed");
+        l.comments.splice(i, 1);
         break;
       }
 
@@ -535,6 +567,7 @@ export default async function handler(req, res) {
         });
         db.reposts = db.reposts.filter(r => r.by !== id && db.posts.some(p => p.id === r.pid));
         db.lists = db.lists.filter(l => l.by !== id);
+        db.lists.forEach(l => { l.comments = (l.comments || []).filter(c => c.by !== id); });
         db.clubs.forEach(c => { c.members = c.members.filter(x => x !== id); });
         const gone = new Set(db.clubs.filter(c => c.by === id).map(c => c.id));
         db.clubs = db.clubs.filter(c => c.by !== id);
@@ -558,6 +591,12 @@ export default async function handler(req, res) {
         db.pick = media && TYPES.includes(type) ? { type, media, note: clip(d.note, 200) } : null;
         break;
       }
+      case "setabout": {
+        if (!isAdmin()) bad("Admins only");
+        const head = clip(d.head, 200), body = clip(d.body, 3000);
+        db.about = head || body ? { head, body, ts: Date.now() } : null;
+        break;
+      }
       case "mailtest": {
         if (!isAdmin()) bad("Admins only");
         const m = me();
@@ -569,19 +608,22 @@ export default async function handler(req, res) {
         if (!isAdmin()) bad("Admins only");
         const t = U(db, d.id);
         if (!t) bad("Member not found");
-        if (d.role === "writer" || d.role === "editor") db.core[t.id] = d.role; else delete db.core[t.id];
+        const want = Array.isArray(d.roles) ? d.roles : (d.role ? [d.role] : []);
+        const roles = ["writer", "editor"].filter(r => want.includes(r));
+        if (roles.length) db.core[t.id] = roles; else delete db.core[t.id];
         break;
       }
       case "fsave": {
-        const m = me(), admin = isAdmin(), ed = isEditor();
-        if (!db.core[m.id] && !admin) bad("Feature Picks is for the Zest Team only");
+        const m = me(), admin = isAdmin(), ed = isEditor(), roles = rolesOf(db, m.id);
+        if (!roles.length && !admin) bad("Feature Picks is for the Zest Team only");
+        if (!d.id && !admin && !roles.includes("writer")) bad("You need the Writer role to write a piece");
         const n = cleanFeature(d);
         let author = m;
         if (d.as) {
           if (!admin) bad("Admins only");
           const h = clip(d.as, 20).toLowerCase().replace(/^@/, "");
           author = db.users.find(u => u.handle === h) || bad("Author not found");
-          if (author.id !== m.id && !db.core[author.id]) bad("That member is not on the Zest Team");
+          if (author.id !== m.id && !rolesOf(db, author.id).length) bad("That member is not on the Zest Team");
         }
         let f;
         if (d.id) {
@@ -596,7 +638,7 @@ export default async function handler(req, res) {
         }
         if (ed && d.publish) { f.status = "published"; f.publishedAt = Date.now(); f.note = ""; }
         if (!ed && f.status === "pending") {
-          db.users.filter(u => isAdminU(db, u)).forEach(ed => mails.push(() => sendMail(ed.email, "Feature Picks: new piece to review",
+          db.users.filter(u => isAdminU(db, u) || rolesOf(db, u.id).includes("editor")).forEach(rv => mails.push(() => sendMail(rv.email, "Feature Picks: new piece to review",
             `${author.name} (@${author.handle}) submitted "${f.title}" for Feature Picks.\n\nReview it here:\n${origin}/#feature-picks`,
             `<p><b>${esc(author.name)}</b> (@${esc(author.handle)}) submitted <b>${esc(f.title)}</b> for Feature Picks.</p><p><a href="${origin}/#feature-picks">Review it</a></p>`)));
         }
