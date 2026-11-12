@@ -129,9 +129,9 @@ body{margin:0;background:var(--bg)}
 #tg .tt-back{background:none;border:0;padding:6px 0;cursor:pointer;font-weight:700;color:#3A2210;text-decoration:underline;text-underline-offset:3px}
 #tg .tt-mast h1{font-family:"Fraunces","Bricolage Grotesque",Georgia,serif;font-weight:900;font-size:clamp(2.5rem,10vw,4.8rem);letter-spacing:-.02em;line-height:.95;margin:20px 0 10px;color:#3A2210}
 #tg .tt-mast p{margin:0;max-width:42ch;font-weight:500}
-#tg .tt-nav{position:relative;display:flex;gap:2px 22px;flex-wrap:wrap;margin:0 0 28px;background:#fff;box-shadow:0 0 0 100vmax #fff;clip-path:inset(0 -100vmax)}
-#tg .tt-nav button{background:none;border:0;border-bottom:5px solid transparent;padding:10px 0 9px;cursor:pointer;font-weight:700;font-size:1rem;line-height:1.2;color:#6B4A30;transition:color .2s}
-#tg .tt-nav button[aria-current="true"]{color:#3A2210}
+#tg .tt-nav{position:relative;display:flex;gap:2px 22px;flex-wrap:wrap;margin:0 0 28px;background:var(--bg);box-shadow:0 0 0 100vmax var(--bg);clip-path:inset(0 -100vmax)}
+#tg .tt-nav button{background:none;border:0;border-bottom:5px solid transparent;padding:10px 0 9px;cursor:pointer;font-weight:700;font-size:1rem;line-height:1.2;color:var(--mut);transition:color .2s}
+#tg .tt-nav button[aria-current="true"]{color:var(--ink)}
 #tg .tt-ind{position:absolute;left:0;top:0;height:5px;background:#FF8A00;transition:transform .35s cubic-bezier(.3,.7,.2,1),width .35s cubic-bezier(.3,.7,.2,1);pointer-events:none}
 #tg .tt-slide{animation:ttslide .34s cubic-bezier(.2,.7,.2,1)}
 @keyframes ttslide{from{opacity:0;transform:translateX(var(--dx,28px))}to{opacity:1;transform:none}}
@@ -493,9 +493,9 @@ function featuresView(){const all=feats(),m=me(),adm=isEd();
  const queue=adm?all.filter(f=>f.status==='pending'):[];
  const mine=m?all.filter(f=>f.by===m.id&&f.status!=='published'&&!(adm&&f.status==='pending')):[];
  const core=db.core||{},coreIds=Object.keys(core);
- const coreBox=isAdmin()?`<section class="panel"><h2>Zest Team 🍊</h2><p class="hint">Only Zest Team members can send pieces to Feature Picks. Writers write pieces and send them to an editor. Only editors can approve, send back, edit anyone's piece and publish. One person can have both roles, so tick Writer, Editor or both. A writer's piece never goes live until an editor approves it.</p>
+ const coreBox=isAdmin()?`<section class="panel"><h2>Editorial Team 🍊</h2><p class="hint">Only Editorial Team members can send pieces to Feature Picks. Writers write pieces and send them to an editor. Only editors can approve, send back, edit anyone's piece and publish. One person can have both roles, so tick Writer, Editor or both. A writer's piece never goes live until an editor approves it.</p>
   ${coreIds.length?coreIds.map(id=>`<div style="display:flex;align-items:center;gap:10px;padding:4px 0;flex-wrap:wrap">${av(user(id),'sm')}<span style="flex:1 1 140px">${esc(user(id).name)} <span class="hint">@${esc(user(id).handle)}</span></span>${roleBoxes(id,core[id])}<button class="btn ghost" data-a="setcore" data-id="${id}" data-role="">Remove</button></div>`).join(''):'<p class="hint">No one yet.</p>'}
-  <label for="core-add">Add a member</label><div class="cform"><select id="core-add">${db.profiles.filter(u=>!core[u.id]&&u.id!==db.me).map(u=>`<option value="${u.id}">${esc(u.name)} (@${esc(u.handle)})</option>`).join('')}</select><label style="display:inline-flex;align-items:center;gap:4px;font-weight:500;margin:0"><input type="checkbox" id="core-w" checked style="width:auto">Writer</label><label style="display:inline-flex;align-items:center;gap:4px;font-weight:500;margin:0"><input type="checkbox" id="core-e" style="width:auto">Editor</label><button class="btn" data-a="setcoreadd">Add to Zest Team</button></div></section>`:'';
+  <label for="core-add">Add a member</label><div class="cform"><select id="core-add">${db.profiles.filter(u=>!core[u.id]&&u.id!==db.me).map(u=>`<option value="${u.id}">${esc(u.name)} (@${esc(u.handle)})</option>`).join('')}</select><label style="display:inline-flex;align-items:center;gap:4px;font-weight:500;margin:0"><input type="checkbox" id="core-w" checked style="width:auto">Writer</label><label style="display:inline-flex;align-items:center;gap:4px;font-weight:500;margin:0"><input type="checkbox" id="core-e" style="width:auto">Editor</label><button class="btn" data-a="setcoreadd">Add to Editorial Team</button></div></section>`:'';
  return `<section class="panel"><h2>Feature Picks🧺</h2><p style="margin:0">Featured articles and posts from our beloved Tangerine writers. To be featured, email <a class="link" href="mailto:tangerinereviewclub@gmail.com">tangerinereviewclub@gmail.com</a></p>
   ${db.canWrite?'<div class="actions"><button class="btn" data-a="featnew">Write a piece</button></div>':''}</section>
   ${coreBox}
@@ -748,7 +748,7 @@ function copyText(t){return navigator.clipboard&&navigator.clipboard.writeText?n
 function fallbackCopy(t){const x=document.createElement('textarea');x.value=t;document.body.appendChild(x);x.select();let ok=false;try{ok=document.execCommand('copy')}catch(e){}x.remove();return ok}
 function needUser(){if(me())return true;toast('Create a profile or log in first');go({n:'join'});return false}
 
-app.addEventListener('change',e=>{if(e.target.dataset.rolefor){const id=e.target.dataset.rolefor,roles=[...app.querySelectorAll('input[data-rolefor="'+id+'"]')].filter(x=>x.checked).map(x=>x.dataset.r);api('setcore',{id,roles}).then(r=>{if(r){toast(roles.length?'Roles updated':'Removed from the Zest Team');render()}});return}if(e.target.id==='psort'){psort=e.target.value;const y=window.scrollY;render();window.scrollTo(0,y)}if(e.target.id==='dyear'){dyear=e.target.value;render()}});
+app.addEventListener('change',e=>{if(e.target.dataset.rolefor){const id=e.target.dataset.rolefor,roles=[...app.querySelectorAll('input[data-rolefor="'+id+'"]')].filter(x=>x.checked).map(x=>x.dataset.r);api('setcore',{id,roles}).then(r=>{if(r){toast(roles.length?'Roles updated':'Removed from the Editorial Team');render()}});return}if(e.target.id==='psort'){psort=e.target.value;const y=window.scrollY;render();window.scrollTo(0,y)}if(e.target.id==='dyear'){dyear=e.target.value;render()}});
 app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='m-t'){e.preventDefault();app.querySelector('[data-a="sendm"]').click()}});
 app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='cm-t'){e.preventDefault();app.querySelector('[data-a="sendclub"]').click()}});
 app.addEventListener('input',e=>{if(e.target.id==='f-text')grow(e.target);if(e.target.id==='cl-q')$('cl-res').innerHTML=clRes(e.target.value);if(e.target.id==='pm-q')$('pm-res').innerHTML=pmRes(e.target.value);if(e.target.id==='s-q')$('s-res').innerHTML=searchRes(e.target.value);});
@@ -796,7 +796,7 @@ app.addEventListener('click',async e=>{
   if(await api('fdecide',{id,to,note})){toast(to==='published'?'Published':to==='rejected'?'Sent back':'Moved back to pending');render()}}
  else if(a==='featdel'){if(!confirm('Delete this piece?'))return;if(await api('fdelete',{id})){toast('Deleted');go({n:'features'})}}
  else if(a==='setcore'){if(await api('setcore',{id,role:b.dataset.role||''}))render()}
- else if(a==='setcoreadd'){const v=$('core-add')&&$('core-add').value;const roles=[$('core-w').checked&&'writer',$('core-e').checked&&'editor'].filter(Boolean);if(v&&!roles.length){toast('Tick Writer, Editor or both');return}if(v&&await api('setcore',{id:v,roles})){toast('Added to the Zest Team');render()}}
+ else if(a==='setcoreadd'){const v=$('core-add')&&$('core-add').value;const roles=[$('core-w').checked&&'writer',$('core-e').checked&&'editor'].filter(Boolean);if(v&&!roles.length){toast('Tick Writer, Editor or both');return}if(v&&await api('setcore',{id:v,roles})){toast('Added to the Editorial Team');render()}}
  else if(a==='mailtest'){b.disabled=true;const r=await api('mailtest');b.disabled=false;if(r&&r.mail)alert(r.mail)}
  else if(a==='inbox'){go({n:'inbox'});api('state').then(r=>{if(r&&view.n==='inbox')render()})}
  else if(a==='chat'){if(!needUser())return;go({n:'chat',id});api('read',{id}).then(r=>{if(r&&view.n==='chat'&&view.id===id&&$('m-list')){$('m-list').innerHTML=chatList(id);refreshBar()}})}
