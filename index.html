@@ -158,11 +158,20 @@ body{margin:0;background:var(--bg)}
 #tg .fmt{display:flex;gap:6px;margin:0 0 6px}
 #tg .fmt button{min-width:36px;height:34px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink);font:inherit;cursor:pointer}
 #tg .fmt button:hover{border-color:var(--o)}
-#tg .crew-h{font-size:1.25rem;font-weight:800;line-height:1.2;color:var(--od);margin:0 0 8px}
-#tg .crew{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0 24px;margin:0;padding:0;list-style:none}
-#tg .crew li{padding:10px 0;border-bottom:1px solid var(--line)}
-#tg .crew b{display:block;font-size:1.05rem;line-height:1.3}
-#tg .crew span{display:block;color:var(--mut);font-size:.95rem;line-height:1.35;margin-top:1px}
+#tg .fmt button[aria-pressed="true"]{background:var(--os);border-color:var(--o)}
+#tg textarea[data-lk]{display:none}
+#tg .rte{width:100%;min-height:100px;padding:10px 12px;border:2px solid var(--line);border-radius:10px;background:var(--bg);line-height:1.5;overflow-wrap:anywhere;position:relative;outline:none}
+#tg .rte:focus{border-color:var(--o)}
+#tg .rte.big{min-height:260px;font-size:1.05rem;line-height:1.7;padding:14px 16px}
+#tg .rte.is-empty::before{content:attr(data-ph);color:var(--mut);position:absolute;pointer-events:none}
+#tg .rte a{color:var(--o);text-decoration:underline}
+#tg .crew-h{font-size:1.5rem;font-weight:800;line-height:1.2;color:var(--od);margin:0 0 12px}
+#tg .crew{display:flex;flex-wrap:wrap;gap:16px 44px;margin:0;padding:0;list-style:none}
+#tg .crew li{flex:0 1 auto;min-width:min(100%,170px);max-width:100%}
+#tg .crew-n{font-size:1.2rem;line-height:1.3;overflow-wrap:anywhere}
+#tg .crew-n b{font-size:1.2rem;font-weight:800}
+#tg .crew-u,#tg .crew-u .link{font-size:1.05rem;font-weight:500}
+#tg .crew-r{color:var(--mut);font-size:1.05rem;line-height:1.35;margin-top:2px}
 #tg .tt-team{margin:0 0 26px}
 #tg .tt-refs{margin:28px 0 0;padding-top:14px;border-top:1px solid var(--line);max-width:64ch}
 #tg .tt-refs h4{margin:0 0 6px;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
@@ -324,27 +333,56 @@ const likersPanel=p=>{if(!p.likedBy.length)return'';const us=p.likedBy.map(id=>u
 function actions(p,full){const u=me(),liked=u&&p.likedBy.includes(u.id);
  return `<div class="actions"><button class="act" data-a="like" data-id="${p.id}" aria-label="Like" aria-pressed="${!!liked}"><span class="tl${liked?'':' off'}" aria-hidden="true">🍊</span> ${p.likedBy.length}</button> <button class="act" data-a="open" data-id="${p.id}">💬 ${p.comments.length}</button><button class="act" data-a="share" data-id="${p.id}">Share</button></div>${full?likersPanel(p):''}`}
 const lk=t=>esc(t).replace(/@([a-z0-9_]{3,20})/gi,(m,h)=>{const u=db.profiles.find(x=>x.handle===h.toLowerCase());return u?`<button class="link" data-a="profile" data-id="${u.id}">@${esc(u.handle)}</button>`:m});
-/* Links: Ctrl+K (or the Add link button) writes [text](https://...). It shows as a clickable link. Only http(s) links are allowed. */
-const fmt=s=>s.replace(/\*\*([^\s*](?:[^*\n]*[^\s*])?)\*\*/g,'<b>$1</b>').replace(/\*([^\s*](?:[^*\n]*[^\s*])?)\*/g,'<i>$1</i>').replace(/\+\+([^\s+](?:[^+\n]*[^\s+])?)\+\+/g,'<u>$1</u>').replace(/~~([^\s~](?:[^~\n]*[^\s~])?)~~/g,'<s>$1</s>');
+/* Writing boxes work like Word. Bold, italic, underline and strikethrough are saved as hidden [b] [i] [u] [s] tags. Links are saved as [text](https://...). Only http(s) links are shown as links. */
+const fmt=s=>{const op={b:0,i:0,u:0,s:0},st=[];s=s.replace(/\[(\/?)([bius])\]/g,(m,c,t)=>{if(!c){op[t]++;st.push(t);return '<'+t+'>'}if(!op[t])return '';op[t]--;const k=st.lastIndexOf(t);if(k>=0)st.splice(k,1);return '</'+t+'>'});return s+st.reverse().map(t=>'</'+t+'>').join('')};
 const lkx=t=>{const L=[];t=String(t==null?'':t).replace(/\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]{1,500})\)/g,(m,x,u)=>{L.push([x,u]);return '\u0001'+(L.length-1)+'\u0002'});
  return fmt(lk(t)).replace(/\u0001(\d+)\u0002/g,(m,i)=>{const q=L[+i];return `<a class="link" href="${esc(q[1])}" target="_blank" rel="noopener noreferrer nofollow">${esc(q[0])}</a>`})};
 const staffTxt=l=>(l||[]).map(x=>x.name+(x.role?' | '+x.role:'')).join('\n');
-const staffList=l=>`<ul class="crew">${(l||[]).map(x=>`<li><b>${lk(x.name)}</b>${x.role?`<span>${esc(x.role)}</span>`:''}</li>`).join('')}</ul>`;
-const plainLk=t=>String(t==null?'':t).replace(/\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]{1,500})\)/g,'$1').replace(/\*\*([^\s*](?:[^*\n]*[^\s*])?)\*\*/g,'$1').replace(/\*([^\s*](?:[^*\n]*[^\s*])?)\*/g,'$1').replace(/\+\+([^\s+](?:[^+\n]*[^\s+])?)\+\+/g,'$1').replace(/~~([^\s~](?:[^~\n]*[^\s~])?)~~/g,'$1');
-const fmtBar=id=>`<div class="fmt" role="toolbar" aria-label="Formatting"><button type="button" data-a="fmt" data-m="**" data-for="${id}" title="Bold (Ctrl+B)" aria-label="Bold"><b>B</b></button><button type="button" data-a="fmt" data-m="*" data-for="${id}" title="Italic (Ctrl+I)" aria-label="Italic"><i>I</i></button><button type="button" data-a="fmt" data-m="++" data-for="${id}" title="Underline (Ctrl+U)" aria-label="Underline"><u>U</u></button><button type="button" data-a="fmt" data-m="~~" data-for="${id}" title="Strikethrough (Ctrl+Shift+X)" aria-label="Strikethrough"><s>S</s></button></div>`;
-function wrapFmt(t,m){if(!t)return;const s=t.selectionStart,e=t.selectionEnd,v=t.value,sel=v.slice(s,e),L=m.length;
- t.focus();
- if(sel&&v.slice(s-L,s)===m&&v.slice(e,e+L)===m){t.setRangeText(sel,s-L,e+L,'end');t.setSelectionRange(s-L,s-L+sel.length)}
- else if(sel){t.setRangeText(m+sel+m,s,e,'end');t.setSelectionRange(s+L,s+L+sel.length)}
- else{t.setRangeText(m+m,s,e,'end');t.setSelectionRange(s+L,s+L)}
- t.dispatchEvent(new Event('input',{bubbles:true}))}
-function addLink(t){if(!t)return;const s=t.selectionStart,e=t.selectionEnd,sel=t.value.slice(s,e).replace(/[\[\]\n]/g,'');
+const staffList=l=>`<ul class="crew">${(l||[]).map(x=>{const m=String(x.name).match(/^(.*?)\s+(@[A-Za-z0-9_]{3,20})$/);return `<li><div class="crew-n">${m?`<b>${esc(m[1])}</b> <span class="crew-u">${lk(m[2])}</span>`:`<b>${lk(x.name)}</b>`}</div>${x.role?`<div class="crew-r">${esc(x.role)}</div>`:''}</li>`}).join('')}</ul>`;
+const plainLk=t=>String(t==null?'':t).replace(/\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]{1,500})\)/g,'$1').replace(/\[\/?[bius]\]/g,'');
+const fmtBar=id=>`<div class="fmt" role="toolbar" aria-label="Formatting" data-for="${id}"><button type="button" data-a="fmt" data-c="bold" data-for="${id}" title="Bold (Ctrl+B)" aria-label="Bold" aria-pressed="false"><b>B</b></button><button type="button" data-a="fmt" data-c="italic" data-for="${id}" title="Italic (Ctrl+I)" aria-label="Italic" aria-pressed="false"><i>I</i></button><button type="button" data-a="fmt" data-c="underline" data-for="${id}" title="Underline (Ctrl+U)" aria-label="Underline" aria-pressed="false"><u>U</u></button><button type="button" data-a="fmt" data-c="strikeThrough" data-for="${id}" title="Strikethrough (Ctrl+Shift+X)" aria-label="Strikethrough" aria-pressed="false"><s>S</s></button></div>`;
+/* saved text -> what the editor shows */
+function mdToRte(md){return String(md||'').split('\n').map(line=>{const L=[];let t=line.replace(/\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]{1,500})\)/g,(m,x,u)=>{L.push([x,u]);return '\u0001'+(L.length-1)+'\u0002'});
+ t=fmt(esc(t)).replace(/\u0001(\d+)\u0002/g,(m,i)=>'<a href="'+esc(L[+i][1])+'">'+esc(L[+i][0])+'</a>');return '<div>'+(t||'<br>')+'</div>'}).join('')}
+/* what the editor shows -> saved text */
+function rteToMd(root){let o='';const nl=()=>{if(o&&!o.endsWith('\n'))o+='\n'};
+ const plain=n=>n.nodeType===3?n.nodeValue:Array.from(n.childNodes).map(plain).join('');
+ const BLOCK=/^(DIV|P|LI|UL|OL|H[1-6]|BLOCKQUOTE|PRE)$/;
+ function walk(n){
+  if(n.nodeType===3){o+=n.nodeValue.replace(/[​\r]/g,'').replace(/ /g,' ');return}
+  if(n.nodeType!==1)return;
+  const tg=n.tagName;
+  if(tg==='BR'){o+='\n';return}
+  if(BLOCK.test(tg)){nl();Array.from(n.childNodes).forEach(walk);nl();return}
+  if(tg==='A'){const hr=n.getAttribute('href')||'',tx=plain(n).replace(/[\[\]\n​]/g,'');if(/^https?:\/\//i.test(hr)&&tx.trim())o+='['+tx+']('+hr.replace(/\s/g,'%20').replace(/\)/g,'%29')+')';else o+=plain(n).replace(/​/g,'');return}
+  const s=n.style||{},fw=String(s.fontWeight||''),td=String(s.textDecorationLine||s.textDecoration||'');let tags='';
+  if(tg==='B'||tg==='STRONG'||fw==='bold'||+fw>=600)tags+='b';
+  if(tg==='I'||tg==='EM'||s.fontStyle==='italic')tags+='i';
+  if(tg==='U'||/underline/.test(td))tags+='u';
+  if(tg==='S'||tg==='STRIKE'||tg==='DEL'||/line-through/.test(td))tags+='s';
+  const start=o.length;Array.from(n.childNodes).forEach(walk);
+  if(tags){const inner=o.slice(start);o=o.slice(0,start)+inner.split('\n').map(x=>x.trim()?tags.split('').map(t=>'['+t+']').join('')+x+tags.split('').reverse().map(t=>'[/'+t+']').join(''):x).join('\n')}}
+ Array.from(root.childNodes).forEach(walk);return o.replace(/\n+$/,'')}
+function rteSync(r){const ta=$(r.dataset.for);if(!ta)return;ta.value=rteToMd(r);r.classList.toggle('is-empty',!ta.value.trim());ta.dispatchEvent(new Event('input',{bubbles:true}))}
+function rteBar(r){const bar=app.querySelector('.fmt[data-for="'+r.dataset.for+'"]');if(!bar)return;bar.querySelectorAll('button').forEach(b=>{let on=false;try{on=document.queryCommandState(b.dataset.c)}catch(e){}b.setAttribute('aria-pressed',on?'true':'false')})}
+function rteCmd(id,c){const r=app.querySelector('.rte[data-for="'+id+'"]');if(!r)return;r.focus();document.execCommand(c,false,null);rteSync(r);rteBar(r)}
+function initRte(){try{document.execCommand('defaultParagraphSeparator',false,'div')}catch(e){}
+ app.querySelectorAll('textarea[data-lk]').forEach(ta=>{if(ta.nextElementSibling&&ta.nextElementSibling.classList.contains('rte'))return;
+  const r=document.createElement('div');r.className='rte'+(ta.classList.contains('write')?' big':'');r.contentEditable='true';r.setAttribute('role','textbox');r.setAttribute('aria-multiline','true');r.dataset.for=ta.id;r.dataset.ph=ta.getAttribute('placeholder')||'';
+  const lb=document.querySelector('label[for="'+ta.id+'"]');if(lb)r.setAttribute('aria-label',lb.textContent.trim());
+  if(ta.style.minHeight)r.style.minHeight=ta.style.minHeight;
+  r.innerHTML=mdToRte(ta.value);r.classList.toggle('is-empty',!ta.value.trim());ta.after(r)})}
+function addLink(r){if(!r)return;const sl=getSelection();const rg=sl.rangeCount?sl.getRangeAt(0).cloneRange():null;
+ if(!rg||!r.contains(rg.commonAncestorContainer)){toast('Click inside the box first');return}
+ const sel=sl.toString().replace(/[\[\]\n]/g,'').trim();
  let u=prompt('Paste the link'+(sel?' for "'+sel.slice(0,40)+'"':'')+':','https://');if(!u)return;u=u.trim();if(!u)return;
  if(!/^https?:\/\//i.test(u))u='https://'+u;
  let host='';try{host=new URL(u).hostname.replace(/^www\./,'')}catch(x){toast('That link does not look right');return}
  u=u.replace(/\s/g,'%20').replace(/\)/g,'%29');
  let txt=sel;if(!txt){txt=(prompt('What should the link say?',host)||'').replace(/[\[\]\n]/g,'').trim()||host}
- const md='['+txt+']('+u+')';t.focus();t.setRangeText(md,s,e,'end');t.dispatchEvent(new Event('input',{bubbles:true}))}
+ r.focus();sl.removeAllRanges();sl.addRange(rg);
+ if(sel)document.execCommand('createLink',false,u);else document.execCommand('insertHTML',false,'<a href="'+esc(u)+'">'+esc(txt)+'</a>&#8203;');
+ rteSync(r)}
 const bodyHtml=(p,full)=>p.spoiler&&!rev.has(p.id)?`<div class="body"><button class="btn ghost" data-a="reveal" data-id="${p.id}">⚠️ Contains spoilers. Tap to show</button></div>`:`<div class="body">${lkx(full?p.text:excerpt(plainLk(p.text)))}</div>`;
 const meta=p=>`<div class="meta">${userLink(user(p.by))}<span class="tag">${esc(p.type)}</span>${p.draft?'<span class="tag">Draft</span>':''}${p.prompt&&promptOf(p.prompt)?`<button class="link" data-a="prompt" data-id="${p.prompt}">💭 ${esc(promptOf(p.prompt).title)}</button>`:''}${p.media!==p.title?`<span>${esc(p.media)}</span>`:''}<span class="rate" aria-label="${p.rating} out of 5">${stars(p.rating)}</span><span>${ago(p._ots||p.ts)}${p.edited?' (edited)':''}</span></div>`;
 const card=p=>`<article class="post"><button class="open" data-a="open" data-id="${p.id}">${esc(p.title)}</button>${meta(p)}
@@ -674,13 +712,13 @@ const crewBox=()=>{const cr=db.profiles.filter(u=>u.crew);
 const TS=[['publisher','Publishers (Times admins)','Can post, edit and delete pieces in the Times. They get no other admin powers.'],['writer','Writers','Show up in the byline dropdown.'],['artist','Artists','Show up in the Art by and Layout by dropdowns.']];
 const tsBox=()=>`<section class="panel"><h2>Times team ✍️</h2><p class="hint">Only admins can change this.</p>${TS.map(x=>{const r=x[0],cur=tRole(r),rest=db.profiles.filter(u=>!cur.some(c=>c.id===u.id));
  return `<h3 style="font-size:1.05rem;margin:16px 0 2px">${x[1]}</h3><p class="hint" style="margin:0 0 6px">${x[2]}</p>${cur.length?cur.map(u=>`<div class="cm" style="align-items:center;flex-wrap:wrap">${av(u,'sm')}<span style="flex:1 1 160px">@${esc(u.handle)} <span class="hint">${esc(u.name)}</span></span><button class="link" data-a="tsrm" data-r="${r}" data-id="${u.id}">Remove</button></div>`).join(''):'<p class="hint">Nobody yet.</p>'}<div class="cform"><select id="ts-${r}" aria-label="Pick a username">${rest.map(u=>`<option value="${u.id}">@${esc(u.handle)} · ${esc(u.name)}</option>`).join('')}</select><button class="btn" data-a="tsadd" data-r="${r}">Add</button></div>`}).join('')}</section>`;
-const ttTeams=(T,adm)=>[['🍊 The Crew',T.cr,1],['Editorial Team',T.ed,0],['Art and Publishing Team',T.ap,0]].map(x=>x[1].length||adm?`<section class="tt-team"><h3 class="crew-h">${x[0]}</h3>${x[1].length?staffList(x[1]):`<p class="hint">${x[2]?'No crew listed yet.':'Nobody listed yet. Tap "Edit this page" at the bottom to add people.'}</p>`}${x[2]&&adm?`<p style="margin:8px 0 0"><button class="link" data-a="editcrew">Edit the crew (on the About us page)</button></p>`:''}</section>`:'').join('');
+const ttTeams=(T,adm)=>[['🍊 The Crew',T.cr,1],['Editorial Team',T.ed,0],['Creatives and Publishing Team',T.ap,0]].map(x=>x[1].length||adm?`<section class="tt-team"><h3 class="crew-h">${x[0]}</h3>${x[1].length?staffList(x[1]):`<p class="hint">${x[2]?'No crew listed yet.':'Nobody listed yet. Tap "Edit this page" at the bottom to add people.'}</p>`}${x[2]&&adm?`<p style="margin:8px 0 0"><button class="link" data-a="editcrew">Edit the crew (on the About us page)</button></p>`:''}</section>`:'').join('');
 function timesView(){
  const tp=db.tposts||[],pst=view.pid&&tp.find(x=>x.id===view.pid),s=pst?pst.sec:(TT.some(x=>x[0]===view.s)?view.s:'latest'),t=db.times||{},adm=isAdmin(),can=!!db.canTimes;
  const T={head:t.head||TT_DEF.head,body:t.body||TT_DEF.body,about:t.about||TT_DEF.about,jh:t.joinHead||TT_DEF.joinHead,jb:t.joinBody||TT_DEF.joinBody,je:t.joinEmail||ABOUT_EMAIL,ed:t.editorial||[],ap:t.artpub||[],cr:(db.about&&db.about.crew)||[]};
  const mast=`<header class="tt-mast"><button class="tt-back" data-a="feed">← Back to the Club</button><h1>The Tangerine Times</h1><p>Features, essays, reviews, and recommendations from the Tangerine Review Club crew.</p></header><nav class="tt-nav" aria-label="Tangerine Times sections"><span class="tt-ind" aria-hidden="true"></span>${TT.map(x=>`<button data-a="timestab" data-s="${x[0]}" aria-current="${x[0]===s}">${x[1]}</button>`).join('')}</nav>`;
  if(timesWrite&&can)return mast+ttForm();
- if(timesEdit&&adm)return mast+`<section class="panel"><h2>Edit the Times page</h2><label for="tt-h">Headline (front page, shows until the first piece is posted)</label><input id="tt-h" maxlength="200" value="${esc(T.head)}"><label for="tt-b">Front page text (blank line between paragraphs)</label><textarea id="tt-b" maxlength="3000" style="min-height:140px">${esc(T.body)}</textarea><label for="tt-a">About the Times text</label><textarea id="tt-a" maxlength="3000" style="min-height:140px">${esc(T.about)}</textarea><label for="tt-jh">Join box title</label><input id="tt-jh" maxlength="100" value="${esc(T.jh)}"><label for="tt-jb">Join box text</label><textarea id="tt-jb" maxlength="500" style="min-height:90px">${esc(T.jb)}</textarea><label for="tt-je">Join box email</label><input id="tt-je" type="email" maxlength="120" value="${esc(T.je)}"><label for="tt-ed">Editorial Team (one person per line: Name | Role)</label><textarea id="tt-ed" maxlength="3000" style="min-height:120px" placeholder="Achelois | Editor-in-Chief">${esc(staffTxt(T.ed))}</textarea><label for="tt-ap">Art and Publishing Team (one person per line: Name | Role)</label><textarea id="tt-ap" maxlength="3000" style="min-height:120px" placeholder="Name | Layout Artist">${esc(staffTxt(T.ap))}</textarea><p class="hint">Use @username to link to a profile. These show at the bottom of the Latest page. Leave a box empty to hide that team.</p><div class="actions"><button class="btn" data-a="savetimes">Save</button><button class="btn ghost" data-a="canceltimes">Cancel</button>${db.times?`<button class="btn ghost" data-a="resettimes">Back to original text</button>`:''}</div></section>`;
+ if(timesEdit&&adm)return mast+`<section class="panel"><h2>Edit the Times page</h2><label for="tt-h">Headline (front page, shows until the first piece is posted)</label><input id="tt-h" maxlength="200" value="${esc(T.head)}"><label for="tt-b">Front page text (blank line between paragraphs)</label><textarea id="tt-b" maxlength="3000" style="min-height:140px">${esc(T.body)}</textarea><label for="tt-a">About the Times text</label><textarea id="tt-a" maxlength="3000" style="min-height:140px">${esc(T.about)}</textarea><label for="tt-jh">Join box title</label><input id="tt-jh" maxlength="100" value="${esc(T.jh)}"><label for="tt-jb">Join box text</label><textarea id="tt-jb" maxlength="500" style="min-height:90px">${esc(T.jb)}</textarea><label for="tt-je">Join box email</label><input id="tt-je" type="email" maxlength="120" value="${esc(T.je)}"><label for="tt-ed">Editorial Team (one person per line: Name @username | Role)</label><textarea id="tt-ed" maxlength="3000" style="min-height:120px" placeholder="Achelois | Editor-in-Chief">${esc(staffTxt(T.ed))}</textarea><label for="tt-ap">Creatives and Publishing Team (one person per line: Name | Role)</label><textarea id="tt-ap" maxlength="3000" style="min-height:120px" placeholder="Name | Layout Artist">${esc(staffTxt(T.ap))}</textarea><p class="hint">Use @username to link to a profile. These show at the bottom of the Latest page. Leave a box empty to hide that team.</p><div class="actions"><button class="btn" data-a="savetimes">Save</button><button class="btn ghost" data-a="canceltimes">Cancel</button>${db.times?`<button class="btn ghost" data-a="resettimes">Back to original text</button>`:''}</div></section>`;
  const join=ttJoin(T),editBtn=adm?`<div class="actions"><button class="btn ghost" data-a="edittimes">Edit this page</button></div>`:'',writeBtn=can&&!pst&&s!=='about'?`<div class="actions" style="margin:0 0 22px"><button class="btn" data-a="ttwrite">Write a piece</button></div>`:'';
  let body;
  if(pst)body=ttArticle(pst)+join;
@@ -758,7 +796,7 @@ const aboutView=()=>{const ab=db.about||ABOUT_DEF,adm=isAdmin(),tm=db.times||{};
  const tsec=`<div style="${sh}"><h3 class="crew-h">📰 The Tangerine Times</h3>${timesParas(tText)}<p>Sections: ${TT_SEC.map(x=>esc(x[1])).join(', ')}.</p><p style="margin:16px 0 4px"><button class="btn" data-a="times" style="font-size:1.15rem;font-weight:800;padding:14px 26px">📰 Read the Tangerine Times →</button></p></div>`;
  return back+`<section class="panel">${ab.head?`<h3 style="font-size:1.5rem;font-weight:800;line-height:1.2;color:var(--od);margin:0 0 14px">${lk(ab.head)}</h3>`:''}${(ab.body||'').split(/\n\s*\n/).filter(x=>x.trim()).map(x=>`<p style="white-space:pre-line">${lkx(x.trim())}</p>`).join('')}${crewSec}${tsec}${follow}${adm?`<div class="actions"><button class="btn ghost" data-a="editabout">Edit this page</button></div>`:''}</section>`};
 function loadMore(){const fl=$('feed-list'),mo=$('more');if(!fl||!mo)return;const next=feedPosts.slice(feedShown,feedShown+20);fl.insertAdjacentHTML('beforeend',next.map(card).join(''));feedShown+=next.length;feedWant=feedShown;if(feedShown>=feedPosts.length){obs&&obs.disconnect();mo.remove()}}
-const grow=t=>{t.style.height='auto';t.style.height=Math.max(t.scrollHeight+2,260)+'px';const c=$('f-count');if(c){const v=t.value.trim(),n=v?v.split(/\s+/).length:0;c.textContent=n+' word'+(n===1?'':'s')}};
+const grow=t=>{t.style.height='auto';t.style.height=Math.max(t.scrollHeight+2,260)+'px';const c=$('f-count');if(c){const v=plainLk(t.value).trim(),n=v?v.split(/\s+/).length:0;c.textContent=n+' word'+(n===1?'':'s')}};
 const refreshBar=()=>{const bb=app.querySelector('.bar');if(bb)bb.outerHTML=bar()};
 function render(){
  let body;
@@ -789,7 +827,7 @@ function render(){
  const tt=view.n==='times';$('tg').classList.toggle('intimes',tt);document.title=tt?'The Tangerine Times':'Tangerine Review Club';app.innerHTML=(tt?'':bar())+body;if(tt){ttInd();ttCar()}else ttLast=null;
  if(obs){obs.disconnect();obs=null}
  const mo=$('more');if(mo){obs=new IntersectionObserver(es=>{if(es[0].isIntersecting)loadMore()},{rootMargin:'500px'});obs.observe(mo)}
- const ft=$('f-text');if(ft)grow(ft);
+ initRte();const ft=$('f-text');if(ft)grow(ft);
 }
 
 window.addEventListener('popstate',e=>{view=(e.state&&e.state.v)||routeNow()||{n:'feed'};render();window.scrollTo(0,0)});
@@ -807,7 +845,7 @@ app.addEventListener('click',async e=>{
  const st=e.target.closest('#f-stars button');
  if(st){rating=rating===+st.dataset.n?0:+st.dataset.n;app.querySelectorAll('#f-stars button').forEach(x=>x.classList.toggle('on',+x.dataset.n<=rating));return}
  const b=e.target.closest('[data-a]');if(!b)return;
- if(b.dataset.a==='fmt'){wrapFmt($(b.dataset.for),b.dataset.m);return}
+ if(b.dataset.a==='fmt'){rteCmd(b.dataset.for,b.dataset.c);return}
  const a=b.dataset.a, id=b.dataset.id, p=postById(id), g=i=>$(i)?$(i).value.trim():'';
  if(a==='feed'){pre=null;feedWant=20;go({n:'feed'})}
  else if(a==='join'){pickAv=AVATARS[0];go({n:'join'})}
@@ -1007,12 +1045,13 @@ function curTheme(){return document.documentElement.dataset.theme||(matchMedia('
 function paintTheme(){const d=curTheme()==='dark';tb.textContent=d?'☀️ Light mode':'🌙 Dark mode';tb.setAttribute('aria-label',d?'Switch to light mode':'Switch to dark mode')}
 tb.addEventListener('click',()=>{const n=curTheme()==='dark'?'light':'dark';document.documentElement.dataset.theme=n;try{localStorage.setItem('bb-theme',n)}catch(e){}paintTheme()});
 paintTheme();
-document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey)||e.altKey)return;const t=e.target;if(!t||t.tagName!=='TEXTAREA'||!t.hasAttribute('data-lk'))return;const k=(e.key||'').toLowerCase();
- if(!e.shiftKey&&k==='k'){e.preventDefault();addLink(t)}
- else if(!e.shiftKey&&k==='b'){e.preventDefault();wrapFmt(t,'**')}
- else if(!e.shiftKey&&k==='i'){e.preventDefault();wrapFmt(t,'*')}
- else if(!e.shiftKey&&k==='u'){e.preventDefault();wrapFmt(t,'++')}
- else if(e.shiftKey&&k==='x'){e.preventDefault();wrapFmt(t,'~~')}});
+document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey)||e.altKey)return;const r=e.target;if(!r||!r.classList||!r.classList.contains('rte'))return;const k=(e.key||'').toLowerCase();
+ if(!e.shiftKey&&k==='k'){e.preventDefault();addLink(r)}
+ else if(e.shiftKey&&k==='x'){e.preventDefault();document.execCommand('strikeThrough');rteSync(r);rteBar(r)}});
+app.addEventListener('input',e=>{const r=e.target;if(r&&r.classList&&r.classList.contains('rte'))rteSync(r)});
+app.addEventListener('paste',e=>{const r=e.target&&e.target.closest?e.target.closest('.rte'):null;if(!r)return;e.preventDefault();const t=(e.clipboardData||window.clipboardData).getData('text/plain');document.execCommand('insertText',false,t)});
+app.addEventListener('mousedown',e=>{if(e.target.closest&&e.target.closest('.fmt button'))e.preventDefault()});
+document.addEventListener('selectionchange',()=>{const a=document.activeElement;if(a&&a.classList&&a.classList.contains('rte'))rteBar(a)});
 $('about-btn').addEventListener('click',()=>{aboutEdit=false;go({n:'about'})});
 api('state').then(()=>{const h=location.hash,rn=routeNow();if(h.startsWith('#reset='))view={n:'reset',token:h.slice(7)};else if(h.startsWith('#list-'))view={n:'list',id:h.slice(6)};else if(h.startsWith('#post-')&&postById(h.slice(6)))view={n:'post',id:h.slice(6)};else if(h==='#times'||h.startsWith('#times-'))view={n:'times',s:h.slice(7)||'latest'};else if(h==='#feature-picks')view={n:'features'};else if(h.startsWith('#feature-'))view={n:'feat',id:h.slice(9)};else if(rn)view=rn;
  if(view.n==='join')pickAv=AVATARS[0];
