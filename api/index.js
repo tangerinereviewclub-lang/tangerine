@@ -682,6 +682,16 @@ export default async function handler(req, res) {
         db.tposts = db.tposts.filter(x => x !== tp);
         break;
       }
+      case "tfeature": {
+        const m = me();
+        if (!isAdmin() && !tRolesOf(db, m.id).includes("publisher")) bad("Not allowed");
+        const tp = db.tposts.find(x => x.id === d.id) || bad("Piece not found");
+        if (d.on) {
+          if (!tp.feat && db.tposts.filter(x => x.feat).length >= 6) bad("You can feature up to 6 pieces. Remove one first.");
+          tp.feat = Date.now();
+        } else tp.feat = 0;
+        break;
+      }
       case "settstaff": {
         if (!isAdmin()) bad("Admins only");
         const t = U(db, d.id);
