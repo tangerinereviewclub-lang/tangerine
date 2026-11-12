@@ -4,8 +4,8 @@ import nodemailer from "nodemailer";
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual, createHash } from "node:crypto";
 
 const redis = Redis.fromEnv({ automaticDeserialization: false });
-const PIECES = ["users", "posts", "lists", "msgs", "clubs", "cmsgs", "features", "meta"];
-const META = ["reports", "pick", "suspended", "sessions", "resets", "fails", "core", "admins", "banner", "prompts", "polls", "bingos", "reposts", "about", "times", "crew"];
+const PIECES = ["users", "posts", "lists", "msgs", "clubs", "cmsgs", "features", "meta", "tposts"];
+const META = ["reports", "pick", "suspended", "sessions", "resets", "fails", "core", "admins", "banner", "prompts", "polls", "bingos", "reposts", "about", "times", "crew", "tstaff"];
 const pack = v => gzipSync(JSON.stringify(v)).toString("base64");
 const unpack = s => JSON.parse(gunzipSync(Buffer.from(s, "base64")).toString());
 async function load() {
@@ -25,6 +25,8 @@ async function load() {
     else if (!Array.isArray(v)) delete db.core[k];
   });
   if (!db.crew || typeof db.crew !== "object" || Array.isArray(db.crew)) db.crew = {};
+  if (!db.tstaff || typeof db.tstaff !== "object" || Array.isArray(db.tstaff)) db.tstaff = {};
+  if (!Array.isArray(db.tposts)) db.tposts = [];
   db.polls.forEach(l => { if (l.kind === "thisthat" && !l.pairs) { l.pairs = [l.options]; Object.keys(l.votes).forEach(u => { l.votes[u] = { 0: l.votes[u] }; }); l.options = []; } });
   return { db, raw };
 }
@@ -41,11 +43,14 @@ async function save(db, raw) {
 const TYPES = ["Movie","Documentary","Book","Game","Show","Anime","Music","Musical","Other"];
 const TOPK = ["movies","albums","books","shows","games","other"];
 const CREW_TEAMS = ["Editorial", "Crew"];
+const TSEC = ["movies", "books", "games", "music", "culture", "magazine"];
+const TROLES = ["publisher", "writer", "artist"];
 const DAY = 864e5;
 const ADMINS = (process.env.ADMIN_HANDLE || "").split(/[,\s]+/).map(x => x.trim().toLowerCase().replace(/^@/, "")).filter(Boolean);
 const isAdminHandle = h => ADMINS.includes(h);
 const isAdminU = (db, u) => !!(u && (isAdminHandle(u.handle) || db.admins.includes(u.id)));
 const rolesOf = (db, id) => (id && Array.isArray(db.core[id]) ? db.core[id] : []);
+const tRolesOf = (db, id) => (id && Array.isArray(db.tstaff[id]) ? db.tstaff[id] : []);
 
 class E extends Error {}
 const bad = m => { throw new E(m); };
@@ -60,7 +65,7 @@ const checkPw = (pw, h) => {
   return a.length === b.length && timingSafeEqual(a, b);
 };
 const emailOk = e => e.length <= 120 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
-const fresh = () => ({ users: [], posts: [], lists: [], msgs: [], clubs: [], cmsgs: [], features: [], core: {}, crew: {}, admins: [], banner: null, about: null, times: null, prompts: [], polls: [], bingos: [], reposts: [], reports: [], pick: null, suspended: [], sessions: {}, resets: {}, fails: {} });
+const fresh = () => ({ users: [], posts: [], lists: [], msgs: [], clubs: [], cmsgs: [], features: [], core: {}, crew: {}, tstaff: {}, tposts: [], admins: [], banner: null, about: null, times: null, prompts: [], polls: [], bingos: [], reposts: [], reports: [], pick: null, suspended: [], sessions: {}, resets: {}, fails: {} });
 const U = (db, id) => db.users.find(u => u.id === id);
 
 function cleanTop(t) {
@@ -146,6 +151,7 @@ const dropSessions = (db, uid) => Object.keys(db.sessions).forEach(k => { if (db
 function out(db, uid, extra) {
   const me = uid ? U(db, uid) : null, bs = blockedSet(db, uid);
   const admin = isAdminU(db, me), owner = !!(me && isAdminHandle(me.handle));
+  const canTimes = !!(me && (admin || tRolesOf(db, me.id).includes("publisher")));
   const posts = db.posts.filter(p => !bs.has(p.by) && (!p.draft || p.by === uid)).sort((a, b) => b.ts - a.ts).map(p => ({
     ...p,
     likedBy: p.likedBy.filter(x => !bs.has(x)),
@@ -171,6 +177,9 @@ function out(db, uid, extra) {
       banner: db.banner || null,
       about: db.about || null,
       times: db.times || null,
+      tposts: db.tposts.slice().sort((x, y) => y.ts - x.ts).map(({ pub, ...p }) => p),
+      tstaff: admin || canTimes ? db.tstaff : {},
+      canTimes,
       bingos: db.bingos.slice().sort((a, b) => b.ts - a.ts).map(l => ({ id: l.id, title: l.title, cells: l.cells, ts: l.ts, marks: uid && l.marks[uid] ? l.marks[uid] : [] })),
       prompts: db.prompts.slice().sort((a, b) => b.ts - a.ts),
       polls: db.polls.slice().sort((a, b) => b.ts - a.ts).map(l => {
@@ -221,6 +230,17 @@ const sendReset = (to, link) => sendMail(to, "Reset your Tangerine Review Club p
   `<p>Someone asked to reset your password.</p><p><a href="${link}">Choose a new password</a> (valid for 1 hour)</p><p>If this was not you, ignore this email.</p>`);
 
 export default async function handler(req, res) {
+  if (req.method === "GET" && req.query && req.query.img) {
+    const iid = String(req.query.img).replace(/[^a-z0-9]/gi, "").slice(0, 20);
+    try {
+      const b64 = iid ? await redis.get("tg:img:" + iid) : null;
+      if (!b64 || typeof b64 !== "string") { res.status(404).end(); return; }
+      res.setHeader("content-type", "image/jpeg");
+      res.setHeader("cache-control", "public, max-age=31536000, immutable");
+      res.status(200).send(Buffer.from(b64, "base64"));
+    } catch (e) { console.error("Image error:", e.message); res.status(500).end(); }
+    return;
+  }
   res.setHeader("content-type", "application/json");
   res.setHeader("cache-control", "no-store");
   const send = o => res.status(200).send(JSON.stringify(o));
@@ -578,6 +598,8 @@ export default async function handler(req, res) {
         db.features = db.features.filter(f => f.by !== id);
         delete db.core[id];
         delete db.crew[id];
+        delete db.tstaff[id];
+        db.tposts.forEach(x => { if (x.by === id) x.by = ""; if (x.art === id) x.art = ""; if (x.layout === id) x.layout = ""; });
         db.admins = db.admins.filter(x => x !== id);
         db.polls.forEach(l => { delete l.votes[id]; });
         db.bingos.forEach(l => { delete l.marks[id]; });
@@ -604,7 +626,9 @@ export default async function handler(req, res) {
       case "settimes": {
         if (!isAdmin()) bad("Admins only");
         const head = clip(d.head, 200), body = clip(d.body, 3000), about = clip(d.about, 3000);
-        db.times = head || body || about ? { head, body, about, ts: Date.now() } : null;
+        const joinHead = clip(d.joinHead, 100), joinBody = clip(d.joinBody, 500), joinEmail = clip(d.joinEmail, 120).toLowerCase();
+        if (joinEmail && !emailOk(joinEmail)) bad("Enter a valid email for the join box");
+        db.times = head || body || about || joinHead || joinBody || joinEmail ? { head, body, about, joinHead, joinBody, joinEmail, ts: Date.now() } : null;
         break;
       }
       case "setcrew": {
@@ -613,6 +637,59 @@ export default async function handler(req, res) {
         if (!t) bad("Member not found");
         const team = CREW_TEAMS.includes(d.team) ? d.team : "";
         if (team) db.crew[t.id] = team; else delete db.crew[t.id];
+        break;
+      }
+      case "tpost": {
+        const m = me();
+        if (!isAdmin() && !tRolesOf(db, m.id).includes("publisher")) bad("Only publishers can post in the Times");
+        const sec = TSEC.includes(d.sec) ? d.sec : bad("Pick a section");
+        const title = clip(d.title, 140), text = clip(d.text, 20000);
+        if (!title) bad("Add a headline first");
+        if (!text) bad("Add the content first");
+        const credit = (v, role, what) => {
+          v = clip(v, 20);
+          if (!v) return "";
+          if (!U(db, v) || !tRolesOf(db, v).includes(role)) bad(what + " must be someone on the Times team");
+          return v;
+        };
+        const by = credit(d.by, "writer", "The writer"), art = credit(d.art, "artist", "The artist"), layout = credit(d.layout, "artist", "The layout artist");
+        const old = d.id ? (db.tposts.find(x => x.id === d.id) || bad("Piece not found")) : null;
+        let img = old ? old.img || "" : "";
+        if (typeof d.data === "string" && d.data) {
+          const mm = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(d.data);
+          if (!mm || d.data.length > 700000) bad("That photo could not be used. Try another one.");
+          const nid = id8() + id8();
+          await redis.set("tg:img:" + nid, mm[1]);
+          if (img) await redis.del("tg:img:" + img);
+          img = nid;
+        } else if (!d.keepImg && img) {
+          await redis.del("tg:img:" + img);
+          img = "";
+        }
+        if (old) { Object.assign(old, { sec, title, text, by, art, layout, img, edited: true }); extra.tid = old.id; }
+        else {
+          if (db.tposts.length >= 500) bad("Delete some old Times pieces first");
+          const np = { id: id8(), sec, title, text, by, art, layout, img, ts: Date.now(), pub: m.id };
+          db.tposts.push(np); extra.tid = np.id;
+        }
+        break;
+      }
+      case "tdel": {
+        const m = me();
+        if (!isAdmin() && !tRolesOf(db, m.id).includes("publisher")) bad("Not allowed");
+        const tp = db.tposts.find(x => x.id === d.id) || bad("Piece not found");
+        if (tp.img) { try { await redis.del("tg:img:" + tp.img); } catch (e) { console.error(e.message); } }
+        db.tposts = db.tposts.filter(x => x !== tp);
+        break;
+      }
+      case "settstaff": {
+        if (!isAdmin()) bad("Admins only");
+        const t = U(db, d.id);
+        if (!t) bad("Member not found");
+        if (!TROLES.includes(d.role)) bad("Unknown role");
+        const cur = tRolesOf(db, t.id).filter(r => r !== d.role);
+        if (d.on) cur.push(d.role);
+        if (cur.length) db.tstaff[t.id] = TROLES.filter(r => cur.includes(r)); else delete db.tstaff[t.id];
         break;
       }
       case "mailtest": {
