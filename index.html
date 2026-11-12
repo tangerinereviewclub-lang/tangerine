@@ -155,6 +155,10 @@ body{margin:0;background:var(--bg)}
 #tg .tt-cred b{color:var(--ink)}
 #tg .tt-ex{margin:0}
 #tg .tt-text p{font-size:1.08rem;line-height:1.7;max-width:64ch}
+#tg .tt-refs{margin:28px 0 0;padding-top:14px;border-top:1px solid var(--line);max-width:64ch}
+#tg .tt-refs h4{margin:0 0 6px;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+#tg .tt-refs ol{margin:0;padding-left:20px;font-size:.82rem;line-height:1.5;color:var(--mut)}
+#tg .tt-refs li{margin:0 0 3px;overflow-wrap:anywhere}
 #tg .tt-ph{aspect-ratio:16/9;border:2px dashed var(--line);border-radius:14px;display:grid;place-items:center;color:var(--mut)}
 @keyframes vin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 #tg-app.vin>:not(.bar){animation:vin .32s cubic-bezier(.2,.7,.2,1) both}
@@ -236,7 +240,7 @@ async function api(a,d){
   db=j.db;db.me=j.me;db.msgs=j.msgs||[];db.notes=j.notes||[];db.blocked=j.blocked||[];db.admin=!!j.admin;db.reports=j.reports||[];db.email=j.email||'';db.suspended=j.suspended||[];db.clubs=j.clubs||[];db.features=j.features||[];db.owner=!!j.owner;db.admins=j.admins||[];db.members=j.members||[];db.drafts=(db.posts||[]).filter(p=>p.draft);db.posts=(db.posts||[]).filter(p=>!p.draft);db.isCore=!!j.isCore;db.isEditor=!!j.isEditor;db.canWrite=!!j.canWrite;db.core=j.core||{};if(j.cmsgs)clubMsgs=j.cmsgs;return j}
  catch(e){toast('Network problem, try again');return null}}
 function ago(ts){const m=Math.round((Date.now()-ts)/60000);if(m<1)return'just now';if(m<60)return m+' min ago';const h=Math.round(m/60);if(h<24)return h+' h ago';return Math.round(h/24)+' d ago'}
-const excerpt=t=>{t=t.replace(/\s+/g,' ');return t.length>150?t.slice(0,150).trim()+'...':t};
+const excerpt=t=>{t=String(t).replace(/\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]{1,500})\)/g,'$1').replace(/\s+/g,' ');return t.length>150?t.slice(0,150).trim()+'...':t};
 const stars=n=>'🍊'.repeat(n)+'<span style="filter:grayscale(1);opacity:.3">'+'🍊'.repeat(5-n)+'</span>';
 const av=(u,c='')=>`<span class="av ${c}" aria-hidden="true">${esc(u.avatar)}</span>`;
 const CREW=['Editorial','Crew'];
@@ -298,7 +302,7 @@ function composeView(){const u=me();
  <div><label for="f-media">Title</label><input id="f-media" maxlength="80"${pre?` value="${esc(pre.media)}"`:''}></div></div>
  <label>Your rating</label><div class="stars" id="f-stars">${[1,2,3,4,5].map(n=>`<button type="button" class="${n<=rating?'on':''}" data-n="${n}" aria-label="${n} stars">🍊</button>`).join('')}</div>
  <label for="f-title">Headline</label><input id="f-title" maxlength="100" placeholder="Give your post a headline (optional)">
- <label for="f-text">Your review or blog</label><textarea class="write" id="f-text" maxlength="10000" placeholder="What did you think? Write as much as you like, the box grows with you."></textarea><p class="hint" id="f-count">0 words</p>
+ <label for="f-text">Your review or blog</label><textarea class="write" data-lk id="f-text" maxlength="10000" placeholder="What did you think? Write as much as you like, the box grows with you."></textarea><p class="hint" id="f-count">0 words</p><p style="margin:0 0 8px">${lkHint('f-text')}</p>
  <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="f-spoil" style="width:auto">This post contains spoilers</label>
  <div class="actions"><button class="btn" data-a="publish">Share a slice</button><button class="btn ghost" data-a="savedraft">Save as draft</button></div></section>`}
 
@@ -311,7 +315,19 @@ const likersPanel=p=>{if(!p.likedBy.length)return'';const us=p.likedBy.map(id=>u
 function actions(p,full){const u=me(),liked=u&&p.likedBy.includes(u.id);
  return `<div class="actions"><button class="act" data-a="like" data-id="${p.id}" aria-label="Like" aria-pressed="${!!liked}"><span class="tl${liked?'':' off'}" aria-hidden="true">🍊</span> ${p.likedBy.length}</button> <button class="act" data-a="open" data-id="${p.id}">💬 ${p.comments.length}</button><button class="act" data-a="share" data-id="${p.id}">Share</button></div>${full?likersPanel(p):''}`}
 const lk=t=>esc(t).replace(/@([a-z0-9_]{3,20})/gi,(m,h)=>{const u=db.profiles.find(x=>x.handle===h.toLowerCase());return u?`<button class="link" data-a="profile" data-id="${u.id}">@${esc(u.handle)}</button>`:m});
-const bodyHtml=(p,full)=>p.spoiler&&!rev.has(p.id)?`<div class="body"><button class="btn ghost" data-a="reveal" data-id="${p.id}">⚠️ Contains spoilers. Tap to show</button></div>`:`<div class="body">${lk(full?p.text:excerpt(p.text))}</div>`;
+/* Links: Ctrl+K (or the Add link button) writes [text](https://...). It shows as a clickable link. Only http(s) links are allowed. */
+const lkx=t=>{const L=[];t=String(t==null?'':t).replace(/\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]{1,500})\)/g,(m,x,u)=>{L.push([x,u]);return '\u0001'+(L.length-1)+'\u0002'});
+ return lk(t).replace(/\u0001(\d+)\u0002/g,(m,i)=>{const q=L[+i];return `<a class="link" href="${esc(q[1])}" target="_blank" rel="noopener noreferrer nofollow">${esc(q[0])}</a>`})};
+const plainLk=t=>String(t==null?'':t).replace(/\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]{1,500})\)/g,'$1');
+function addLink(t){if(!t)return;const s=t.selectionStart,e=t.selectionEnd,sel=t.value.slice(s,e).replace(/[\[\]\n]/g,'');
+ let u=prompt('Paste the link'+(sel?' for "'+sel.slice(0,40)+'"':'')+':','https://');if(!u)return;u=u.trim();if(!u)return;
+ if(!/^https?:\/\//i.test(u))u='https://'+u;
+ let host='';try{host=new URL(u).hostname.replace(/^www\./,'')}catch(x){toast('That link does not look right');return}
+ u=u.replace(/\s/g,'%20').replace(/\)/g,'%29');
+ let txt=sel;if(!txt){txt=(prompt('What should the link say?',host)||'').replace(/[\[\]\n]/g,'').trim()||host}
+ const md='['+txt+']('+u+')';t.focus();t.setRangeText(md,s,e,'end');t.dispatchEvent(new Event('input',{bubbles:true}))}
+const lkHint=id=>`<button type="button" class="link" data-a="addlink" data-for="${id}" style="margin-right:8px">🔗 Add link</button><span class="hint" style="display:inline">Tip: select text, then press Ctrl+K (Cmd+K on Mac).</span>`;
+const bodyHtml=(p,full)=>p.spoiler&&!rev.has(p.id)?`<div class="body"><button class="btn ghost" data-a="reveal" data-id="${p.id}">⚠️ Contains spoilers. Tap to show</button></div>`:`<div class="body">${lkx(full?p.text:excerpt(plainLk(p.text)))}</div>`;
 const meta=p=>`<div class="meta">${userLink(user(p.by))}<span class="tag">${esc(p.type)}</span>${p.draft?'<span class="tag">Draft</span>':''}${p.prompt&&promptOf(p.prompt)?`<button class="link" data-a="prompt" data-id="${p.prompt}">💭 ${esc(promptOf(p.prompt).title)}</button>`:''}${p.media!==p.title?`<span>${esc(p.media)}</span>`:''}<span class="rate" aria-label="${p.rating} out of 5">${stars(p.rating)}</span><span>${ago(p._ots||p.ts)}${p.edited?' (edited)':''}</span></div>`;
 const card=p=>`<article class="post"><button class="open" data-a="open" data-id="${p.id}">${esc(p.title)}</button>${meta(p)}
  ${bodyHtml(p)}<div class="actions"><button class="btn ghost" data-a="open" data-id="${p.id}">Read post</button></div>${actions(p)}</article>`;
@@ -336,7 +352,7 @@ function editForm(p){return `<section class="panel"><h2>Edit your post</h2>${p.p
  <div><label for="f-media">Title</label><input id="f-media" maxlength="80" value="${esc(p.media)}"></div></div>
  <label>Your rating</label><div class="stars" id="f-stars">${[1,2,3,4,5].map(n=>`<button type="button" class="${n<=rating?'on':''}" data-n="${n}" aria-label="${n} stars">🍊</button>`).join('')}</div>
  <label for="f-title">Headline</label><input id="f-title" maxlength="100" placeholder="Give your post a headline (optional)" value="${p.title!==p.media?esc(p.title):''}">
- <label for="f-text">Your review or blog</label><textarea class="write" id="f-text" maxlength="10000">${esc(p.text)}</textarea><p class="hint" id="f-count">0 words</p>
+ <label for="f-text">Your review or blog</label><textarea class="write" data-lk id="f-text" maxlength="10000">${esc(p.text)}</textarea><p class="hint" id="f-count">0 words</p><p style="margin:0 0 8px">${lkHint('f-text')}</p>
  <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="f-spoil" style="width:auto"${p.spoiler?' checked':''}>This post contains spoilers</label>
  <div class="actions">${p.draft?`<button class="btn" data-a="savepost" data-id="${p.id}" data-draft="0">Publish</button><button class="btn ghost" data-a="savepost" data-id="${p.id}" data-draft="1">Save draft</button>`:`<button class="btn" data-a="savepost" data-id="${p.id}" data-draft="0">Save changes</button>`}<button class="btn ghost" data-a="open" data-id="${p.id}">Cancel</button></div></section>`}
 function postView(p){const u=me();if(view.edit&&u&&u.id===p.by)return editForm(p);
@@ -505,7 +521,7 @@ function featuresView(){const all=feats(),m=me(),adm=isEd();
 function featView(id){const f=feats().find(x=>x.id===id);if(!f)return featuresView();
  return `<button class="btn ghost" style="margin-bottom:14px" data-a="features">Back to Feature Picks🧺</button>
  <article class="post"><h3>${esc(f.title)}</h3><div class="meta">${userLink(user(f.by))}${fMedia(f)}${f.tag?`<span class="tag">${esc(f.tag)}</span>`:''}<span>${ago(f.publishedAt||f.ts)}${f.edited?' (edited)':''}</span>${f.status!=='published'?`<span class="tag">${FSTAT[f.status]||''}</span>`:''}</div>
- ${f.dek?`<p style="font-weight:700">${esc(f.dek)}</p>`:''}<div class="body">${lk(f.text)}</div>
+ ${f.dek?`<p style="font-weight:700">${esc(f.dek)}</p>`:''}<div class="body">${lkx(f.text)}</div>
  ${f.status==='rejected'&&f.note?`<p class="hint">Editor's note: ${esc(f.note)}</p>`:''}
  <div class="actions">${f.status==='published'?`<button class="btn ghost" data-a="sharefeat" data-id="${f.id}">Share link</button>`:''}${featTools(f)}</div></article>`}
 function featForm(id){const f=id?feats().find(x=>x.id===id):null,adm=isAdmin(),ed=isEd();
@@ -514,7 +530,7 @@ function featForm(id){const f=id?feats().find(x=>x.id===id):null,adm=isAdmin(),e
  <label for="ff-dek">Subtitle (optional)</label><input id="ff-dek" maxlength="200" value="${f?esc(f.dek||''):''}">
  <label for="ff-tag">Tag (optional, e.g. Interview, Essay)</label><input id="ff-tag" maxlength="30" value="${f?esc(f.tag||''):''}">
  <div class="row"><div><label for="ff-type">Category (optional)</label><select id="ff-type"><option value="">None</option>${TYPES.slice(1).map(t=>`<option${f&&f.type===t?' selected':''}>${t}</option>`).join('')}</select></div><div><label for="ff-media">Title (optional)</label><input id="ff-media" maxlength="80" value="${f?esc(f.media||''):''}"></div></div>
- <label for="ff-text">Article</label><textarea id="ff-text" style="min-height:260px">${f?esc(f.text):''}</textarea>
+ <label for="ff-text">Article</label><textarea id="ff-text" data-lk style="min-height:260px">${f?esc(f.text):''}</textarea><p style="margin:0 0 8px">${lkHint('ff-text')}</p>
  ${adm&&!f?`<label for="ff-as">Posting for a core member who emailed it? Their username (optional)</label><input id="ff-as" maxlength="20" placeholder="e.g. lacyreads" autocapitalize="none">`:''}
  ${ed?`<label style="display:flex;align-items:center;gap:8px;font-weight:500"><input type="checkbox" id="ff-pub" style="width:auto">Publish right away</label>`:'<p class="hint">Your piece goes to the editor first. It is published only after approval.</p>'}
  <div class="actions"><button class="btn" data-a="featsave" data-id="${id||''}">${ed?'Save':'Send to the editor'}</button><button class="btn ghost" data-a="features">Cancel</button></div></section>`}
@@ -522,6 +538,7 @@ function featForm(id){const f=id?feats().find(x=>x.id===id):null,adm=isAdmin(),e
 /* ---------- The Tangerine Times 📰 ---------- */
 const TT=[['latest','Latest'],['movies','Movies/TV'],['books','Books'],['games','Games'],['music','Music'],['culture','Culture'],['magazine','Magazine'],['about','About the Times']];
 const TT_SEC=TT.filter(x=>x[0]!=='latest'&&x[0]!=='about');
+const TT_KINDS=['Article','Essay','Review','Recommendation'];
 const TT_DEF={head:'The first edition is on its way.',body:"The Tangerine Times is the club's own paper: features, essays and recommendations written by our crew.\n\nWe are still warming up the presses. Check back soon.",about:"The Tangerine Times is the publishing side of Tangerine Review Club. The club is where everyone posts their own slices. The Times is where our crew writes and edits longer pieces, features and picks.\n\nEvery piece is read by an editor before it goes live.",joinHead:'Want to join the Times?',joinBody:'We are looking for writers, editors and creatives. Email us and tell us what you would like to do.'};
 let timesEdit=false,timesWrite=null,ttDir=1,ttLast=null;
 function ttPath(v){return v.pid?'/times/p/'+v.pid:'/times'+(v.s&&v.s!=='latest'?'/'+v.s:'')}
@@ -582,26 +599,28 @@ function ttInd(){const nav=app.querySelector('.tt-nav'),ac=nav&&nav.querySelecto
  if(ttLast){ind.style.transition='none';put(ttLast);ind.getBoundingClientRect();ind.style.transition=''}
  put(to);ttLast=to}
 const ttLabel=k=>{const x=TT.find(y=>y[0]===k);return x?x[1]:k};
+const ttMeta=p=>[p.kind,ttLabel(p.sec)].filter(Boolean).map(esc).join(' · ');
 const ttDate=ts=>new Date(ts).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
 const tRole=r=>db.profiles.filter(u=>((db.tstaff||{})[u.id]||[]).includes(r));
 const ttJoin=T=>`<div class="tt-join"><p style="font-weight:700">${esc(T.jh)}</p><p>${esc(T.jb)}</p><a class="btn" href="mailto:${esc(T.je)}?subject=${encodeURIComponent('Joining the Tangerine Times')}">Email ${esc(T.je)}</a></div>`;
-const timesParas=t=>t.split(/\n\s*\n/).filter(x=>x.trim()).map(x=>`<p style="white-space:pre-line">${lk(x.trim())}</p>`).join('');
+const timesParas=t=>t.split(/\n\s*\n/).filter(x=>x.trim()).map(x=>`<p style="white-space:pre-line">${lkx(x.trim())}</p>`).join('');
 const timesBanner=()=>`<section class="panel tt-promo"><div><div class="tt-pn">The Tangerine Times</div><div class="hint" style="margin:4px 0 0">Our own paper, written by the crew.${(db.tposts||[]).length?'':' Coming soon.'}</div></div><button class="btn" data-a="times">Read the Tangerine Times →</button></section>`;
 const ttCredits=p=>{const b=[];if(p.by)b.push(['By',p.by]);if(p.art)b.push(['Art by',p.art]);if(p.layout)b.push(['Layout by',p.layout]);return b.length?`<p class="tt-cred">${b.map(x=>x[0]+' <b>'+esc(user(x[1]).name)+'</b>').join(' · ')}</p>`:''};
-const ttCard=p=>`<article class="tt-card">${p.img?`<button class="tt-imgb" data-a="tpost" data-id="${p.id}" aria-label="Read ${esc(p.title)}"><img class="tt-img" src="/api?img=${p.img}" alt="" loading="lazy"></button>`:''}<div><span class="hint">${esc(ttLabel(p.sec))} · ${ttDate(p.ts)}</span><h3><button data-a="tpost" data-id="${p.id}">${esc(p.title)}</button></h3>${ttCredits(p)}<p class="tt-ex">${esc(excerpt(p.text))}</p>${db.canTimes?`<button class="link" data-a="tfeat" data-id="${p.id}">${p.feat?'★ Featured · remove':'☆ Feature this'}</button>`:''}</div></article>`;
-const ttTwo=t=>{t=String(t).replace(/\s+/g,' ').trim();const m=t.match(/[^.!?]+[.!?]+(?=\s|$)/g);let r=m?m.slice(0,2).join(' ').trim():t;if(r.length>230)r=r.slice(0,230).replace(/\s+\S*$/,'')+'...';return r||excerpt(t)};
-const ttRow=p=>`<article class="tt-row${p.img?'':' tt-noimg'}">${p.img?`<button class="tt-imgb" data-a="tpost" data-id="${p.id}" aria-label="Read ${esc(p.title)}"><img class="tt-img" src="/api?img=${p.img}" alt="" loading="lazy"></button>`:''}<div><span class="hint">${esc(ttLabel(p.sec))} · ${ttDate(p.ts)}</span><h3><button data-a="tpost" data-id="${p.id}">${esc(p.title)}</button></h3>${ttCredits(p)}<p class="tt-ex">${esc(ttTwo(p.text))}</p>${db.canTimes?`<button class="link" data-a="tfeat" data-id="${p.id}">${p.feat?'★ Featured · remove':'☆ Feature this'}</button>`:''}</div></article>`;
+const ttCard=p=>`<article class="tt-card">${p.img?`<button class="tt-imgb" data-a="tpost" data-id="${p.id}" aria-label="Read ${esc(p.title)}"><img class="tt-img" src="/api?img=${p.img}" alt="" loading="lazy"></button>`:''}<div><span class="hint">${ttMeta(p)} · ${ttDate(p.ts)}</span><h3><button data-a="tpost" data-id="${p.id}">${esc(p.title)}</button></h3>${ttCredits(p)}<p class="tt-ex">${esc(excerpt(p.text))}</p>${db.canTimes?`<button class="link" data-a="tfeat" data-id="${p.id}">${p.feat?'★ Featured · remove':'☆ Feature this'}</button>`:''}</div></article>`;
+const ttTwo=t=>{t=String(t).replace(/\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]{1,500})\)/g,'$1').replace(/\s+/g,' ').trim();const m=t.match(/[^.!?]+[.!?]+(?=\s|$)/g);let r=m?m.slice(0,2).join(' ').trim():t;if(r.length>230)r=r.slice(0,230).replace(/\s+\S*$/,'')+'...';return r||excerpt(t)};
+const ttRow=p=>`<article class="tt-row${p.img?'':' tt-noimg'}">${p.img?`<button class="tt-imgb" data-a="tpost" data-id="${p.id}" aria-label="Read ${esc(p.title)}"><img class="tt-img" src="/api?img=${p.img}" alt="" loading="lazy"></button>`:''}<div><span class="hint">${ttMeta(p)} · ${ttDate(p.ts)}</span><h3><button data-a="tpost" data-id="${p.id}">${esc(p.title)}</button></h3>${ttCredits(p)}<p class="tt-ex">${esc(ttTwo(p.text))}</p>${db.canTimes?`<button class="link" data-a="tfeat" data-id="${p.id}">${p.feat?'★ Featured · remove':'☆ Feature this'}</button>`:''}</div></article>`;
 let ttCarI=0;
 const ttMotion=()=>window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth';
-const ttSlide=p=>`<div class="tt-sl">${p.img?`<button class="tt-imgb" data-a="tpost" data-id="${p.id}" aria-label="Read ${esc(p.title)}"><img class="tt-img" src="/api?img=${p.img}" alt=""></button>`:''}<div class="tt-sl-b"><span class="hint">${esc(ttLabel(p.sec))} · ${ttDate(p.ts)}</span><h3 class="tt-sl-h"><button data-a="tpost" data-id="${p.id}">${esc(p.title)}</button></h3>${ttCredits(p)}<p class="tt-ex">${esc(excerpt(p.text))}</p></div></div>`;
-const ttHero=list=>{const l=list.slice(0,3);return `<section class="tt-hero" aria-label="Latest pieces"><div class="tt-car" tabindex="0" aria-label="Latest pieces${l.length>1?', swipe for the next ones':''}">${l.map(ttSlide).join('')}</div>${l.length>1?`<div class="tt-cbar"><button class="link" data-a="ttcar" data-d="-1" aria-label="Previous piece">←</button><span class="tt-dots">${l.map((_,i)=>`<button data-a="ttdot" data-i="${i}" aria-label="Show piece ${i+1}" aria-current="${i===0}"></button>`).join('')}</span><button class="link" data-a="ttcar" data-d="1" aria-label="Next piece">→</button></div>`:''}</section>`};
+const ttSlide=p=>`<div class="tt-sl">${p.img?`<button class="tt-imgb" data-a="tpost" data-id="${p.id}" aria-label="Read ${esc(p.title)}"><img class="tt-img" src="/api?img=${p.img}" alt=""></button>`:''}<div class="tt-sl-b"><span class="hint">${ttMeta(p)} · ${ttDate(p.ts)}</span><h3 class="tt-sl-h"><button data-a="tpost" data-id="${p.id}">${esc(p.title)}</button></h3>${ttCredits(p)}<p class="tt-ex">${esc(excerpt(p.text))}</p></div></div>`;
+const ttHero=list=>{const l=list.slice(0,5);return `<section class="tt-hero" aria-label="Latest pieces"><div class="tt-car" tabindex="0" aria-label="Latest pieces${l.length>1?', swipe for the next ones':''}">${l.map(ttSlide).join('')}</div>${l.length>1?`<div class="tt-cbar"><button class="link" data-a="ttcar" data-d="-1" aria-label="Previous piece">←</button><span class="tt-dots">${l.map((_,i)=>`<button data-a="ttdot" data-i="${i}" aria-label="Show piece ${i+1}" aria-current="${i===0}"></button>`).join('')}</span><button class="link" data-a="ttcar" data-d="1" aria-label="Next piece">→</button></div>`:''}</section>`};
 const ttFeatured=(tp,can)=>{const fl=tp.filter(x=>x.feat).sort((x,y)=>y.feat-x.feat).slice(0,6);
  if(fl.length)return `<section class="tt-featsec"><h2 class="tt-sh">Featured</h2><div class="tt-feat">${fl.map(ttCard).join('')}</div></section>`;
  return can?`<section class="tt-featsec"><h2 class="tt-sh">Featured</h2><p class="hint">Nothing featured yet. Tap "☆ Feature this" on a piece to show it here (up to 6).</p></section>`:''};
 function ttCar(){const t=app.querySelector('.tt-car');if(!t)return;const dots=app.querySelectorAll('.tt-dots button'),mark=i=>dots.forEach((d,k)=>d.setAttribute('aria-current',k===i));
  if(ttCarI&&ttCarI<dots.length){t.scrollLeft=ttCarI*t.clientWidth}else ttCarI=0;mark(ttCarI);
  let raf;t.addEventListener('scroll',()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{const i=Math.round(t.scrollLeft/(t.clientWidth||1));ttCarI=i;mark(i)})})}
-const ttArticle=p=>`<article class="tt-art"><button class="link" data-a="timestab" data-s="${p.sec}">← ${esc(ttLabel(p.sec))}</button>${p.img?`<img class="tt-img" style="margin-top:12px" src="/api?img=${p.img}" alt="">`:''}<span class="hint" style="display:block;margin-top:14px">${esc(ttLabel(p.sec))} · ${ttDate(p.ts)}${p.edited?' · edited':''}</span><h2 class="tt-h">${esc(p.title)}</h2>${ttCredits(p)}<div class="tt-text">${timesParas(p.text)}</div>${db.canTimes?`<div class="actions"><button class="btn ghost" data-a="tfeat" data-id="${p.id}">${p.feat?'★ Unfeature':'☆ Feature'}</button><button class="btn ghost" data-a="ttedit" data-id="${p.id}">Edit</button><button class="btn ghost" data-a="ttdel" data-id="${p.id}">Delete</button></div>`:''}</article>`;
+const ttRefs=p=>{const r=String(p.refs||'').split(/\n/).map(x=>x.trim()).filter(Boolean);return r.length?`<section class="tt-refs" aria-label="References"><h4>References</h4><ol>${r.map(x=>`<li>${lkx(x)}</li>`).join('')}</ol></section>`:''};
+const ttArticle=p=>`<article class="tt-art"><button class="link" data-a="timestab" data-s="${p.sec}">← ${esc(ttLabel(p.sec))}</button>${p.img?`<img class="tt-img" style="margin-top:12px" src="/api?img=${p.img}" alt="">`:''}<span class="hint" style="display:block;margin-top:14px">${ttMeta(p)} · ${ttDate(p.ts)}${p.edited?' · edited':''}</span><h2 class="tt-h">${esc(p.title)}</h2>${ttCredits(p)}<div class="tt-text">${timesParas(p.text)}</div>${ttRefs(p)}${db.canTimes?`<div class="actions"><button class="btn ghost" data-a="tfeat" data-id="${p.id}">${p.feat?'★ Unfeature':'☆ Feature'}</button><button class="btn ghost" data-a="ttedit" data-id="${p.id}">Edit</button><button class="btn ghost" data-a="ttdel" data-id="${p.id}">Delete</button></div>`:''}</article>`;
 const ttPrevHtml=()=>{const w=timesWrite||{};return w.data?`<img class="tt-img" src="${w.data}" alt="Photo preview">`:w.img?`<img class="tt-img" src="/api?img=${esc(w.img)}" alt="Current photo">`:'<div class="tt-ph">No photo yet (16:9)</div>'};
 function ttPrev(){const e=$('tt-prev');if(e)e.innerHTML=ttPrevHtml()}
 function ttPickImg(f){if(!f||!timesWrite)return;if(!/^image\//.test(f.type)){toast('Choose an image file');return}
@@ -618,6 +637,7 @@ function ttForm(){const w=timesWrite,wr=tRole('writer'),ar=tRole('artist');
  const opt=(l,sel,none)=>`<option value="">${none}</option>`+l.map(u=>`<option value="${u.id}"${u.id===sel?' selected':''}>@${esc(u.handle)} · ${esc(u.name)}</option>`).join('');
  return `<section class="panel"><h2>${w.id?'Edit piece':'New piece for the Times'}</h2>
  <label for="tt-sec">Section</label><select id="tt-sec">${TT_SEC.map(x=>`<option value="${x[0]}"${x[0]===w.sec?' selected':''}>${x[1]}</option>`).join('')}</select>
+ <label for="tt-kind">Type</label><select id="tt-kind">${TT_KINDS.map(k=>`<option${k===(w.kind||'Article')?' selected':''}>${k}</option>`).join('')}</select>
  <label for="tt-file">Photo (16:9, optional)</label><div id="tt-prev">${ttPrevHtml()}</div>
  <div class="actions"><input type="file" id="tt-file" accept="image/*"><button class="link" data-a="ttnophoto">Remove photo</button></div>
  <p class="hint">Any photo works. It is cropped to 16:9 from the center.</p>
@@ -626,7 +646,8 @@ function ttForm(){const w=timesWrite,wr=tRole('writer'),ar=tRole('artist');
  <label for="tt-art">Art by</label><select id="tt-art">${opt(ar,w.art,'No artist')}</select>
  <label for="tt-layout">Layout by</label><select id="tt-layout">${opt(ar,w.layout,'No artist')}</select>
  ${!wr.length||!ar.length?'<p class="hint">Writers and artists show up in these lists once an admin adds them under Times team (bottom of the Latest page).</p>':''}
- <label for="tt-text">Content</label><textarea id="tt-text" maxlength="20000" style="min-height:340px">${esc(w.text||'')}</textarea>
+ <label for="tt-text">Content</label><textarea id="tt-text" data-lk maxlength="20000" style="min-height:340px">${esc(w.text||'')}</textarea><p style="margin:0 0 8px">${lkHint('tt-text')}</p>
+ <label for="tt-refs">References (optional)</label><textarea id="tt-refs" data-lk maxlength="3000" style="min-height:110px" placeholder="One source per line. For example: Author, Title, Year, or a link.">${esc(w.refs||'')}</textarea><p class="hint">Shows in small text at the end of the piece, as a numbered list. One reference per line. You can add a link with Ctrl+K.</p>
  <div class="actions"><button class="btn" data-a="ttsave">${w.id?'Save changes':'Publish'}</button><button class="btn ghost" data-a="ttcancel">Cancel</button></div></section>`}
 const crewBox=()=>{const cr=db.profiles.filter(u=>u.crew);
  return `<section class="panel"><h2>Crew badges 🍊</h2><p class="hint">Only admins can give these. Pick Editorial for editors and Crew for everyone else on the team.</p>
@@ -707,7 +728,9 @@ const aboutView=()=>{const ab=db.about||ABOUT_DEF,adm=isAdmin();
  const follow=`<h3 style="font-size:1.1rem;margin:18px 0 8px;color:var(--od)">Follow us</h3><div style="display:flex;gap:18px;flex-wrap:wrap">${ABOUT_INSTA?`<a class="link" href="https://instagram.com/${esc(ABOUT_INSTA)}" target="_blank" rel="noopener noreferrer">📷 @${esc(ABOUT_INSTA)}</a>`:''}<a class="link" href="mailto:${esc(ABOUT_EMAIL)}">✉️ ${esc(ABOUT_EMAIL)}</a></div>`;
  const back=`<button class="btn ghost" style="margin-bottom:14px" data-a="feed">Back to home</button>`;
  if(aboutEdit&&adm)return back+`<section class="panel"><h2>Edit About page</h2><label for="ab-h">Headline</label><input id="ab-h" maxlength="200" value="${esc(ab.head)}"><label for="ab-b">Text (leave a blank line between paragraphs)</label><textarea id="ab-b" maxlength="3000" style="min-height:260px">${esc(ab.body)}</textarea><div class="actions"><button class="btn" data-a="saveabout">Save</button><button class="btn ghost" data-a="cancelabout">Cancel</button>${db.about?`<button class="btn ghost" data-a="resetabout">Back to original text</button>`:''}</div></section>`;
- return back+`<section class="panel">${ab.head?`<h3 style="font-size:1.5rem;font-weight:800;line-height:1.2;color:var(--od);margin:0 0 14px">${lk(ab.head)}</h3>`:''}${ab.body.split(/\n\s*\n/).filter(x=>x.trim()).map(x=>`<p style="white-space:pre-line">${lk(x.trim())}</p>`).join('')}${follow}${adm?`<div class="actions"><button class="btn ghost" data-a="editabout">Edit this page</button></div>`:''}</section>`};
+ const tm=db.times||{},tAbout=tm.about||TT_DEF.about;
+ const tsec=`<div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--line)"><h3 style="font-size:1.25rem;font-weight:800;line-height:1.2;color:var(--od);margin:0 0 10px">📰 The Tangerine Times</h3>${timesParas(tAbout)}<p>Sections: ${TT_SEC.map(x=>esc(x[1])).join(', ')}.</p><p><button class="link" data-a="times">Read the Tangerine Times →</button></p></div>`;
+ return back+`<section class="panel">${ab.head?`<h3 style="font-size:1.5rem;font-weight:800;line-height:1.2;color:var(--od);margin:0 0 14px">${lk(ab.head)}</h3>`:''}${ab.body.split(/\n\s*\n/).filter(x=>x.trim()).map(x=>`<p style="white-space:pre-line">${lk(x.trim())}</p>`).join('')}${tsec}${follow}${adm?`<div class="actions"><button class="btn ghost" data-a="editabout">Edit this page</button></div>`:''}</section>`};
 function loadMore(){const fl=$('feed-list'),mo=$('more');if(!fl||!mo)return;const next=feedPosts.slice(feedShown,feedShown+20);fl.insertAdjacentHTML('beforeend',next.map(card).join(''));feedShown+=next.length;feedWant=feedShown;if(feedShown>=feedPosts.length){obs&&obs.disconnect();mo.remove()}}
 const grow=t=>{t.style.height='auto';t.style.height=Math.max(t.scrollHeight+2,260)+'px';const c=$('f-count');if(c){const v=t.value.trim(),n=v?v.split(/\s+/).length:0;c.textContent=n+' word'+(n===1?'':'s')}};
 const refreshBar=()=>{const bb=app.querySelector('.bar');if(bb)bb.outerHTML=bar()};
@@ -758,6 +781,7 @@ app.addEventListener('click',async e=>{
  const st=e.target.closest('#f-stars button');
  if(st){rating=rating===+st.dataset.n?0:+st.dataset.n;app.querySelectorAll('#f-stars button').forEach(x=>x.classList.toggle('on',+x.dataset.n<=rating));return}
  const b=e.target.closest('[data-a]');if(!b)return;
+ if(b.dataset.a==='addlink'){addLink($(b.dataset.for));return}
  const a=b.dataset.a, id=b.dataset.id, p=postById(id), g=i=>$(i)?$(i).value.trim():'';
  if(a==='feed'){pre=null;feedWant=20;go({n:'feed'})}
  else if(a==='join'){pickAv=AVATARS[0];go({n:'join'})}
@@ -772,11 +796,11 @@ app.addEventListener('click',async e=>{
  else if(a==='crewrm'){if(await api('setcrew',{id,team:''})){toast('Badge removed');render()}}
  else if(a==='tsadd'){const r=b.dataset.r,v=$('ts-'+r)&&$('ts-'+r).value;if(v&&await api('settstaff',{id:v,role:r,on:true})){toast('Added');render()}}
  else if(a==='tsrm'){if(await api('settstaff',{id,role:b.dataset.r,on:false})){toast('Removed');render()}}
- else if(a==='ttwrite'){if(!db.canTimes)return;timesEdit=false;timesWrite={id:'',sec:TT_SEC.some(x=>x[0]===view.s)?view.s:'movies',img:'',data:'',title:'',text:'',by:'',art:'',layout:''};render();window.scrollTo(0,0)}
- else if(a==='ttedit'){const q=(db.tposts||[]).find(x=>x.id===id);if(!q||!db.canTimes)return;timesEdit=false;timesWrite={id:q.id,sec:q.sec,img:q.img||'',data:'',title:q.title,text:q.text,by:q.by||'',art:q.art||'',layout:q.layout||''};render();window.scrollTo(0,0)}
+ else if(a==='ttwrite'){if(!db.canTimes)return;timesEdit=false;timesWrite={id:'',sec:TT_SEC.some(x=>x[0]===view.s)?view.s:'movies',kind:'Article',refs:'',img:'',data:'',title:'',text:'',by:'',art:'',layout:''};render();window.scrollTo(0,0)}
+ else if(a==='ttedit'){const q=(db.tposts||[]).find(x=>x.id===id);if(!q||!db.canTimes)return;timesEdit=false;timesWrite={id:q.id,sec:q.sec,kind:q.kind||'Article',refs:q.refs||'',img:q.img||'',data:'',title:q.title,text:q.text,by:q.by||'',art:q.art||'',layout:q.layout||''};render();window.scrollTo(0,0)}
  else if(a==='ttcancel'){timesWrite=null;render()}
  else if(a==='ttnophoto'){if(timesWrite){timesWrite.img='';timesWrite.data='';ttPrev()}}
- else if(a==='ttsave'){const w=timesWrite;if(!w)return;const sec=$('tt-sec').value,r=await api('tpost',{id:w.id,sec,title:g('tt-title'),by:$('tt-by').value,art:$('tt-art').value,layout:$('tt-layout').value,text:$('tt-text').value,keepImg:!!w.img,data:w.data});if(r){timesWrite=null;toast(w.id?'Saved':'Published');ttDir=1;go({n:'times',s:sec,pid:r.tid})}}
+ else if(a==='ttsave'){const w=timesWrite;if(!w)return;const sec=$('tt-sec').value,r=await api('tpost',{id:w.id,sec,kind:$('tt-kind').value,refs:$('tt-refs').value,title:g('tt-title'),by:$('tt-by').value,art:$('tt-art').value,layout:$('tt-layout').value,text:$('tt-text').value,keepImg:!!w.img,data:w.data});if(r){timesWrite=null;toast(w.id?'Saved':'Published');ttDir=1;go({n:'times',s:sec,pid:r.tid})}}
  else if(a==='tpost'){const q=(db.tposts||[]).find(x=>x.id===id);if(!q)return;timesEdit=false;timesWrite=null;ttDir=1;go({n:'times',s:q.sec,pid:q.id})}
  else if(a==='ttcar'){const t=app.querySelector('.tt-car');if(t)t.scrollBy({left:(+b.dataset.d)*t.clientWidth,behavior:ttMotion()})}
  else if(a==='ttdot'){const t=app.querySelector('.tt-car');if(t)t.scrollTo({left:(+b.dataset.i)*t.clientWidth,behavior:ttMotion()})}
@@ -956,6 +980,7 @@ function curTheme(){return document.documentElement.dataset.theme||(matchMedia('
 function paintTheme(){const d=curTheme()==='dark';tb.textContent=d?'☀️ Light mode':'🌙 Dark mode';tb.setAttribute('aria-label',d?'Switch to light mode':'Switch to dark mode')}
 tb.addEventListener('click',()=>{const n=curTheme()==='dark'?'light':'dark';document.documentElement.dataset.theme=n;try{localStorage.setItem('bb-theme',n)}catch(e){}paintTheme()});
 paintTheme();
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&!e.altKey&&(e.key==='k'||e.key==='K')){const t=e.target;if(t&&t.tagName==='TEXTAREA'&&t.hasAttribute('data-lk')){e.preventDefault();addLink(t)}}});
 $('about-btn').addEventListener('click',()=>{aboutEdit=false;go({n:'about'})});
 api('state').then(()=>{const h=location.hash,rn=routeNow();if(h.startsWith('#reset='))view={n:'reset',token:h.slice(7)};else if(h.startsWith('#list-'))view={n:'list',id:h.slice(6)};else if(h.startsWith('#post-')&&postById(h.slice(6)))view={n:'post',id:h.slice(6)};else if(h==='#times'||h.startsWith('#times-'))view={n:'times',s:h.slice(7)||'latest'};else if(h==='#feature-picks')view={n:'features'};else if(h.startsWith('#feature-'))view={n:'feat',id:h.slice(9)};else if(rn)view=rn;
  if(view.n==='join')pickAv=AVATARS[0];
