@@ -17,7 +17,7 @@ async function load() {
     else db[k] = v || base[k];
   });
   if (Array.isArray(db.core)) { const o = {}; db.core.forEach(x => { o[x] = "writer"; }); db.core = o; }
-  /* Zest Team roles are now a list, so one person can be a writer and an editor.
+  /* Editorial Team roles are now a list, so one person can be a writer and an editor.
      Old single roles are converted: "writer" stays a writer, "editor" keeps both abilities it had before. */
   Object.keys(db.core).forEach(k => {
     const v = db.core[k];
@@ -720,7 +720,7 @@ export default async function handler(req, res) {
       }
       case "fsave": {
         const m = me(), admin = isAdmin(), ed = isEditor(), roles = rolesOf(db, m.id);
-        if (!roles.length && !admin) bad("Feature Picks is for the Zest Team only");
+        if (!roles.length && !admin) bad("Feature Picks is for the Editorial Team only");
         if (!d.id && !admin && !roles.includes("writer")) bad("You need the Writer role to write a piece");
         const n = cleanFeature(d);
         let author = m;
@@ -728,7 +728,7 @@ export default async function handler(req, res) {
           if (!admin) bad("Admins only");
           const h = clip(d.as, 20).toLowerCase().replace(/^@/, "");
           author = db.users.find(u => u.handle === h) || bad("Author not found");
-          if (author.id !== m.id && !rolesOf(db, author.id).length) bad("That member is not on the Zest Team");
+          if (author.id !== m.id && !rolesOf(db, author.id).length) bad("That member is not on the Editorial Team");
         }
         let f;
         if (d.id) {
