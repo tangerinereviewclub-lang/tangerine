@@ -100,6 +100,7 @@ function cleanFeature(d) {
   if (!title || !text) bad("Add a headline and the article text first");
   return { title, dek, tag, text, type, media: type ? media : "" };
 }
+const parseStaff = v => String(v == null ? "" : v).split(/\n/).map(l => l.split("|")).map(p => ({ name: clip(p[0], 60), role: clip(p.slice(1).join("|"), 60) })).filter(x => x.name).slice(0, 40);
 const cleanPron = d => clip(Array.isArray(d.pronouns) ? d.pronouns.join(" / ") : d.pronouns, 30);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const pub = (u, viewer) => ({
@@ -620,8 +621,12 @@ export default async function handler(req, res) {
       }
       case "setabout": {
         if (!isAdmin()) bad("Admins only");
-        const head = clip(d.head, 200), body = clip(d.body, 3000);
-        db.about = head || body ? { head, body, ts: Date.now() } : null;
+        const head = clip(d.head, 200), body = clip(d.body, 3000), timesText = clip(d.timesText, 3000), email = clip(d.email, 120).toLowerCase();
+        const crew = parseStaff(d.crew);
+        const insta = clip(d.insta, 100).replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/^@/, "").replace(/[\/?].*$/, "");
+        if (insta && !/^[A-Za-z0-9._]{1,30}$/.test(insta)) bad("Instagram name can only have letters, numbers, dots and underscores");
+        if (email && !emailOk(email)) bad("Enter a valid contact email");
+        db.about = head || body || timesText || insta || email || crew.length ? { head, body, crew, timesText, insta, email, ts: Date.now() } : null;
         break;
       }
       case "settimes": {
@@ -629,7 +634,8 @@ export default async function handler(req, res) {
         const head = clip(d.head, 200), body = clip(d.body, 3000), about = clip(d.about, 3000);
         const joinHead = clip(d.joinHead, 100), joinBody = clip(d.joinBody, 500), joinEmail = clip(d.joinEmail, 120).toLowerCase();
         if (joinEmail && !emailOk(joinEmail)) bad("Enter a valid email for the join box");
-        db.times = head || body || about || joinHead || joinBody || joinEmail ? { head, body, about, joinHead, joinBody, joinEmail, ts: Date.now() } : null;
+        const editorial = parseStaff(d.editorial), artpub = parseStaff(d.artpub);
+        db.times = head || body || about || joinHead || joinBody || joinEmail || editorial.length || artpub.length ? { head, body, about, joinHead, joinBody, joinEmail, editorial, artpub, ts: Date.now() } : null;
         break;
       }
       case "setcrew": {
