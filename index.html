@@ -156,6 +156,16 @@ body{margin:0;background:var(--bg)}
 #tg .tt-ex{margin:0}
 #tg .tt-text p{font-size:1.08rem;line-height:1.7;max-width:64ch}
 #tg .tt-ph{aspect-ratio:16/9;border:2px dashed var(--line);border-radius:14px;display:grid;place-items:center;color:var(--mut)}
+@keyframes vin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+#tg-app.vin>:not(.bar){animation:vin .32s cubic-bezier(.2,.7,.2,1) both}
+#tg-app.vin>:not(.bar):nth-child(3){animation-delay:.04s}
+#tg-app.vin>:not(.bar):nth-child(4){animation-delay:.08s}
+#tg-app.vin>:not(.bar):nth-child(5){animation-delay:.12s}
+#tg-app.vin>:not(.bar):nth-child(n+6){animation-delay:.16s}
+#tg .btn,#tg .act{transition:transform .12s ease}
+#tg .btn:active,#tg .act:active{transform:scale(.96)}
+@media(hover:hover){#tg .post{transition:transform .2s ease,box-shadow .2s ease}#tg .post:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(217,95,0,.12)}}
+@media(prefers-reduced-motion:reduce){#tg-app.vin>*{animation:none!important}#tg .btn,#tg .act,#tg .post{transition:none}#tg .post:hover,#tg .btn:active,#tg .act:active{transform:none}}
 </style>
 </head>
 <body>
@@ -211,11 +221,11 @@ const isAdmin=()=>!!db.admin;
 const isEd=()=>!!db.isEditor;
 const followers=u=>db.profiles.filter(x=>(x.following||[]).includes(u.id)).length;
 const fbtn=u=>{const m=me();if(!m||m.id===u.id)return'';const f=(m.following||[]).includes(u.id);return `<button class="btn ${f?'ghost':''}" data-a="follow" data-id="${u.id}">${f?'Unfollow':'Follow'}</button>`};
-function go(v,keep){view=v;menuOpen='';try{const u=v.n==='times'?ttPath(v):(location.pathname.indexOf('/times')===0?'/':null);if(keep){u?history.replaceState({v},'',u):history.replaceState({v},'')}else{u?history.pushState({v},'',u):history.pushState({v},'')}}catch(e){}render();if(!keep){const t=document.getElementById('tg');t.scrollIntoView&&t.scrollIntoView()}}
+function go(v,keep){view=v;menuOpen='';try{const u=pathOf(v);if(keep){u?history.replaceState({v},'',u):history.replaceState({v},'')}else{u?history.pushState({v},'',u):history.pushState({v},'')}}catch(e){}if(!keep&&v.n!=='times'){app.classList.remove('vin');void app.offsetWidth;app.classList.add('vin');clearTimeout(go.t);go.t=setTimeout(()=>app.classList.remove('vin'),650)}render();if(!keep){const t=document.getElementById('tg');t.scrollIntoView&&t.scrollIntoView()}}
 
 function bar(){const u=me();
   const nav=`<button class="btn ghost" data-a="feed">Home</button>`;
-  const lists=`<button class="btn ghost" data-a="lists">Lists 📋</button><button class="btn ghost" data-a="features">Feature Picks🧺</button><button class="btn ghost" data-a="times">Times 📰</button><button class="btn ghost" data-a="searchview">Search 🔍</button>`;
+  const lists=`<button class="btn ghost" data-a="lists">Lists 📋</button><button class="btn ghost" data-a="features">Feature Picks🧺</button><button class="btn ghost" data-a="searchview">Search 🔍</button>`;
   return `<div class="bar">`+(u?`<button class="who" data-a="profile" data-id="${u.id}">${av(u)}${esc(u.handle)}</button>${nav}<button class="btn ghost" data-a="diary" data-id="${u.id}">Diary 📒</button>${lists}<button class="btn ghost" data-a="inbox" aria-label="Messages" title="Messages">✉️${unread()?` (${unread()})`:''}</button><button class="btn ghost" data-a="notes" aria-label="Alerts" title="Alerts">🔔${unreadN()?` (${unreadN()})`:''}</button><button class="btn ghost" data-a="settings" aria-label="Settings" title="Settings">⚙️</button><button class="btn ghost" data-a="logout">Log out</button>`
   :`<button class="btn" data-a="join">Sign up or log in</button>${nav}${lists}`)+`</div>`}
 
@@ -488,7 +498,58 @@ const TT_SEC=TT.filter(x=>x[0]!=='latest'&&x[0]!=='about');
 const TT_DEF={head:'The first edition is on its way.',body:"The Tangerine Times is the club's own paper: features, essays and recommendations written by our crew.\n\nWe are still warming up the presses. Check back soon.",about:"The Tangerine Times is the publishing side of Tangerine Review Club. The club is where everyone posts their own slices. The Times is where our crew writes and edits longer pieces, features and picks.\n\nEvery piece is read by an editor before it goes live.",joinHead:'Want to join the Times?',joinBody:'We are looking for writers, editors and creatives. Email us and tell us what you would like to do.'};
 let timesEdit=false,timesWrite=null,ttDir=1,ttLast=null;
 function ttPath(v){return v.pid?'/times/p/'+v.pid:'/times'+(v.s&&v.s!=='latest'?'/'+v.s:'')}
-function routeNow(){const m=location.pathname.match(/^\/times(?:\/(.*))?$/);if(!m)return null;const seg=(m[1]||'').replace(/\/+$/,'').split('/');if(seg[0]==='p'&&seg[1])return{n:'times',s:'latest',pid:seg[1]};return{n:'times',s:TT.some(x=>x[0]===seg[0])?seg[0]:'latest'}}
+function pathOf(v){
+ const hd=id=>{const u=(db.profiles||[]).find(x=>x.id===id);return u?u.handle:null};
+ switch(v.n){
+  case'feed':return'/home';
+  case'join':return'/join';
+  case'forgot':return'/forgot';
+  case'search':return'/search';
+  case'inbox':return'/messages';
+  case'chat':{const u=hd(v.id);return u?'/messages/'+u:'/messages'}
+  case'notes':return'/notifications';
+  case'watch':{const u=hd(v.id);return u?'/watchlist/'+u:'/home'}
+  case'diary':{const u=hd(v.id);return u?'/diary/'+u:'/home'}
+  case'lists':return'/lists';
+  case'list':return'/lists/'+v.id;
+  case'listform':return v.id?'/lists/'+v.id+'/edit':'/lists/new';
+  case'settings':return'/settings';
+  case'club':return'/clubs/'+v.id;
+  case'prompt':return'/prompts/'+v.id;
+  case'about':return'/about';
+  case'features':return'/feature-picks';
+  case'feat':return'/feature-picks/'+v.id;
+  case'featform':return v.id?'/feature-picks/'+v.id+'/edit':'/feature-picks/new';
+  case'compose':return'/compose';
+  case'post':return'/post/'+v.id+(v.edit?'/edit':'');
+  case'profile':{const u=hd(v.id);return u?'/profile/'+u:'/home'}
+  case'times':return ttPath(v);
+ }
+ return null}
+function routeNow(){
+ const path=location.pathname.replace(/\/+$/,'')||'/';if(path==='/')return null;
+ let seg;try{seg=path.split('/').slice(1).map(decodeURIComponent)}catch(e){return{n:'feed'}}
+ const P=(db&&db.profiles)||[],byH=x=>P.find(u=>u.handle===String(x||'').toLowerCase()),inn=!!(db&&db.me),need=v=>inn?v:{n:'join'};
+ switch(seg[0]){
+  case'home':return{n:'feed'};
+  case'times':{if(seg[1]==='p'&&seg[2])return{n:'times',s:'latest',pid:seg[2]};return{n:'times',s:TT.some(x=>x[0]===seg[1])?seg[1]:'latest'}}
+  case'join':return{n:'join'};
+  case'forgot':return{n:'forgot'};
+  case'search':return{n:'search'};
+  case'messages':{const u=seg[1]&&byH(seg[1]);return need(u?{n:'chat',id:u.id}:{n:'inbox'})}
+  case'notifications':return need({n:'notes'});
+  case'watchlist':{const u=byH(seg[1]);return u?{n:'watch',id:u.id}:{n:'feed'}}
+  case'diary':{const u=byH(seg[1]);return u?need({n:'diary',id:u.id}):{n:'feed'}}
+  case'lists':return seg[1]&&seg[1]!=='new'?{n:'list',id:seg[1]}:{n:'lists'};
+  case'settings':return need({n:'settings'});
+  case'clubs':return seg[1]?need({n:'club',id:seg[1]}):{n:'feed'};
+  case'prompts':return seg[1]?{n:'prompt',id:seg[1]}:{n:'feed'};
+  case'about':return{n:'about'};
+  case'feature-picks':return seg[1]&&seg[1]!=='new'?{n:'feat',id:seg[1]}:{n:'features'};
+  case'post':return seg[1]?{n:'post',id:seg[1]}:{n:'feed'};
+  case'profile':{const u=byH(seg[1]);return u?{n:'profile',id:u.id}:{n:'feed'}}
+ }
+ return{n:'feed'}}
 function ttInd(){const nav=app.querySelector('.tt-nav'),ac=nav&&nav.querySelector('[aria-current="true"]'),ind=nav&&nav.querySelector('.tt-ind');if(!ac||!ind)return;
  const to={x:ac.offsetLeft,y:ac.offsetTop+ac.offsetHeight-5,w:ac.offsetWidth},put=p=>{ind.style.transform='translate('+p.x+'px,'+p.y+'px)';ind.style.width=p.w+'px'};
  if(ttLast){ind.style.transition='none';put(ttLast);ind.getBoundingClientRect();ind.style.transition=''}
@@ -538,7 +599,7 @@ const tsBox=()=>`<section class="panel"><h2>Times team ✍️</h2><p class="hint
 function timesView(){
  const tp=db.tposts||[],pst=view.pid&&tp.find(x=>x.id===view.pid),s=pst?pst.sec:(TT.some(x=>x[0]===view.s)?view.s:'latest'),t=db.times||{},adm=isAdmin(),can=!!db.canTimes;
  const T={head:t.head||TT_DEF.head,body:t.body||TT_DEF.body,about:t.about||TT_DEF.about,jh:t.joinHead||TT_DEF.joinHead,jb:t.joinBody||TT_DEF.joinBody,je:t.joinEmail||ABOUT_EMAIL};
- const mast=`<header class="tt-mast"><button class="tt-back" data-a="feed">← Back to the Club</button><h1>The Tangerine Times</h1><p>Features, essays and picks from the Tangerine Review Club crew.</p></header><nav class="tt-nav" aria-label="Tangerine Times sections"><span class="tt-ind" aria-hidden="true"></span>${TT.map(x=>`<button data-a="timestab" data-s="${x[0]}" aria-current="${x[0]===s}">${x[1]}</button>`).join('')}</nav>`;
+ const mast=`<header class="tt-mast"><button class="tt-back" data-a="feed">← Back to the Club</button><h1>The Tangerine Times</h1><p>Features, essays, reviews, and recommendations from the Tangerine Review Club crew.</p></header><nav class="tt-nav" aria-label="Tangerine Times sections"><span class="tt-ind" aria-hidden="true"></span>${TT.map(x=>`<button data-a="timestab" data-s="${x[0]}" aria-current="${x[0]===s}">${x[1]}</button>`).join('')}</nav>`;
  if(timesWrite&&can)return mast+ttForm();
  if(timesEdit&&adm)return mast+`<section class="panel"><h2>Edit the Times page</h2><label for="tt-h">Headline (front page, shows until the first piece is posted)</label><input id="tt-h" maxlength="200" value="${esc(T.head)}"><label for="tt-b">Front page text (blank line between paragraphs)</label><textarea id="tt-b" maxlength="3000" style="min-height:140px">${esc(T.body)}</textarea><label for="tt-a">About the Times text</label><textarea id="tt-a" maxlength="3000" style="min-height:140px">${esc(T.about)}</textarea><label for="tt-jh">Join box title</label><input id="tt-jh" maxlength="100" value="${esc(T.jh)}"><label for="tt-jb">Join box text</label><textarea id="tt-jb" maxlength="500" style="min-height:90px">${esc(T.jb)}</textarea><label for="tt-je">Join box email</label><input id="tt-je" type="email" maxlength="120" value="${esc(T.je)}"><div class="actions"><button class="btn" data-a="savetimes">Save</button><button class="btn ghost" data-a="canceltimes">Cancel</button>${db.times?`<button class="btn ghost" data-a="resettimes">Back to original text</button>`:''}</div></section>`;
  const join=ttJoin(T),editBtn=adm?`<div class="actions"><button class="btn ghost" data-a="edittimes">Edit this page</button></div>`:'',writeBtn=can&&!pst&&s!=='about'?`<div class="actions" style="margin:0 0 22px"><button class="btn" data-a="ttwrite">Write a piece</button></div>`:'';
@@ -744,7 +805,7 @@ app.addEventListener('click',async e=>{
  else if(a==='cancelabout'){aboutEdit=false;render()}
  else if(a==='saveabout'){if(await api('setabout',{head:g('ab-h'),body:$('ab-b').value})){aboutEdit=false;toast('About page saved');render()}}
  else if(a==='resetabout'){if(!confirm('Go back to the original About text?'))return;if(await api('setabout',{head:'',body:''})){aboutEdit=false;toast('Back to the original text');render()}}
- else if(a==='sharelist'){const url=location.origin+location.pathname+'#list-'+id,l=(db.lists||[]).find(x=>x.id===id);
+ else if(a==='sharelist'){const url=location.origin+'/lists/'+id,l=(db.lists||[]).find(x=>x.id===id);
   try{if(navigator.share){await navigator.share({title:l.title,url});return}}catch(err){if(err&&err.name==='AbortError')return}
   try{await copyText(url);toast('Link copied')}catch(err){toast(fallbackCopy(url)?'Link copied':url)}}
  else if(a==='forgot')go({n:'forgot'});
@@ -833,7 +894,7 @@ app.addEventListener('click',async e=>{
  else if(a==='delpoll'){if(!confirm('Delete this poll?'))return;if(await api('delpoll',{id}))render()}
  else if(a==='addadmin'){const v=$('ad-add')&&$('ad-add').value;if(v&&await api('setadmin',{id:v,on:true})){toast('Admin added');render()}}
  else if(a==='setadmin'){if(!confirm('Remove this admin?'))return;if(await api('setadmin',{id,on:false})){toast('Admin removed');render()}}
- else if(a==='sharefeat'){const url=location.origin+location.pathname+'#feature-'+id,f=feats().find(x=>x.id===id);
+ else if(a==='sharefeat'){const url=location.origin+'/feature-picks/'+id,f=feats().find(x=>x.id===id);
   try{if(navigator.share){await navigator.share({title:f.title,url});return}}catch(err){if(err&&err.name==='AbortError')return}
   try{await copyText(url);toast('Link copied')}catch(err){toast(fallbackCopy(url)?'Link copied':url)}}
  else if(a==='bview'){bview=b.dataset.v;const y=window.scrollY;render();window.scrollTo(0,y)}
@@ -845,7 +906,7 @@ app.addEventListener('click',async e=>{
  else if(a==='copymembers'){const t=membersTsv('');
   try{await copyText(t);toast('Table copied. Paste it into Google Sheets')}catch(err){toast(fallbackCopy(t)?'Table copied. Paste it into Google Sheets':'Could not copy the table')}}
  else if(a==='share'){
-  const url=location.origin+location.pathname+'#post-'+id;
+  const url=location.origin+'/post/'+id;
   try{await copyText(url);toast('Link copied')}catch(err){toast(fallbackCopy(url)?'Link copied':url)}}
 });
 const tb=$('theme-btn');
@@ -854,7 +915,11 @@ function paintTheme(){const d=curTheme()==='dark';tb.textContent=d?'☀️ Light
 tb.addEventListener('click',()=>{const n=curTheme()==='dark'?'light':'dark';document.documentElement.dataset.theme=n;try{localStorage.setItem('bb-theme',n)}catch(e){}paintTheme()});
 paintTheme();
 $('about-btn').addEventListener('click',()=>{aboutEdit=false;go({n:'about'})});
-api('state').then(()=>{const h=location.hash,rn=routeNow();if(rn)view=rn;else if(h.startsWith('#reset='))view={n:'reset',token:h.slice(7)};else if(h.startsWith('#list-'))view={n:'list',id:h.slice(6)};else if(h.startsWith('#post-')&&postById(h.slice(6)))view={n:'post',id:h.slice(6)};else if(h==='#times'||h.startsWith('#times-'))view={n:'times',s:h.slice(7)||'latest'};else if(h==='#feature-picks')view={n:'features'};else if(h.startsWith('#feature-'))view={n:'feat',id:h.slice(9)};render();try{if(view.n==='times')history.replaceState({v:view},'',ttPath(view));else history.replaceState({v:view},'')}catch(e){}});
+api('state').then(()=>{const h=location.hash,rn=routeNow();if(h.startsWith('#reset='))view={n:'reset',token:h.slice(7)};else if(h.startsWith('#list-'))view={n:'list',id:h.slice(6)};else if(h.startsWith('#post-')&&postById(h.slice(6)))view={n:'post',id:h.slice(6)};else if(h==='#times'||h.startsWith('#times-'))view={n:'times',s:h.slice(7)||'latest'};else if(h==='#feature-picks')view={n:'features'};else if(h.startsWith('#feature-'))view={n:'feat',id:h.slice(9)};else if(rn)view=rn;
+ if(view.n==='join')pickAv=AVATARS[0];
+ render();try{const u=pathOf(view);if(u)history.replaceState({v:view},'',u);else history.replaceState({v:view},'')}catch(e){}
+ if(view.n==='club'){clubMsgs=[];api('club',{id:view.id}).then(r=>{if(r&&view.n==='club')cmUpdate()})}
+ else if(view.n==='chat'){const id=view.id;api('read',{id}).then(r=>{if(r&&view.n==='chat'&&view.id===id&&$('m-list')){$('m-list').innerHTML=chatList(id);refreshBar()}})}});
 let tick=0;setInterval(()=>{if(document.hidden||!me())return;if(view.n!=='chat'&&view.n!=='club'&&++tick%3)return;
  if(view.n==='chat'){const id=view.id;api('read',{id}).then(r=>{if(r&&view.n==='chat'&&$('m-list')){$('m-list').innerHTML=chatList(id);refreshBar()}})}
  else if(view.n==='club'){const id=view.id;api('club',{id}).then(r=>{if(r&&view.n==='club'&&$('cm-list')){const l=$('cm-list'),atEnd=l.scrollHeight-l.scrollTop-l.clientHeight<60;l.innerHTML=clubList();if(atEnd)l.scrollTop=l.scrollHeight}})}
