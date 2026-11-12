@@ -184,6 +184,7 @@ body{margin:0;background:var(--bg)}
 #tg .tt-featsec{margin-bottom:12px}
 @media(prefers-reduced-motion:reduce){#tg .tt-dots button{transition:none}}
 #tg .tt-row{display:grid;grid-template-columns:168px minmax(0,1fr);gap:18px;align-items:start;padding-bottom:20px;margin-bottom:20px;border-bottom:2px solid var(--line)}
+#tg .tt-row.tt-noimg{grid-template-columns:minmax(0,1fr)}
 #tg .tt-row .tt-img,#tg .tt-row .tt-ph{border-radius:10px}
 #tg .tt-row .tt-ph-o{font-size:1.8rem}
 #tg .tt-row h3{font-family:"Fraunces","Bricolage Grotesque",Georgia,serif;font-weight:900;line-height:1.1;letter-spacing:-.01em;font-size:clamp(1.15rem,3.6vw,1.5rem);margin:2px 0 6px}
@@ -191,7 +192,7 @@ body{margin:0;background:var(--bg)}
 #tg .tt-row h3 button:hover{text-decoration:underline;text-decoration-color:var(--o);text-decoration-thickness:3px;text-underline-offset:4px}
 #tg .tt-row .tt-cred{margin:0 0 6px}
 #tg .tt-row .tt-ex{font-size:.98rem;line-height:1.5}
-@media(max-width:520px){#tg .tt-row{grid-template-columns:112px minmax(0,1fr);gap:12px}#tg .tt-row .tt-ex{font-size:.92rem}}
+@media(max-width:520px){#tg .tt-row{grid-template-columns:112px minmax(0,1fr);gap:12px}#tg .tt-row.tt-noimg{grid-template-columns:minmax(0,1fr)}#tg .tt-row .tt-ex{font-size:.92rem}}
 </style>
 </head>
 <body>
@@ -589,10 +590,10 @@ const timesBanner=()=>`<section class="panel tt-promo"><div><div class="tt-pn">T
 const ttCredits=p=>{const b=[];if(p.by)b.push(['By',p.by]);if(p.art)b.push(['Art by',p.art]);if(p.layout)b.push(['Layout by',p.layout]);return b.length?`<p class="tt-cred">${b.map(x=>x[0]+' <b>'+esc(user(x[1]).name)+'</b>').join(' · ')}</p>`:''};
 const ttCard=p=>`<article class="tt-card">${p.img?`<button class="tt-imgb" data-a="tpost" data-id="${p.id}" aria-label="Read ${esc(p.title)}"><img class="tt-img" src="/api?img=${p.img}" alt="" loading="lazy"></button>`:''}<div><span class="hint">${esc(ttLabel(p.sec))} · ${ttDate(p.ts)}</span><h3><button data-a="tpost" data-id="${p.id}">${esc(p.title)}</button></h3>${ttCredits(p)}<p class="tt-ex">${esc(excerpt(p.text))}</p>${db.canTimes?`<button class="link" data-a="tfeat" data-id="${p.id}">${p.feat?'★ Featured · remove':'☆ Feature this'}</button>`:''}</div></article>`;
 const ttTwo=t=>{t=String(t).replace(/\s+/g,' ').trim();const m=t.match(/[^.!?]+[.!?]+(?=\s|$)/g);let r=m?m.slice(0,2).join(' ').trim():t;if(r.length>230)r=r.slice(0,230).replace(/\s+\S*$/,'')+'...';return r||excerpt(t)};
-const ttRow=p=>`<article class="tt-row"><button class="tt-imgb" data-a="tpost" data-id="${p.id}" aria-label="Read ${esc(p.title)}">${p.img?`<img class="tt-img" src="/api?img=${p.img}" alt="" loading="lazy">`:'<div class="tt-ph tt-ph-o" aria-hidden="true">🍊</div>'}</button><div><span class="hint">${esc(ttLabel(p.sec))} · ${ttDate(p.ts)}</span><h3><button data-a="tpost" data-id="${p.id}">${esc(p.title)}</button></h3>${ttCredits(p)}<p class="tt-ex">${esc(ttTwo(p.text))}</p>${db.canTimes?`<button class="link" data-a="tfeat" data-id="${p.id}">${p.feat?'★ Featured · remove':'☆ Feature this'}</button>`:''}</div></article>`;
+const ttRow=p=>`<article class="tt-row${p.img?'':' tt-noimg'}">${p.img?`<button class="tt-imgb" data-a="tpost" data-id="${p.id}" aria-label="Read ${esc(p.title)}"><img class="tt-img" src="/api?img=${p.img}" alt="" loading="lazy"></button>`:''}<div><span class="hint">${esc(ttLabel(p.sec))} · ${ttDate(p.ts)}</span><h3><button data-a="tpost" data-id="${p.id}">${esc(p.title)}</button></h3>${ttCredits(p)}<p class="tt-ex">${esc(ttTwo(p.text))}</p>${db.canTimes?`<button class="link" data-a="tfeat" data-id="${p.id}">${p.feat?'★ Featured · remove':'☆ Feature this'}</button>`:''}</div></article>`;
 let ttCarI=0;
 const ttMotion=()=>window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth';
-const ttSlide=p=>`<div class="tt-sl"><button class="tt-imgb" data-a="tpost" data-id="${p.id}" aria-label="Read ${esc(p.title)}">${p.img?`<img class="tt-img" src="/api?img=${p.img}" alt="">`:'<div class="tt-ph tt-ph-o" aria-hidden="true">🍊</div>'}</button><div class="tt-sl-b"><span class="hint">${esc(ttLabel(p.sec))} · ${ttDate(p.ts)}</span><h3 class="tt-sl-h"><button data-a="tpost" data-id="${p.id}">${esc(p.title)}</button></h3>${ttCredits(p)}<p class="tt-ex">${esc(excerpt(p.text))}</p></div></div>`;
+const ttSlide=p=>`<div class="tt-sl">${p.img?`<button class="tt-imgb" data-a="tpost" data-id="${p.id}" aria-label="Read ${esc(p.title)}"><img class="tt-img" src="/api?img=${p.img}" alt=""></button>`:''}<div class="tt-sl-b"><span class="hint">${esc(ttLabel(p.sec))} · ${ttDate(p.ts)}</span><h3 class="tt-sl-h"><button data-a="tpost" data-id="${p.id}">${esc(p.title)}</button></h3>${ttCredits(p)}<p class="tt-ex">${esc(excerpt(p.text))}</p></div></div>`;
 const ttHero=list=>{const l=list.slice(0,3);return `<section class="tt-hero" aria-label="Latest pieces"><div class="tt-car" tabindex="0" aria-label="Latest pieces${l.length>1?', swipe for the next ones':''}">${l.map(ttSlide).join('')}</div>${l.length>1?`<div class="tt-cbar"><button class="link" data-a="ttcar" data-d="-1" aria-label="Previous piece">←</button><span class="tt-dots">${l.map((_,i)=>`<button data-a="ttdot" data-i="${i}" aria-label="Show piece ${i+1}" aria-current="${i===0}"></button>`).join('')}</span><button class="link" data-a="ttcar" data-d="1" aria-label="Next piece">→</button></div>`:''}</section>`};
 const ttFeatured=(tp,can)=>{const fl=tp.filter(x=>x.feat).sort((x,y)=>y.feat-x.feat).slice(0,6);
  if(fl.length)return `<section class="tt-featsec"><h2 class="tt-sh">Featured</h2><div class="tt-feat">${fl.map(ttCard).join('')}</div></section>`;
