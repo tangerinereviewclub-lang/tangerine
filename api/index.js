@@ -45,6 +45,7 @@ const TOPK = ["movies","albums","books","shows","games","other"];
 const CREW_TEAMS = ["Editorial", "Crew"];
 const TSEC = ["movies", "books", "games", "music", "culture", "magazine"];
 const TROLES = ["publisher", "writer", "artist"];
+const TKINDS = ["Article", "Essay", "Review", "Recommendation"];
 const DAY = 864e5;
 const ADMINS = (process.env.ADMIN_HANDLE || "").split(/[,\s]+/).map(x => x.trim().toLowerCase().replace(/^@/, "")).filter(Boolean);
 const isAdminHandle = h => ADMINS.includes(h);
@@ -643,7 +644,8 @@ export default async function handler(req, res) {
         const m = me();
         if (!isAdmin() && !tRolesOf(db, m.id).includes("publisher")) bad("Only publishers can post in the Times");
         const sec = TSEC.includes(d.sec) ? d.sec : bad("Pick a section");
-        const title = clip(d.title, 140), text = clip(d.text, 20000);
+        const title = clip(d.title, 140), text = clip(d.text, 20000), refs = clip(d.refs, 3000);
+        const kind = TKINDS.includes(d.kind) ? d.kind : bad("Pick a type: Article, Essay, Review or Recommendation");
         if (!title) bad("Add a headline first");
         if (!text) bad("Add the content first");
         const credit = (v, role, what) => {
@@ -666,10 +668,10 @@ export default async function handler(req, res) {
           await redis.del("tg:img:" + img);
           img = "";
         }
-        if (old) { Object.assign(old, { sec, title, text, by, art, layout, img, edited: true }); extra.tid = old.id; }
+        if (old) { Object.assign(old, { sec, kind, title, text, refs, by, art, layout, img, edited: true }); extra.tid = old.id; }
         else {
           if (db.tposts.length >= 500) bad("Delete some old Times pieces first");
-          const np = { id: id8(), sec, title, text, by, art, layout, img, ts: Date.now(), pub: m.id };
+          const np = { id: id8(), sec, kind, title, text, refs, by, art, layout, img, ts: Date.now(), pub: m.id };
           db.tposts.push(np); extra.tid = np.id;
         }
         break;
