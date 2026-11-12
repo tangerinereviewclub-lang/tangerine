@@ -734,8 +734,8 @@ export default async function handler(req, res) {
         if (ed && d.publish) { f.status = "published"; f.publishedAt = Date.now(); f.note = ""; }
         if (!ed && f.status === "pending") {
           db.users.filter(u => isAdminU(db, u) || rolesOf(db, u.id).includes("editor")).forEach(rv => mails.push(() => sendMail(rv.email, "Feature Picks: new piece to review",
-            `${author.name} (@${author.handle}) submitted "${f.title}" for Feature Picks.\n\nReview it here:\n${origin}/#feature-picks`,
-            `<p><b>${esc(author.name)}</b> (@${esc(author.handle)}) submitted <b>${esc(f.title)}</b> for Feature Picks.</p><p><a href="${origin}/#feature-picks">Review it</a></p>`)));
+            `${author.name} (@${author.handle}) submitted "${f.title}" for Feature Picks.\n\nReview it here:\n${origin}/feature-picks`,
+            `<p><b>${esc(author.name)}</b> (@${esc(author.handle)}) submitted <b>${esc(f.title)}</b> for Feature Picks.</p><p><a href="${origin}/feature-picks">Review it</a></p>`)));
         }
         break;
       }
@@ -748,7 +748,7 @@ export default async function handler(req, res) {
         const au = U(db, f.by);
         if (au && to !== "pending") {
           const ok = to === "published", subj = ok ? "Your Feature Picks piece is live" : "Feedback on your Feature Picks piece";
-          const body = ok ? `"${f.title}" has been published on Feature Picks.\n${origin}/#feature-picks` : `"${f.title}" was not published this time.${f.note ? "\n\nEditor's note: " + f.note : ""}\n\nYou can edit it and send it again.`;
+          const body = ok ? `"${f.title}" has been published on Feature Picks.\n${origin}/feature-picks` : `"${f.title}" was not published this time.${f.note ? "\n\nEditor's note: " + f.note : ""}\n\nYou can edit it and send it again.`;
           mails.push(() => sendMail(au.email, subj, body, "<p>" + esc(body).replace(/\n/g, "<br>") + "</p>"));
         }
         break;
