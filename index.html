@@ -155,6 +155,11 @@ body{margin:0;background:var(--bg)}
 #tg .tt-cred b{color:var(--ink)}
 #tg .tt-ex{margin:0}
 #tg .tt-text p{font-size:1.08rem;line-height:1.7;max-width:64ch}
+#tg .crew{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:0 22px;margin:0;padding:0;list-style:none}
+#tg .crew li{padding:9px 0;border-bottom:1px solid var(--line)}
+#tg .crew b{display:block}
+#tg .crew span{color:var(--mut);font-size:.92rem}
+#tg .tt-team{margin:0 0 26px}
 #tg .tt-refs{margin:28px 0 0;padding-top:14px;border-top:1px solid var(--line);max-width:64ch}
 #tg .tt-refs h4{margin:0 0 6px;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
 #tg .tt-refs ol{margin:0;padding-left:20px;font-size:.82rem;line-height:1.5;color:var(--mut)}
@@ -318,6 +323,8 @@ const lk=t=>esc(t).replace(/@([a-z0-9_]{3,20})/gi,(m,h)=>{const u=db.profiles.fi
 /* Links: Ctrl+K (or the Add link button) writes [text](https://...). It shows as a clickable link. Only http(s) links are allowed. */
 const lkx=t=>{const L=[];t=String(t==null?'':t).replace(/\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]{1,500})\)/g,(m,x,u)=>{L.push([x,u]);return '\u0001'+(L.length-1)+'\u0002'});
  return lk(t).replace(/\u0001(\d+)\u0002/g,(m,i)=>{const q=L[+i];return `<a class="link" href="${esc(q[1])}" target="_blank" rel="noopener noreferrer nofollow">${esc(q[0])}</a>`})};
+const staffTxt=l=>(l||[]).map(x=>x.name+(x.role?' | '+x.role:'')).join('\n');
+const staffList=l=>`<ul class="crew">${(l||[]).map(x=>`<li><b>${lk(x.name)}</b>${x.role?`<span>${esc(x.role)}</span>`:''}</li>`).join('')}</ul>`;
 const plainLk=t=>String(t==null?'':t).replace(/\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]{1,500})\)/g,'$1');
 function addLink(t){if(!t)return;const s=t.selectionStart,e=t.selectionEnd,sel=t.value.slice(s,e).replace(/[\[\]\n]/g,'');
  let u=prompt('Paste the link'+(sel?' for "'+sel.slice(0,40)+'"':'')+':','https://');if(!u)return;u=u.trim();if(!u)return;
@@ -656,19 +663,20 @@ const crewBox=()=>{const cr=db.profiles.filter(u=>u.crew);
 const TS=[['publisher','Publishers (Times admins)','Can post, edit and delete pieces in the Times. They get no other admin powers.'],['writer','Writers','Show up in the byline dropdown.'],['artist','Artists','Show up in the Art by and Layout by dropdowns.']];
 const tsBox=()=>`<section class="panel"><h2>Times team ✍️</h2><p class="hint">Only admins can change this.</p>${TS.map(x=>{const r=x[0],cur=tRole(r),rest=db.profiles.filter(u=>!cur.some(c=>c.id===u.id));
  return `<h3 style="font-size:1.05rem;margin:16px 0 2px">${x[1]}</h3><p class="hint" style="margin:0 0 6px">${x[2]}</p>${cur.length?cur.map(u=>`<div class="cm" style="align-items:center;flex-wrap:wrap">${av(u,'sm')}<span style="flex:1 1 160px">@${esc(u.handle)} <span class="hint">${esc(u.name)}</span></span><button class="link" data-a="tsrm" data-r="${r}" data-id="${u.id}">Remove</button></div>`).join(''):'<p class="hint">Nobody yet.</p>'}<div class="cform"><select id="ts-${r}" aria-label="Pick a username">${rest.map(u=>`<option value="${u.id}">@${esc(u.handle)} · ${esc(u.name)}</option>`).join('')}</select><button class="btn" data-a="tsadd" data-r="${r}">Add</button></div>`}).join('')}</section>`;
+const ttTeams=(T,adm)=>[['Editorial Team',T.ed],['Art and Publishing Team',T.ap]].map(x=>x[1].length||adm?`<section class="tt-team"><h2 class="tt-sh">${x[0]}</h2>${x[1].length?staffList(x[1]):'<p class="hint">Nobody listed yet. Tap "Edit this page" at the bottom to add people.</p>'}</section>`:'').join('');
 function timesView(){
  const tp=db.tposts||[],pst=view.pid&&tp.find(x=>x.id===view.pid),s=pst?pst.sec:(TT.some(x=>x[0]===view.s)?view.s:'latest'),t=db.times||{},adm=isAdmin(),can=!!db.canTimes;
- const T={head:t.head||TT_DEF.head,body:t.body||TT_DEF.body,about:t.about||TT_DEF.about,jh:t.joinHead||TT_DEF.joinHead,jb:t.joinBody||TT_DEF.joinBody,je:t.joinEmail||ABOUT_EMAIL};
+ const T={head:t.head||TT_DEF.head,body:t.body||TT_DEF.body,about:t.about||TT_DEF.about,jh:t.joinHead||TT_DEF.joinHead,jb:t.joinBody||TT_DEF.joinBody,je:t.joinEmail||ABOUT_EMAIL,ed:t.editorial||[],ap:t.artpub||[]};
  const mast=`<header class="tt-mast"><button class="tt-back" data-a="feed">← Back to the Club</button><h1>The Tangerine Times</h1><p>Features, essays, reviews, and recommendations from the Tangerine Review Club crew.</p></header><nav class="tt-nav" aria-label="Tangerine Times sections"><span class="tt-ind" aria-hidden="true"></span>${TT.map(x=>`<button data-a="timestab" data-s="${x[0]}" aria-current="${x[0]===s}">${x[1]}</button>`).join('')}</nav>`;
  if(timesWrite&&can)return mast+ttForm();
- if(timesEdit&&adm)return mast+`<section class="panel"><h2>Edit the Times page</h2><label for="tt-h">Headline (front page, shows until the first piece is posted)</label><input id="tt-h" maxlength="200" value="${esc(T.head)}"><label for="tt-b">Front page text (blank line between paragraphs)</label><textarea id="tt-b" maxlength="3000" style="min-height:140px">${esc(T.body)}</textarea><label for="tt-a">About the Times text</label><textarea id="tt-a" maxlength="3000" style="min-height:140px">${esc(T.about)}</textarea><label for="tt-jh">Join box title</label><input id="tt-jh" maxlength="100" value="${esc(T.jh)}"><label for="tt-jb">Join box text</label><textarea id="tt-jb" maxlength="500" style="min-height:90px">${esc(T.jb)}</textarea><label for="tt-je">Join box email</label><input id="tt-je" type="email" maxlength="120" value="${esc(T.je)}"><div class="actions"><button class="btn" data-a="savetimes">Save</button><button class="btn ghost" data-a="canceltimes">Cancel</button>${db.times?`<button class="btn ghost" data-a="resettimes">Back to original text</button>`:''}</div></section>`;
+ if(timesEdit&&adm)return mast+`<section class="panel"><h2>Edit the Times page</h2><label for="tt-h">Headline (front page, shows until the first piece is posted)</label><input id="tt-h" maxlength="200" value="${esc(T.head)}"><label for="tt-b">Front page text (blank line between paragraphs)</label><textarea id="tt-b" maxlength="3000" style="min-height:140px">${esc(T.body)}</textarea><label for="tt-a">About the Times text</label><textarea id="tt-a" maxlength="3000" style="min-height:140px">${esc(T.about)}</textarea><label for="tt-jh">Join box title</label><input id="tt-jh" maxlength="100" value="${esc(T.jh)}"><label for="tt-jb">Join box text</label><textarea id="tt-jb" maxlength="500" style="min-height:90px">${esc(T.jb)}</textarea><label for="tt-je">Join box email</label><input id="tt-je" type="email" maxlength="120" value="${esc(T.je)}"><label for="tt-ed">Editorial Team (one person per line: Name | Role)</label><textarea id="tt-ed" maxlength="3000" style="min-height:120px" placeholder="Achelois | Editor-in-Chief">${esc(staffTxt(T.ed))}</textarea><label for="tt-ap">Art and Publishing Team (one person per line: Name | Role)</label><textarea id="tt-ap" maxlength="3000" style="min-height:120px" placeholder="Name | Layout Artist">${esc(staffTxt(T.ap))}</textarea><p class="hint">Use @username to link to a profile. These show at the bottom of the Latest page. Leave a box empty to hide that team.</p><div class="actions"><button class="btn" data-a="savetimes">Save</button><button class="btn ghost" data-a="canceltimes">Cancel</button>${db.times?`<button class="btn ghost" data-a="resettimes">Back to original text</button>`:''}</div></section>`;
  const join=ttJoin(T),editBtn=adm?`<div class="actions"><button class="btn ghost" data-a="edittimes">Edit this page</button></div>`:'',writeBtn=can&&!pst&&s!=='about'?`<div class="actions" style="margin:0 0 22px"><button class="btn" data-a="ttwrite">Write a piece</button></div>`:'';
  let body;
  if(pst)body=ttArticle(pst)+join;
  else if(s==='about')body=`<section class="tt-soon"><h2>About the Times</h2>${timesParas(T.about)}</section>${join}${editBtn}`;
  else{const list=s==='latest'?tp:tp.filter(x=>x.sec===s);
-  if(list.length)body=writeBtn+(s==='latest'?ttHero(tp)+ttFeatured(tp,can)+join+editBtn:list.map(ttRow).join('')+join);
-  else if(s==='latest')body=writeBtn+`<section class="tt-soon"><h2>${esc(T.head)}</h2>${timesParas(T.body)}</section>${join}${editBtn}`;
+  if(list.length)body=writeBtn+(s==='latest'?ttHero(tp)+ttFeatured(tp,can)+ttTeams(T,adm)+join+editBtn:list.map(ttRow).join('')+join);
+  else if(s==='latest')body=writeBtn+`<section class="tt-soon"><h2>${esc(T.head)}</h2>${timesParas(T.body)}</section>${ttTeams(T,adm)}${join}${editBtn}`;
   else body=writeBtn+`<section class="tt-soon"><h2>${esc(ttLabel(s))} is coming soon.</h2><p>Nothing has been published here yet.</p></section>${join}`}
  if(s==='latest'&&!pst&&adm)body+=crewBox()+tsBox();
  const dx=ttDir*28;ttDir=0;return mast+`<div class="tt-slide" style="--dx:${dx}px">${body}</div>`}
@@ -724,13 +732,20 @@ function streaksSection(){
   :`<div class="actions"><button class="btn${x.done?' ghost':''}" data-a="streaklog" data-id="${st.id}">${x.done?'✓ Logged '+when+' (tap to undo)':'I '+v+' something '+when}</button><button class="btn danger" data-a="delstreak" data-id="${st.id}">Delete</button></div>`}</div>`}).join(''):'<p class="empty">No streaks yet. Start one above.</p>')+`</section>`}
 let aboutEdit=false;
 const ABOUT_DEF={head:"Tangerine Review Club is where opinions get peeled, sliced and shared. 🍊",body:"It's a space where people review and talk about all kinds of media and pop culture. Movies, documentaries, books, games, shows, anime, music and musicals all have a place, and so does anything else that doesn't fit those categories.\n\nRate it with tangerines, from one to five. Write a quick take or a full blog. Squeeze in a comment, answer the weekly prompt, vote in a poll, and watch the conversation get juicy. Keep a diary of everything you've peeled through, build a watchlist of what's ripening next, follow people whose taste you trust, and gather your favorites in clubs."};
-const aboutView=()=>{const ab=db.about||ABOUT_DEF,adm=isAdmin();
- const follow=`<h3 style="font-size:1.1rem;margin:18px 0 8px;color:var(--od)">Follow us</h3><div style="display:flex;gap:18px;flex-wrap:wrap">${ABOUT_INSTA?`<a class="link" href="https://instagram.com/${esc(ABOUT_INSTA)}" target="_blank" rel="noopener noreferrer">📷 @${esc(ABOUT_INSTA)}</a>`:''}<a class="link" href="mailto:${esc(ABOUT_EMAIL)}">✉️ ${esc(ABOUT_EMAIL)}</a></div>`;
+const aboutView=()=>{const ab=db.about||ABOUT_DEF,adm=isAdmin(),tm=db.times||{};
+ const ig=db.about&&typeof ab.insta==='string'?ab.insta:ABOUT_INSTA,em=db.about&&ab.email?ab.email:ABOUT_EMAIL;
+ const tText=(db.about&&ab.timesText)||tm.about||TT_DEF.about,crew=ab.crew||[];
+ const sh='margin-top:22px;padding-top:18px;border-top:1px solid var(--line)',hh='font-size:1.25rem;font-weight:800;line-height:1.2;color:var(--od);margin:0 0 10px';
+ const follow=`<h3 style="font-size:1.1rem;margin:18px 0 8px;color:var(--od)">Follow us</h3><div style="display:flex;gap:18px;flex-wrap:wrap">${ig?`<a class="link" href="https://instagram.com/${esc(ig)}" target="_blank" rel="noopener noreferrer">📷 @${esc(ig)}</a>`:''}<a class="link" href="mailto:${esc(em)}">✉️ ${esc(em)}</a></div>`;
  const back=`<button class="btn ghost" style="margin-bottom:14px" data-a="feed">Back to home</button>`;
- if(aboutEdit&&adm)return back+`<section class="panel"><h2>Edit About page</h2><label for="ab-h">Headline</label><input id="ab-h" maxlength="200" value="${esc(ab.head)}"><label for="ab-b">Text (leave a blank line between paragraphs)</label><textarea id="ab-b" maxlength="3000" style="min-height:260px">${esc(ab.body)}</textarea><div class="actions"><button class="btn" data-a="saveabout">Save</button><button class="btn ghost" data-a="cancelabout">Cancel</button>${db.about?`<button class="btn ghost" data-a="resetabout">Back to original text</button>`:''}</div></section>`;
- const tm=db.times||{},tAbout=tm.about||TT_DEF.about;
- const tsec=`<div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--line)"><h3 style="font-size:1.25rem;font-weight:800;line-height:1.2;color:var(--od);margin:0 0 10px">📰 The Tangerine Times</h3>${timesParas(tAbout)}<p>Sections: ${TT_SEC.map(x=>esc(x[1])).join(', ')}.</p><p><button class="link" data-a="times">Read the Tangerine Times →</button></p></div>`;
- return back+`<section class="panel">${ab.head?`<h3 style="font-size:1.5rem;font-weight:800;line-height:1.2;color:var(--od);margin:0 0 14px">${lk(ab.head)}</h3>`:''}${ab.body.split(/\n\s*\n/).filter(x=>x.trim()).map(x=>`<p style="white-space:pre-line">${lk(x.trim())}</p>`).join('')}${tsec}${follow}${adm?`<div class="actions"><button class="btn ghost" data-a="editabout">Edit this page</button></div>`:''}</section>`};
+ if(aboutEdit&&adm)return back+`<section class="panel"><h2>Edit About page</h2><label for="ab-h">Headline</label><input id="ab-h" maxlength="200" value="${esc(ab.head)}"><label for="ab-b">Text (leave a blank line between paragraphs)</label><textarea id="ab-b" data-lk maxlength="3000" style="min-height:200px">${esc(ab.body)}</textarea><p style="margin:0 0 8px">${lkHint('ab-b')}</p>
+ <label for="ab-c">The Crew (one person per line: Name | Role)</label><textarea id="ab-c" maxlength="3000" style="min-height:150px" placeholder="Achelois | Founder">${esc(staffTxt(crew))}</textarea><p class="hint">Use @username to link to a profile. Leave empty to hide the crew section.</p>
+ <label for="ab-t">The Tangerine Times section</label><textarea id="ab-t" data-lk maxlength="3000" style="min-height:140px">${esc(tText)}</textarea><p style="margin:0 0 8px">${lkHint('ab-t')}</p>
+ <label for="ab-i">Instagram username (without @, leave empty to hide)</label><input id="ab-i" maxlength="100" value="${esc(ig)}"><label for="ab-e">Contact email</label><input id="ab-e" type="email" maxlength="120" value="${esc(em)}">
+ <div class="actions"><button class="btn" data-a="saveabout">Save</button><button class="btn ghost" data-a="cancelabout">Cancel</button>${db.about?`<button class="btn ghost" data-a="resetabout">Back to original text</button>`:''}</div></section>`;
+ const crewSec=crew.length||adm?`<div style="${sh}"><h3 style="${hh}">🍊 The Crew</h3>${crew.length?staffList(crew):'<p class="hint">No crew listed yet. Tap "Edit this page" to add people and their roles.</p>'}</div>`:'';
+ const tsec=`<div style="${sh}"><h3 style="${hh}">📰 The Tangerine Times</h3>${timesParas(tText)}<p>Sections: ${TT_SEC.map(x=>esc(x[1])).join(', ')}.</p><p><button class="link" data-a="times">Read the Tangerine Times →</button></p></div>`;
+ return back+`<section class="panel">${ab.head?`<h3 style="font-size:1.5rem;font-weight:800;line-height:1.2;color:var(--od);margin:0 0 14px">${lk(ab.head)}</h3>`:''}${(ab.body||'').split(/\n\s*\n/).filter(x=>x.trim()).map(x=>`<p style="white-space:pre-line">${lkx(x.trim())}</p>`).join('')}${crewSec}${tsec}${follow}${adm?`<div class="actions"><button class="btn ghost" data-a="editabout">Edit this page</button></div>`:''}</section>`};
 function loadMore(){const fl=$('feed-list'),mo=$('more');if(!fl||!mo)return;const next=feedPosts.slice(feedShown,feedShown+20);fl.insertAdjacentHTML('beforeend',next.map(card).join(''));feedShown+=next.length;feedWant=feedShown;if(feedShown>=feedPosts.length){obs&&obs.disconnect();mo.remove()}}
 const grow=t=>{t.style.height='auto';t.style.height=Math.max(t.scrollHeight+2,260)+'px';const c=$('f-count');if(c){const v=t.value.trim(),n=v?v.split(/\s+/).length:0;c.textContent=n+' word'+(n===1?'':'s')}};
 const refreshBar=()=>{const bb=app.querySelector('.bar');if(bb)bb.outerHTML=bar()};
@@ -790,8 +805,8 @@ app.addEventListener('click',async e=>{
  else if(a==='timestab'){timesEdit=false;timesWrite=null;ttCarI=0;const oi=TT.findIndex(x=>x[0]===(view.s||'latest')),ni=TT.findIndex(x=>x[0]===b.dataset.s);if(oi===ni&&!view.pid)return;ttDir=view.pid&&oi===ni?-1:(ni>=oi?1:-1);go({n:'times',s:b.dataset.s})}
  else if(a==='edittimes'){timesEdit=true;timesWrite=null;render()}
  else if(a==='canceltimes'){timesEdit=false;render()}
- else if(a==='savetimes'){if(await api('settimes',{head:g('tt-h'),body:$('tt-b').value,about:$('tt-a').value,joinHead:g('tt-jh'),joinBody:$('tt-jb').value,joinEmail:g('tt-je')})){timesEdit=false;toast('Saved');render()}}
- else if(a==='resettimes'){if(!confirm('Go back to the original text?'))return;if(await api('settimes',{head:'',body:'',about:'',joinHead:'',joinBody:'',joinEmail:''})){timesEdit=false;toast('Back to the original text');render()}}
+ else if(a==='savetimes'){if(await api('settimes',{head:g('tt-h'),body:$('tt-b').value,about:$('tt-a').value,joinHead:g('tt-jh'),joinBody:$('tt-jb').value,joinEmail:g('tt-je'),editorial:$('tt-ed').value,artpub:$('tt-ap').value})){timesEdit=false;toast('Saved');render()}}
+ else if(a==='resettimes'){if(!confirm('Go back to the original text?'))return;if(await api('settimes',{head:'',body:'',about:'',joinHead:'',joinBody:'',joinEmail:'',editorial:'',artpub:''})){timesEdit=false;toast('Back to the original text');render()}}
  else if(a==='crewadd'){const v=$('crew-add')&&$('crew-add').value;if(v&&await api('setcrew',{id:v,team:$('crew-team').value})){toast('Badge given');render()}}
  else if(a==='crewrm'){if(await api('setcrew',{id,team:''})){toast('Badge removed');render()}}
  else if(a==='tsadd'){const r=b.dataset.r,v=$('ts-'+r)&&$('ts-'+r).value;if(v&&await api('settstaff',{id:v,role:r,on:true})){toast('Added');render()}}
@@ -869,8 +884,8 @@ app.addEventListener('click',async e=>{
  else if(a==='ldelc'){if(await api('ldelcomment',{id,i:+b.dataset.i})){render();toast('Comment deleted')}}
  else if(a==='editabout'){aboutEdit=true;render()}
  else if(a==='cancelabout'){aboutEdit=false;render()}
- else if(a==='saveabout'){if(await api('setabout',{head:g('ab-h'),body:$('ab-b').value})){aboutEdit=false;toast('About page saved');render()}}
- else if(a==='resetabout'){if(!confirm('Go back to the original About text?'))return;if(await api('setabout',{head:'',body:''})){aboutEdit=false;toast('Back to the original text');render()}}
+ else if(a==='saveabout'){if(await api('setabout',{head:g('ab-h'),body:$('ab-b').value,crew:$('ab-c').value,timesText:$('ab-t').value,insta:g('ab-i'),email:g('ab-e')})){aboutEdit=false;toast('About page saved');render()}}
+ else if(a==='resetabout'){if(!confirm('Go back to the original About text?'))return;if(await api('setabout',{head:'',body:'',crew:'',timesText:'',insta:'',email:''})){aboutEdit=false;toast('Back to the original text');render()}}
  else if(a==='sharelist'){const url=location.origin+'/lists/'+id,l=(db.lists||[]).find(x=>x.id===id);
   try{if(navigator.share){await navigator.share({title:l.title,url});return}}catch(err){if(err&&err.name==='AbortError')return}
   try{await copyText(url);toast('Link copied')}catch(err){toast(fallbackCopy(url)?'Link copied':url)}}
