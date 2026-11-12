@@ -155,7 +155,7 @@ body{margin:0;background:var(--bg)}
 #tg .tt-cred b{color:var(--ink)}
 #tg .tt-ex{margin:0}
 #tg .tt-text p{font-size:1.08rem;line-height:1.7;max-width:64ch}
-#tg .fmt{display:flex;gap:6px;margin:0 0 6px}
+#tg .fmt{display:flex;gap:6px;margin:6px 0 12px}
 #tg .fmt button{min-width:36px;height:34px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink);font:inherit;cursor:pointer}
 #tg .fmt button:hover{border-color:var(--o)}
 #tg .fmt button[aria-pressed="true"]{background:var(--os);border-color:var(--o)}
@@ -166,6 +166,7 @@ body{margin:0;background:var(--bg)}
 #tg .rte.is-empty::before{content:attr(data-ph);color:var(--mut);position:absolute;pointer-events:none}
 #tg .rte a{color:var(--o);text-decoration:underline}
 #tg .crew-h{font-size:1.5rem;font-weight:800;line-height:1.2;color:var(--od);margin:0 0 12px}
+#tg .crew-h.ln{padding-bottom:8px;border-bottom:2px solid var(--line);margin-bottom:14px}
 #tg .crew{display:flex;flex-wrap:wrap;gap:16px 44px;margin:0;padding:0;list-style:none}
 #tg .crew li{flex:0 1 auto;min-width:min(100%,170px);max-width:100%}
 #tg .crew-n{font-size:1.2rem;line-height:1.3;overflow-wrap:anywhere}
@@ -371,7 +372,7 @@ function initRte(){try{document.execCommand('defaultParagraphSeparator',false,'d
   const r=document.createElement('div');r.className='rte'+(ta.classList.contains('write')?' big':'');r.contentEditable='true';r.setAttribute('role','textbox');r.setAttribute('aria-multiline','true');r.dataset.for=ta.id;r.dataset.ph=ta.getAttribute('placeholder')||'';
   const lb=document.querySelector('label[for="'+ta.id+'"]');if(lb)r.setAttribute('aria-label',lb.textContent.trim());
   if(ta.style.minHeight)r.style.minHeight=ta.style.minHeight;
-  r.innerHTML=mdToRte(ta.value);r.classList.toggle('is-empty',!ta.value.trim());ta.after(r)})}
+  r.innerHTML=mdToRte(ta.value);r.classList.toggle('is-empty',!ta.value.trim());ta.after(r);const bar=app.querySelector('.fmt[data-for="'+ta.id+'"]');if(bar)r.after(bar)})}
 function addLink(r){if(!r)return;const sl=getSelection();const rg=sl.rangeCount?sl.getRangeAt(0).cloneRange():null;
  if(!rg||!r.contains(rg.commonAncestorContainer)){toast('Click inside the box first');return}
  const sel=sl.toString().replace(/[\[\]\n]/g,'').trim();
@@ -712,7 +713,7 @@ const crewBox=()=>{const cr=db.profiles.filter(u=>u.crew);
 const TS=[['publisher','Publishers (Times admins)','Can post, edit and delete pieces in the Times. They get no other admin powers.'],['writer','Writers','Show up in the byline dropdown.'],['artist','Artists','Show up in the Art by and Layout by dropdowns.']];
 const tsBox=()=>`<section class="panel"><h2>Times team ✍️</h2><p class="hint">Only admins can change this.</p>${TS.map(x=>{const r=x[0],cur=tRole(r),rest=db.profiles.filter(u=>!cur.some(c=>c.id===u.id));
  return `<h3 style="font-size:1.05rem;margin:16px 0 2px">${x[1]}</h3><p class="hint" style="margin:0 0 6px">${x[2]}</p>${cur.length?cur.map(u=>`<div class="cm" style="align-items:center;flex-wrap:wrap">${av(u,'sm')}<span style="flex:1 1 160px">@${esc(u.handle)} <span class="hint">${esc(u.name)}</span></span><button class="link" data-a="tsrm" data-r="${r}" data-id="${u.id}">Remove</button></div>`).join(''):'<p class="hint">Nobody yet.</p>'}<div class="cform"><select id="ts-${r}" aria-label="Pick a username">${rest.map(u=>`<option value="${u.id}">@${esc(u.handle)} · ${esc(u.name)}</option>`).join('')}</select><button class="btn" data-a="tsadd" data-r="${r}">Add</button></div>`}).join('')}</section>`;
-const ttTeams=(T,adm)=>[['🍊 The Crew',T.cr,1],['Editorial Team',T.ed,0],['Creatives and Publishing Team',T.ap,0]].map(x=>x[1].length||adm?`<section class="tt-team"><h3 class="crew-h">${x[0]}</h3>${x[1].length?staffList(x[1]):`<p class="hint">${x[2]?'No crew listed yet.':'Nobody listed yet. Tap "Edit this page" at the bottom to add people.'}</p>`}${x[2]&&adm?`<p style="margin:8px 0 0"><button class="link" data-a="editcrew">Edit the crew (on the About us page)</button></p>`:''}</section>`:'').join('');
+const ttTeams=(T,adm)=>[['The Crew',T.cr,1],['Editorial Team',T.ed,0],['Creatives and Publishing Team',T.ap,0]].map(x=>x[1].length||adm?`<section class="tt-team"><h3 class="crew-h ln">${x[0]}</h3>${x[1].length?staffList(x[1]):`<p class="hint">${x[2]?'No crew listed yet.':'Nobody listed yet. Tap "Edit this page" at the bottom to add people.'}</p>`}${x[2]&&adm?`<p style="margin:8px 0 0"><button class="link" data-a="editcrew">Edit the crew (on the About us page)</button></p>`:''}</section>`:'').join('');
 function timesView(){
  const tp=db.tposts||[],pst=view.pid&&tp.find(x=>x.id===view.pid),s=pst?pst.sec:(TT.some(x=>x[0]===view.s)?view.s:'latest'),t=db.times||{},adm=isAdmin(),can=!!db.canTimes;
  const T={head:t.head||TT_DEF.head,body:t.body||TT_DEF.body,about:t.about||TT_DEF.about,jh:t.joinHead||TT_DEF.joinHead,jb:t.joinBody||TT_DEF.joinBody,je:t.joinEmail||ABOUT_EMAIL,ed:t.editorial||[],ap:t.artpub||[],cr:(db.about&&db.about.crew)||[]};
@@ -792,7 +793,7 @@ const aboutView=()=>{const ab=db.about||ABOUT_DEF,adm=isAdmin(),tm=db.times||{};
  <label for="ab-t">The Tangerine Times section</label>${fmtBar('ab-t')}<textarea id="ab-t" data-lk maxlength="3000" style="min-height:140px">${esc(tText)}</textarea>
  <label for="ab-i">Instagram username (without @, leave empty to hide)</label><input id="ab-i" maxlength="100" value="${esc(ig)}"><label for="ab-e">Contact email</label><input id="ab-e" type="email" maxlength="120" value="${esc(em)}">
  <div class="actions"><button class="btn" data-a="saveabout">Save</button><button class="btn ghost" data-a="cancelabout">Cancel</button>${db.about?`<button class="btn ghost" data-a="resetabout">Back to original text</button>`:''}</div></section>`;
- const crewSec=crew.length||adm?`<div style="${sh}"><h3 class="crew-h">🍊 The Crew</h3>${crew.length?staffList(crew):'<p class="hint">No crew listed yet. Tap "Edit this page" to add people and their roles.</p>'}</div>`:'';
+ const crewSec=crew.length||adm?`<div style="${sh}"><h3 class="crew-h ln">🍊 The Crew</h3>${crew.length?staffList(crew):'<p class="hint">No crew listed yet. Tap "Edit this page" to add people and their roles.</p>'}</div>`:'';
  const tsec=`<div style="${sh}"><h3 class="crew-h">📰 The Tangerine Times</h3>${timesParas(tText)}<p>Sections: ${TT_SEC.map(x=>esc(x[1])).join(', ')}.</p><p style="margin:16px 0 4px"><button class="btn" data-a="times" style="font-size:1.15rem;font-weight:800;padding:14px 26px">📰 Read the Tangerine Times →</button></p></div>`;
  return back+`<section class="panel">${ab.head?`<h3 style="font-size:1.5rem;font-weight:800;line-height:1.2;color:var(--od);margin:0 0 14px">${lk(ab.head)}</h3>`:''}${(ab.body||'').split(/\n\s*\n/).filter(x=>x.trim()).map(x=>`<p style="white-space:pre-line">${lkx(x.trim())}</p>`).join('')}${crewSec}${tsec}${follow}${adm?`<div class="actions"><button class="btn ghost" data-a="editabout">Edit this page</button></div>`:''}</section>`};
 function loadMore(){const fl=$('feed-list'),mo=$('more');if(!fl||!mo)return;const next=feedPosts.slice(feedShown,feedShown+20);fl.insertAdjacentHTML('beforeend',next.map(card).join(''));feedShown+=next.length;feedWant=feedShown;if(feedShown>=feedPosts.length){obs&&obs.disconnect();mo.remove()}}
