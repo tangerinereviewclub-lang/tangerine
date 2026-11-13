@@ -854,6 +854,15 @@ const aboutView=()=>{const ab=db.about||ABOUT_DEF,adm=isAdmin(),tm=db.times||{};
 function loadMore(){const fl=$('feed-list'),mo=$('more');if(!fl||!mo)return;const next=feedPosts.slice(feedShown,feedShown+20);fl.insertAdjacentHTML('beforeend',next.map(card).join(''));feedShown+=next.length;feedWant=feedShown;if(feedShown>=feedPosts.length){obs&&obs.disconnect();mo.remove()}}
 const grow=t=>{t.style.height='auto';t.style.height=Math.max(t.scrollHeight+2,260)+'px';const c=$('f-count');if(c){const v=plainLk(t.value).trim(),n=v?v.split(/\s+/).length:0;c.textContent=n+' word'+(n===1?'':'s')}};
 const refreshBar=()=>{const bb=app.querySelector('.bar');if(bb)bb.outerHTML=bar()};
+function fitTitle(){const h=document.querySelector('#tg .top h1'),p=$('tg-sub');if(!h||!p||!h.offsetParent)return;
+ const cs=getComputedStyle(p),m=document.createElement('span');m.textContent='Fresh takes, honest reviews, juicy conversation.';
+ m.style.cssText='position:absolute;visibility:hidden;white-space:nowrap;font:'+cs.font+';letter-spacing:'+cs.letterSpacing;$('tg').appendChild(m);
+ const tw=m.getBoundingClientRect().width;m.remove();
+ const box=h.parentElement.clientWidth||tw,target=Math.min(tw,box);
+ h.style.display='inline-block';h.style.whiteSpace='nowrap';h.style.fontSize='100px';
+ const w=h.getBoundingClientRect().width;if(!w||!target)return;
+ h.style.fontSize=Math.max(24,Math.min(90,100*target/w))+'px'}
+window.addEventListener('resize',fitTitle);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fitTitle);
 function render(){
  let body;
  if(view.n==='join')body=joinView();
@@ -880,7 +889,7 @@ function render(){
  else if(view.n==='post'){const p=postById(view.id);body=p?postView(p):feedView()}
  else if(view.n==='profile')body=profileView(user(view.id));
  else body=feedView();
- const tt=view.n==='times';$('tg').classList.toggle('intimes',tt);document.title=tt?'The Tangerine Times':'Tangerine Takes';app.innerHTML=(tt?'':bar())+body;{const sb=$('tg-sub');if(sb)sb.textContent=me()?'Fresh takes, honest reviews, juicy conversation.':'Fresh takes, honest reviews, juicy conversation. Sign up, post a slice, and share what you watch, read and play.'}if(tt){ttInd();ttCar()}else ttLast=null;hbInit();
+ const tt=view.n==='times';$('tg').classList.toggle('intimes',tt);document.title=tt?'The Tangerine Times':'Tangerine Takes';app.innerHTML=(tt?'':bar())+body;{const sb=$('tg-sub');if(sb)sb.textContent=me()?'Fresh takes, honest reviews, juicy conversation.':'Fresh takes, honest reviews, juicy conversation. Sign up, post a slice, and share what you watch, read and play.';fitTitle()}if(tt){ttInd();ttCar()}else ttLast=null;hbInit();
  if(obs){obs.disconnect();obs=null}
  const mo=$('more');if(mo){obs=new IntersectionObserver(es=>{if(es[0].isIntersecting)loadMore()},{rootMargin:'500px'});obs.observe(mo)}
  initRte();const ft=$('f-text');if(ft)grow(ft);
