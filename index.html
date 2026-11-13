@@ -6,6 +6,11 @@
 <title>Tangerine Takes</title>
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/logo.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#FF8A00">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var t=localStorage.getItem('bb-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -61,8 +66,8 @@ body{margin:0;background:var(--bg)}
 #tg .chip{border:2px solid var(--line);background:var(--bg);border-radius:999px;padding:5px 14px;cursor:pointer;font-weight:500}
 #tg .chip[aria-pressed="true"]{background:var(--o);border-color:var(--o);color:#fff;font-weight:700}
 #tg .post{background:var(--bg);border:2px solid var(--line);border-radius:18px;padding:18px;margin-bottom:18px}
-#tg .post h3{font-size:20px}
-#tg .open{background:none;border:0;padding:0;text-align:left;cursor:pointer;font-family:"Bricolage Grotesque","DM Sans",sans-serif;font-size:20px;font-weight:800;line-height:1.15;color:var(--ink);-webkit-tap-highlight-color:rgba(217,95,0,.25)}
+#tg .post h3{font-size:20px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:anywhere}
+#tg .open{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:anywhere;background:none;border:0;padding:0;text-align:left;cursor:pointer;font-family:"Bricolage Grotesque","DM Sans",sans-serif;font-size:20px;font-weight:800;line-height:1.15;color:var(--ink);-webkit-tap-highlight-color:rgba(217,95,0,.25)}
 #tg .open:hover,#tg .open:active,#tg .open:focus-visible{color:var(--od);text-decoration:underline}
 #tg .post .meta .tag,#tg .post .meta.bigtags .tag{font-size:14px;padding:2px 10px}
 #tg .post .meta.bigtags{margin:8px 0 0}
@@ -73,6 +78,8 @@ body{margin:0;background:var(--bg)}
 #tg .tag{background:var(--os);border-radius:999px;padding:1px 10px;font-weight:700;color:var(--od);font-size:.82rem}
 #tg .rate{color:var(--o);letter-spacing:2px}
 #tg .body{white-space:pre-wrap;max-width:68ch}
+#tg .inline-spoiler{display:inline;border:0;border-radius:4px;background:var(--ink);color:transparent;text-shadow:none;padding:0 .22em;cursor:pointer;white-space:normal}
+#tg .inline-spoiler[aria-expanded="true"]{background:var(--os);color:var(--ink);text-shadow:none;padding:0 .12em}
 #tg .actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
 #tg .act{background:var(--os);border:0;border-radius:999px;padding:7px 14px;cursor:pointer;font-weight:700;color:var(--od)}
 #tg .act[aria-pressed="true"]{background:var(--o);color:#fff}
@@ -298,7 +305,7 @@ async function api(a,d){
   db=j.db;db.me=j.me;db.msgs=j.msgs||[];db.notes=j.notes||[];db.blocked=j.blocked||[];db.admin=!!j.admin;db.reports=j.reports||[];db.email=j.email||'';db.suspended=j.suspended||[];db.clubs=j.clubs||[];db.features=j.features||[];db.owner=!!j.owner;db.admins=j.admins||[];db.mod=!!j.mod;db.mods=j.mods||[];db.members=j.members||[];db.drafts=(db.posts||[]).filter(p=>p.draft);db.posts=(db.posts||[]).filter(p=>!p.draft);db.isCore=!!j.isCore;db.isEditor=!!j.isEditor;db.canWrite=!!j.canWrite;db.core=j.core||{};if(j.cmsgs)clubMsgs=j.cmsgs;return j}
  catch(e){toast('Network problem, try again');return null}}
 function ago(ts){const m=Math.round((Date.now()-ts)/60000);if(m<1)return'just now';if(m<60)return m+' min ago';const h=Math.round(m/60);if(h<24)return h+' h ago';return Math.round(h/24)+' d ago'}
-const excerpt=t=>{t=plainLk(t).replace(/\s+/g,' ');return t.length>150?t.slice(0,150).trim()+'...':t};
+const excerpt=t=>{t=String(t==null?'':t).replace(/\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]{1,500})\)/g,'$1').replace(/\[\/?[bius]\]/g,'').replace(/\s+/g,' ');if(t.length<=150)return t;let x=t.slice(0,150).trim();if((x.match(/\[spoiler\]/gi)||[]).length>(x.match(/\[\/spoiler\]/gi)||[]).length)x+='[/spoiler]';return x+'...'};
 const stars=n=>'🍊'.repeat(n)+'<span style="filter:grayscale(1);opacity:.3">'+'🍊'.repeat(5-n)+'</span>';
 const av=(u,c='')=>`<span class="av ${c}" aria-hidden="true">${esc(u.avatar)}</span>`;
 const CREW=['Editorial','Team'];
@@ -312,7 +319,7 @@ const isMod=()=>!!db.mod;
 const isEd=()=>!!db.isEditor;
 const followers=u=>db.profiles.filter(x=>(x.following||[]).includes(u.id)).length;
 const fbtn=u=>{const m=me();if(!m||m.id===u.id)return'';const f=(m.following||[]).includes(u.id);return `<button class="btn ${f?'ghost':''}" data-a="follow" data-id="${u.id}">${f?'Unfollow':'Follow'}</button>`};
-function go(v,keep){view=v;menuOpen='';try{const u=pathOf(v);if(keep){u?history.replaceState({v},'',u):history.replaceState({v},'')}else{u?history.pushState({v},'',u):history.pushState({v},'')}}catch(e){}if(!keep&&v.n!=='times'){app.classList.remove('vin');void app.offsetWidth;app.classList.add('vin');clearTimeout(go.t);go.t=setTimeout(()=>app.classList.remove('vin'),650)}render();if(!keep){const t=document.getElementById('tg');t.scrollIntoView&&t.scrollIntoView()}}
+function go(v,keep){if(!keep&&view.n==='feed'&&v.n==='post'){window.__ttFeedY=window.scrollY;try{history.replaceState({...history.state,v:view,scrollY:window.scrollY,feedWant},'',location.href)}catch(e){}}view=v;menuOpen='';try{const u=pathOf(v);if(keep){u?history.replaceState({...history.state,v},'',u):history.replaceState({...history.state,v},'')}else{u?history.pushState({v,scrollY:0},'',u):history.pushState({v,scrollY:0},'')}}catch(e){}if(!keep&&v.n!=='times'){app.classList.remove('vin');void app.offsetWidth;app.classList.add('vin');clearTimeout(go.t);go.t=setTimeout(()=>app.classList.remove('vin'),650)}render();if(!keep){const t=document.getElementById('tg');t.scrollIntoView&&t.scrollIntoView()}}
 
 function bar(){const u=me();
   const nav=`<button class="btn ghost" data-a="feed">Home</button>`;
@@ -382,11 +389,11 @@ const lkx=t=>{const L=[];t=String(t==null?'':t).replace(/\[([^\]\n]{1,200})\]\((
  return fmt(lk(t)).replace(/\u0001(\d+)\u0002/g,(m,i)=>{const q=L[+i];return `<a class="link" href="${esc(q[1])}" target="_blank" rel="noopener noreferrer nofollow">${esc(q[0])}</a>`})};
 const staffTxt=l=>(l||[]).map(x=>x.name+(x.role?' | '+x.role:'')).join('\n');
 const staffList=l=>`<ul class="crew">${(l||[]).map(x=>{const m=String(x.name).match(/^(.*?)\s+(@[A-Za-z0-9_]{3,20})$/);return `<li><div class="crew-n">${m?`<b>${esc(m[1])}</b> <span class="crew-u">${lk(m[2])}</span>`:`<b>${lk(x.name)}</b>`}</div>${x.role?`<div class="crew-r">${esc(x.role)}</div>`:''}</li>`}).join('')}</ul>`;
-const plainLk=t=>String(t==null?'':t).replace(/\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]{1,500})\)/g,'$1').replace(/\[\/?[bius]\]/g,'');
-const fmtBar=id=>`<div class="fmt" role="toolbar" aria-label="Formatting" data-for="${id}"><button type="button" data-a="fmt" data-c="bold" data-for="${id}" title="Bold (Ctrl+B)" aria-label="Bold" aria-pressed="false"><b>B</b></button><button type="button" data-a="fmt" data-c="italic" data-for="${id}" title="Italic (Ctrl+I)" aria-label="Italic" aria-pressed="false"><i>I</i></button><button type="button" data-a="fmt" data-c="underline" data-for="${id}" title="Underline (Ctrl+U)" aria-label="Underline" aria-pressed="false"><u>U</u></button><button type="button" data-a="fmt" data-c="strikeThrough" data-for="${id}" title="Strikethrough (Ctrl+Shift+X)" aria-label="Strikethrough" aria-pressed="false"><s>S</s></button></div>`;
+const plainLk=t=>String(t==null?'':t).replace(/\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]{1,500})\)/g,'$1').replace(/\[\/?[bius]\]/g,'').replace(/\[\/?spoiler\]/gi,'');
+const fmtBar=id=>`<div class="fmt" role="toolbar" aria-label="Formatting" data-for="${id}"><button type="button" data-a="fmt" data-c="bold" data-for="${id}" title="Bold (Ctrl+B)" aria-label="Bold" aria-pressed="false"><b>B</b></button><button type="button" data-a="fmt" data-c="italic" data-for="${id}" title="Italic (Ctrl+I)" aria-label="Italic" aria-pressed="false"><i>I</i></button><button type="button" data-a="fmt" data-c="underline" data-for="${id}" title="Underline (Ctrl+U)" aria-label="Underline" aria-pressed="false"><u>U</u></button><button type="button" data-a="fmt" data-c="strikeThrough" data-for="${id}" title="Strikethrough (Ctrl+Shift+X)" aria-label="Strikethrough" aria-pressed="false"><s>S</s></button><button type="button" data-a="fmtspoiler" data-for="${id}" title="Hide selected text as a spoiler" aria-label="Hide selected text as a spoiler">🙈 Spoiler</button></div>`;
 /* saved text -> what the editor shows */
 function mdToRte(md){return String(md||'').split('\n').map(line=>{const L=[];let t=line.replace(/\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]{1,500})\)/g,(m,x,u)=>{L.push([x,u]);return '\u0001'+(L.length-1)+'\u0002'});
- t=fmt(esc(t)).replace(/\u0001(\d+)\u0002/g,(m,i)=>'<a href="'+esc(L[+i][1])+'">'+esc(L[+i][0])+'</a>');return '<div>'+(t||'<br>')+'</div>'}).join('')}
+ t=fmt(esc(t)).replace(/\[spoiler\]([\s\S]*?)\[\/spoiler\]/gi,'<span data-inline-spoiler="1">$1</span>').replace(/\u0001(\d+)\u0002/g,(m,i)=>'<a href="'+esc(L[+i][1])+'">'+esc(L[+i][0])+'</a>');return '<div>'+(t||'<br>')+'</div>'}).join('')}
 /* what the editor shows -> saved text */
 function rteToMd(root){let o='';const nl=()=>{if(o&&!o.endsWith('\n'))o+='\n'};
  const plain=n=>n.nodeType===3?n.nodeValue:Array.from(n.childNodes).map(plain).join('');
@@ -398,6 +405,7 @@ function rteToMd(root){let o='';const nl=()=>{if(o&&!o.endsWith('\n'))o+='\n'};
   if(tg==='BR'){o+='\n';return}
   if(BLOCK.test(tg)){nl();Array.from(n.childNodes).forEach(walk);nl();return}
   if(tg==='A'){const hr=n.getAttribute('href')||'',tx=plain(n).replace(/[\[\]\n​]/g,'');if(/^https?:\/\//i.test(hr)&&tx.trim())o+='['+tx+']('+hr.replace(/\s/g,'%20').replace(/\)/g,'%29')+')';else o+=plain(n).replace(/​/g,'');return}
+  if(n.getAttribute&&n.getAttribute('data-inline-spoiler')==='1'){o+='[spoiler]';Array.from(n.childNodes).forEach(walk);o+='[/spoiler]';return}
   const s=n.style||{},fw=String(s.fontWeight||''),td=String(s.textDecorationLine||s.textDecoration||'');let tags='';
   if(tg==='B'||tg==='STRONG'||fw==='bold'||+fw>=600)tags+='b';
   if(tg==='I'||tg==='EM'||s.fontStyle==='italic')tags+='i';
@@ -415,6 +423,7 @@ function initRte(){try{document.execCommand('defaultParagraphSeparator',false,'d
   const lb=document.querySelector('label[for="'+ta.id+'"]');if(lb)r.setAttribute('aria-label',lb.textContent.trim());
   if(ta.style.minHeight)r.style.minHeight=ta.style.minHeight;
   r.innerHTML=mdToRte(ta.value);r.classList.toggle('is-empty',!ta.value.trim());ta.after(r);const bar=app.querySelector('.fmt[data-for="'+ta.id+'"]');if(bar)r.after(bar)})}
+function addSpoiler(id){const r=app.querySelector('.rte[data-for="'+id+'"]');if(!r)return;r.focus();const sel=getSelection(),txt=sel&&sel.toString();if(!txt){toast('Select the words you want to hide first');return}document.execCommand('insertText',false,'[spoiler]'+txt+'[/spoiler]');rteSync(r)}
 function addLink(r){if(!r)return;const sl=getSelection();const rg=sl.rangeCount?sl.getRangeAt(0).cloneRange():null;
  if(!rg||!r.contains(rg.commonAncestorContainer)){toast('Click inside the box first');return}
  const sel=sl.toString().replace(/[\[\]\n]/g,'').trim();
@@ -426,7 +435,9 @@ function addLink(r){if(!r)return;const sl=getSelection();const rg=sl.rangeCount?
  r.focus();sl.removeAllRanges();sl.addRange(rg);
  if(sel)document.execCommand('createLink',false,u);else document.execCommand('insertHTML',false,'<a href="'+esc(u)+'">'+esc(txt)+'</a>&#8203;');
  rteSync(r)}
-const bodyHtml=(p,full)=>p.spoiler&&!rev.has(p.id)?`<div class="body"><button class="btn ghost" data-a="reveal" data-id="${p.id}">⚠️ Contains spoilers. Tap to show</button></div>`:`<div class="body">${lkx(full?p.text:excerpt(plainLk(p.text)))}</div>`;
+const inlineRev=new Set();
+const inlineBody=(t,pid)=>{const chunks=[];let z=String(t||'').replace(/\[spoiler\]([\s\S]*?)\[\/spoiler\]/gi,(m,x)=>{const i=chunks.length;chunks.push(x);return '\u0003'+i+'\u0004'});z=lkx(z);return z.replace(/\u0003(\d+)\u0004/g,(m,i)=>{const k=pid+':'+i,shown=inlineRev.has(k);return `<button type="button" class="inline-spoiler" data-a="reveals" data-id="${pid}" data-i="${i}" aria-expanded="${shown}" title="${shown?'Hide spoiler':'Reveal spoiler'}">${lkx(chunks[+i])}</button>`})};
+const bodyHtml=(p,full)=>p.spoiler&&!rev.has(p.id)?`<div class="body"><button class="btn ghost" data-a="reveal" data-id="${p.id}">⚠️ Contains spoilers. Tap to show</button></div>`:`<div class="body">${inlineBody(full?p.text:excerpt(p.text),p.id)}</div>`;
 const meta=(p,big)=>`${big?`<div class="meta bigtags"><span class="tag">${esc(p.type)}</span>${p.media!==p.title?`<span class="tag">${esc(p.media)}</span>`:''}</div>`:''}<div class="meta">${userLink(user(p.by))}${big?'':`<span class="tag">${esc(p.type)}</span>`}${p.draft?'<span class="tag">Draft</span>':''}${p.prompt&&promptOf(p.prompt)?`<button class="link" data-a="prompt" data-id="${p.prompt}">💭 ${esc(promptOf(p.prompt).title)}</button>`:''}${!big&&p.media!==p.title?`<span class="tag">${esc(p.media)}</span>`:''}<span class="rate" aria-label="${p.rating} out of 5">${stars(p.rating)}</span><span>${ago(p._ots||p.ts)}${p.edited?' <span style="opacity:.6;font-size:.82em">(edited)</span>':''}</span></div>`;
 const card=p=>`<article class="post"><button class="open" data-a="open" data-id="${p.id}">${esc(p.title)}</button>${meta(p)}
  ${bodyHtml(p)}<div class="actions"><button class="btn ghost" data-a="open" data-id="${p.id}">Read post</button></div>${actions(p)}</article>`;
@@ -457,7 +468,7 @@ function editForm(p){return `<section class="panel"><h2>Edit your post</h2>${p.p
  <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="f-spoil" style="width:auto"${p.spoiler?' checked':''}>This post contains spoilers</label>
  <div class="actions">${p.draft?`<button class="btn" data-a="savepost" data-id="${p.id}" data-draft="0">Publish</button><button class="btn ghost" data-a="savepost" data-id="${p.id}" data-draft="1">Save draft</button>`:`<button class="btn" data-a="savepost" data-id="${p.id}" data-draft="0">Save changes</button>`}<button class="btn ghost" data-a="open" data-id="${p.id}">Cancel</button></div></section>`}
 function postView(p){const u=me();if(view.edit&&u&&u.id===p.by)return editForm(p);
- return `<button class="btn ghost" style="margin-bottom:14px" data-a="feed">Back to all posts</button>
+ return `<button class="btn ghost" style="margin-bottom:14px" data-a="backfeed">Back to all posts</button>
  <article class="post"><h3>${esc(p.title)}</h3>${meta(p,1)}${bodyHtml(p,1)}${p.draft?'<p class="hint">'+(p.prompt&&promptOf(p.prompt)?'💭 Answering the weekly prompt: <b>'+esc(promptOf(p.prompt).title)+'</b>. ':'')+'Draft: only you can see this. Edit it to publish.</p>':actions(p,1)}
  ${postTools(p)}
  <div class="comments"${p.draft?' hidden':''}><h3 style="font-size:1.1rem;margin-bottom:6px">Comments (${p.comments.length})</h3>
@@ -919,7 +930,7 @@ function render(){
  initRte();const ft=$('f-text');if(ft)grow(ft);
 }
 
-window.addEventListener('popstate',e=>{view=(e.state&&e.state.v)||routeNow()||{n:'feed'};render();window.scrollTo(0,0)});
+window.addEventListener('popstate',e=>{view=(e.state&&e.state.v)||routeNow()||{n:'feed'};render();requestAnimationFrame(()=>window.scrollTo(0,Math.max(0,Number(e.state&&e.state.scrollY)||0)))});
 function copyText(t){return navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(t):Promise.reject()}
 function fallbackCopy(t){const x=document.createElement('textarea');x.value=t;document.body.appendChild(x);x.select();let ok=false;try{ok=document.execCommand('copy')}catch(e){}x.remove();return ok}
 function needUser(){if(me())return true;toast('Create a profile or log in first');go({n:'join'});return false}
@@ -950,8 +961,11 @@ app.addEventListener('click',async e=>{
  if(st){rating=rating===+st.dataset.n?0:+st.dataset.n;app.querySelectorAll('#f-stars button').forEach(x=>x.classList.toggle('on',+x.dataset.n<=rating));return}
  const b=e.target.closest('[data-a]');if(!b)return;
  if(b.dataset.a==='fmt'){rteCmd(b.dataset.for,b.dataset.c);return}
+ if(b.dataset.a==='fmtspoiler'){addSpoiler(b.dataset.for);return}
  const a=b.dataset.a, id=b.dataset.id, p=postById(id), g=i=>$(i)?$(i).value.trim():'';
  if(a==='gocompose'){const b=$('compose-box');if(b){b.scrollIntoView({behavior:'smooth',block:'start'});const f=$('f-type');if(f)setTimeout(()=>f.focus({preventScroll:true}),350)}else go({n:'compose'})}
+ else if(a==='backfeed'){if(history.state&&history.state.v&&history.state.v.n==='feed')history.back();else{pre=null;feedWant=20;go({n:'feed'});requestAnimationFrame(()=>window.scrollTo(0,Number(window.__ttFeedY)||0))}}
+ else if(a==='reveals'){const k=id+':'+b.dataset.i;if(inlineRev.has(k))inlineRev.delete(k);else inlineRev.add(k);const y=window.scrollY;render();window.scrollTo(0,y)}
  else if(a==='feed'){pre=null;feedWant=20;go({n:'feed'})}
  else if(a==='join'){pickAv=AVATARS[0];go({n:'join'})}
  else if(a==='searchview')go({n:'search'});
@@ -1171,6 +1185,7 @@ app.addEventListener('paste',e=>{const r=e.target&&e.target.closest?e.target.clo
 app.addEventListener('mousedown',e=>{if(e.target.closest&&e.target.closest('.fmt button'))e.preventDefault()});
 document.addEventListener('selectionchange',()=>{const a=document.activeElement;if(a&&a.classList&&a.classList.contains('rte'))rteBar(a)});
 
+if('serviceWorker' in navigator && location.protocol==='https:')navigator.serviceWorker.register('/service-worker.js').catch(()=>{});
 api('state').then(()=>{const h=location.hash,rn=routeNow();if(h.startsWith('#reset='))view={n:'reset',token:h.slice(7)};else if(h.startsWith('#list-'))view={n:'list',id:h.slice(6)};else if(h.startsWith('#post-')&&postById(h.slice(6)))view={n:'post',id:h.slice(6)};else if(h==='#times'||h.startsWith('#times-'))view={n:'times',s:h.slice(7)||'latest'};else if(h==='#feature-picks')view={n:'features'};else if(h.startsWith('#feature-'))view={n:'feat',id:h.slice(9)};else if(rn)view=rn;
  if(view.n==='join')pickAv=AVATARS[0];
  render();try{const u=pathOf(view);if(u)history.replaceState({v:view},'',u);else history.replaceState({v:view},'')}catch(e){}
