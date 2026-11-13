@@ -152,10 +152,10 @@ body{margin:0;background:var(--bg)}
 #tg .tt-soon p{max-width:58ch;font-size:1.05rem}
 #tg .tt-join{margin:26px 0 8px;border-left:8px solid var(--o);padding:4px 0 4px 16px}
 #tg .tt-join p{margin:0 0 10px}
-#tg .hb{position:relative;overflow:hidden;border-radius:18px;margin:10px -8px 14px;padding:18px 22px 10px;min-height:250px;display:flex;flex-direction:column;background:var(--o);color:#3A2210}
+#tg .hb{position:relative;overflow:hidden;border-radius:18px;margin:10px -8px 14px;padding:18px 22px 10px;min-height:250px;display:flex;flex-direction:column;background:linear-gradient(135deg,#FFE9C9,#FFCF8E);color:#3A2210}
 #tg .hb>*{position:relative;z-index:1}
 #tg .hb>.tt-fl{position:absolute;z-index:0}
-#tg .hb .tt-fl{font-size:2.4rem;opacity:.2}
+#tg .hb .tt-fl{font-size:2.4rem;opacity:.6}
 #tg .hb .tt-fl.f2{font-size:1.6rem}
 #tg .hb .tt-fl.f3{font-size:1.2rem}
 #tg .hb-v{flex:1;overflow:hidden;display:flex;touch-action:pan-y}
@@ -860,11 +860,10 @@ const refreshBar=()=>{const bb=app.querySelector('.bar');if(bb)bb.outerHTML=bar(
 function fitTitle(){const h=document.querySelector('#tg .top h1'),p=$('tg-sub'),s1=$('tg-s1');if(!h||!p||!s1||!h.offsetParent)return;
  const g=h.parentElement;p.style.fontSize='';s1.style.whiteSpace='nowrap';
  const avail=g.clientWidth;let w=s1.getBoundingClientRect().width;if(!w||!avail)return;
- if(w>avail){const fs=parseFloat(getComputedStyle(p).fontSize)*avail/w;p.style.fontSize=Math.max(10,fs)+'px';w=s1.getBoundingClientRect().width;
-  if(w>avail){s1.style.whiteSpace='normal';w=avail}}
+ if(w>avail){s1.style.whiteSpace='normal';w=avail}
  h.style.display='inline-block';h.style.whiteSpace='nowrap';h.style.fontSize='100px';
  const hw=h.getBoundingClientRect().width;if(!hw)return;
- h.style.fontSize=Math.max(20,Math.min(90,100*Math.min(w,avail)/hw))+'px'}
+ h.style.fontSize=Math.max(24,Math.min(90,100*Math.min(w,avail)/hw))+'px'}
 window.addEventListener('resize',fitTitle);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fitTitle);
 function render(){
  let body;
