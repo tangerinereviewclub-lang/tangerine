@@ -465,9 +465,8 @@ function profileView(u){const mine=me()&&me().id===u.id, posts=db.posts.filter(p
  return `<section class="panel"><div class="phead">${av(u,'lg')}<div><h2>${esc(u.name)}</h2>${badgeHtml(u)?`<div style="margin:6px 0 2px">${badgeHtml(u)}</div>`:''}<div style="color:var(--mut)">@${esc(u.handle)}${pronTxt(u)}</div>
  <div class="stats"><span><b>${posts.length}</b> posts</span><span><b>${likes}</b> likes</span><span><b>${followers(u)}</b> followers</span><span><b>${(u.following||[]).length}</b> following</span></div>
  <div class="actions"><button class="btn ghost" data-a="diary" data-id="${u.id}">📔 Diary</button>${fbtn(u)}${me()&&!mine?`<button class="btn ghost" data-a="chat" data-id="${u.id}">✉️ Message</button><button class="btn ghost" data-a="block" data-id="${u.id}">🚫 Block</button>`:''}${isAdmin()&&!mine?`<button class="btn ghost" data-a="suspend" data-id="${u.id}">${(db.suspended||[]).includes(u.id)?'Unsuspend':'Suspend'}</button>`:''}</div></div></div>
- <p>${esc(u.bio)||'No bio yet.'}</p>${profLinks(u)}</section>
+ <p>${u.bio?lk(u.bio):'No bio yet.'}</p>${profLinks(u)}</section>
  ${topsView(u)}
- ${mine?streaksSection():''}
  ${bingoShares(u)}
  ${mine?`<section class="panel"><h2>Edit your profile</h2><label for="e-name">Display name</label><input id="e-name" maxlength="30" value="${esc(u.name)}">
  <label for="e-handle">Username</label><input id="e-handle" maxlength="20" value="${esc(u.handle)}">
@@ -513,19 +512,18 @@ const pmRes=q=>{q=q.trim().toLowerCase().replace(/^@/,'');const l=db.profiles.fi
 function inboxView(){if(!me())return `<section class="panel"><p>Log in to see your messages.</p><button class="btn" data-a="join">Log in</button></section>`;
  const t=threads(),sub=view.sub;
  const peel=sub==='peel'?`<section class="panel"><h2>Peel a message</h2><p class="hint">Find a member and start a chat.</p><input id="pm-q" placeholder="Search by name or username" autocomplete="off"><div id="pm-res" style="margin-top:8px">${pmRes('')}</div></section>`:'';
- const mk=sub==='club'?`<section class="panel"><h2>Create a club</h2><p class="hint">A club is a group chat. Pick the people you want in it.</p><label for="cl-n">Club name</label><input id="cl-n" maxlength="40" placeholder="e.g. K-drama fans"><div class="row"><div><label for="cl-e">Emoji</label><input id="cl-e" maxlength="8" placeholder="🍊"></div><div><label for="cl-d">Short description (optional)</label><input id="cl-d" maxlength="140" placeholder="What is this club about?"></div></div>${pickBox()}<div class="actions"><button class="btn" data-a="newclub">Create club</button><button class="btn ghost" data-a="inbox">Cancel</button></div></section>`:'';
- const cl=(db.clubs||[]).map(c=>`<div class="panel person"><span class="av">${esc(c.emoji)}</span><div style="flex:1 1 160px"><button class="link" data-a="club" data-id="${c.id}">${esc(c.name)}</button><div class="hint" style="margin:0">${esc(c.desc||'')} ${c.desc?'· ':''}${c.n} member${c.n===1?'':'s'}</div></div><button class="btn ghost" data-a="club" data-id="${c.id}">Open</button></div>`).join('');
- return `<section class="panel"><h2>Message</h2><div class="actions"><button class="btn" data-a="showpeel">🍊 Peel a message</button><button class="btn" data-a="showclub">🧡 Create a club (group chat)</button></div></section>${peel}${mk}`+
- `<h2 style="margin:18px 0 10px;color:var(--od)">Your chats</h2>`+(t.length?t.map(({o,l,last})=>{const u=user(o),un=l.filter(x=>x.to===db.me&&!x.read).length;return `<div class="panel person">${av(u)}<div style="flex:1 1 140px"><button class="link" data-a="chat" data-id="${o}">${esc(u.name)}${un?` (${un} new)`:''}</button><div class="hint" style="margin:0">${esc(excerpt(last.t))}</div></div></div>`}).join(''):'<p class="empty">No chats yet. Tap Peel a message to start one.</p>')+
- `<h2 style="margin:18px 0 10px;color:var(--od)">Your clubs</h2>`+(cl||'<p class="empty">No clubs yet. Tap Create a club to start a group chat.</p>')}
+ const mk=sub==='club'?`<section class="panel"><h2>Create a group chat</h2><p class="hint">Pick the people you want in it.</p><label for="cl-n">Group name</label><input id="cl-n" maxlength="40" placeholder="e.g. K-drama fans"><div class="row"><div><label for="cl-e">Emoji</label><input id="cl-e" maxlength="8" placeholder="🍊"></div><div><label for="cl-d">Short description (optional)</label><input id="cl-d" maxlength="140" placeholder="What is this group about?"></div></div>${pickBox()}<div class="actions"><button class="btn" data-a="newclub">Create group chat</button><button class="btn ghost" data-a="inbox">Cancel</button></div></section>`:'';
+ const cl=(db.clubs||[]).map(c=>`<div class="panel person"><span class="av">${esc(c.emoji)}</span><div style="flex:1 1 160px"><button class="link" data-a="club" data-id="${c.id}">${esc(c.name)}</button><div class="hint" style="margin:0">Group chat · ${esc(c.desc||'')} ${c.desc?'· ':''}${c.n} member${c.n===1?'':'s'}</div></div><button class="btn ghost" data-a="club" data-id="${c.id}">Open</button></div>`).join('');
+ return `<section class="panel"><h2>Message</h2><div class="actions"><button class="btn" data-a="showpeel">🍊 Peel a message</button><button class="btn" data-a="showclub">🧡 Create a group chat</button></div></section>${peel}${mk}`+
+ `<h2 style="margin:18px 0 10px;color:var(--od)">All chats</h2>`+((t.length||cl)?t.map(({o,l,last})=>{const u=user(o),un=l.filter(x=>x.to===db.me&&!x.read).length;return `<div class="panel person">${av(u)}<div style="flex:1 1 140px"><button class="link" data-a="chat" data-id="${o}">${esc(u.name)}${un?` (${un} new)`:''}</button><div class="hint" style="margin:0">${esc(excerpt(last.t))}</div></div></div>`}).join('')+cl:'<p class="empty">No chats yet. Tap Peel a message to start one, or Create a group chat.</p>')}
 const clubList=()=>clubMsgs.length?clubMsgs.map(m=>{const mine=m.by===db.me,c=(db.clubs||[]).find(x=>x.id===view.id),mod=mine||(c&&c.by===db.me)||isAdmin();return `<div class="cm">${av(user(m.by),'sm')}<div style="flex:1;min-width:0"><button class="link" data-a="profile" data-id="${m.by}">${esc(user(m.by).name)}</button> <span class="hint">${ago(m.ts)}</span>${mod?` <button class="link" data-a="delcm" data-id="${m.id}">Delete</button>`:''}<div style="white-space:pre-wrap;word-break:break-word">${lk(m.t)}</div></div></div>`}).join(''):'<p class="empty">No messages yet. Say hi.</p>';
 function clubView(id){const c=(db.clubs||[]).find(x=>x.id===id);if(!c||!me())return inboxView();
  return `<button class="btn ghost" style="margin-bottom:14px" data-a="inbox">Back to messages</button><section class="panel"><h2>${esc(c.emoji)} ${esc(c.name)}</h2><p class="hint" style="margin:0 0 8px">${esc(c.desc||'')} ${c.desc?'· ':''}${c.n} member${c.n===1?'':'s'} · created by ${esc(user(c.by).name)}</p>
- ${c.joined?`<div id="cm-list" style="max-height:55vh;overflow:auto;margin-top:8px">${clubList()}</div><div class="cform"><input id="cm-t" maxlength="500" placeholder="Message the club"><button class="btn" data-a="sendclub" data-id="${c.id}">Send</button></div>
- <div class="actions">${c.by!==db.me?`<button class="btn ghost" data-a="leaveclub" data-id="${c.id}">Leave club</button>`:''}${c.by===db.me||isAdmin()?`<button class="btn danger" data-a="delclub" data-id="${c.id}">Delete club</button>`:''}</div>`
+ ${c.joined?`<div id="cm-list" style="max-height:55vh;overflow:auto;margin-top:8px">${clubList()}</div><div class="cform"><input id="cm-t" maxlength="500" placeholder="Message the group"><button class="btn" data-a="sendclub" data-id="${c.id}">Send</button></div>
+ <div class="actions">${c.by!==db.me?`<button class="btn ghost" data-a="leaveclub" data-id="${c.id}">Leave group</button>`:''}${c.by===db.me||isAdmin()?`<button class="btn danger" data-a="delclub" data-id="${c.id}">Delete group</button>`:''}</div>`
  :''}</section>
  <section class="panel"><h2>Members (${c.n})</h2>${(c.m||[]).map(id=>`<div style="display:flex;align-items:center;gap:10px;padding:4px 0">${av(user(id),'sm')}<span style="flex:1">${esc(user(id).name)}${id===c.by?' 👑':''}</span>${(c.by===db.me||isAdmin())&&id!==c.by?`<button class="link" data-a="kick" data-id="${c.id}" data-u="${id}">Remove</button>`:''}</div>`).join('')}<div class="actions"><button class="btn ghost" data-a="showadd">+ Add people</button></div></section>
- ${view.adding?`<section class="panel"><h2>Add people to this club</h2>${pickBox()}<div class="actions"><button class="btn" data-a="addmem" data-id="${c.id}">Add to club</button><button class="btn ghost" data-a="club" data-id="${c.id}">Cancel</button></div></section>`:''}`}
+ ${view.adding?`<section class="panel"><h2>Add people to this group</h2>${pickBox()}<div class="actions"><button class="btn" data-a="addmem" data-id="${c.id}">Add to group</button><button class="btn ghost" data-a="club" data-id="${c.id}">Cancel</button></div></section>`:''}`}
 const cmUpdate=()=>{const l=$('cm-list');if(l){l.innerHTML=clubList();l.scrollTop=l.scrollHeight}};
 const chatList=id=>{const l=(db.msgs||[]).filter(m=>m.from===id||m.to===id);return l.length?l.map(m=>{const mine=m.from===db.me;return `<div style="display:flex;justify-content:${mine?'flex-end':'flex-start'};margin:6px 0"><div style="max-width:80%;padding:8px 12px;border-radius:14px;white-space:pre-wrap;word-break:break-word;background:${mine?'var(--o)':'var(--os)'};color:${mine?'#fff':'var(--ink)'}">${esc(m.t)}<div style="font-size:.72rem;opacity:.75">${ago(m.ts)}${mine?` · <button class="link" data-a="delm" data-id="${m.id}" style="font-size:.72rem;color:#fff">Delete</button>`:''}</div></div></div>`}).join(''):'<p class="empty">Say hi.</p>'};
 function chatView(id){if(!me())return inboxView();const u=user(id);return `<button class="btn ghost" style="margin-bottom:14px" data-a="inbox">Back to messages</button><section class="panel"><div class="phead">${av(u)}<h2 style="font-size:1.3rem">${esc(u.name)}</h2></div><div id="m-list" style="margin-top:12px">${chatList(id)}</div><div class="cform"><input id="m-t" maxlength="1000" placeholder="Write a message"><button class="btn" data-a="sendm" data-id="${id}">Send</button></div></section>`}
@@ -548,9 +546,9 @@ const PL={Movie:['movie','movies'],Documentary:['documentary','documentaries'],B
 const yr=p=>new Date(p.ts).getFullYear();
 function diaryView(u){const mine=me()&&me().id===u.id,sl=mine?getStreaks().flatMap(st=>(st.entries||[]).map(e=>({local:1,type:st.cat,media:e.title,rating:e.rating,text:e.text,ts:e.ts}))):[],all=db.posts.filter(p=>p.by===u.id).concat(sl).sort((a,b)=>b.ts-a.ts);
  const years=[...new Set(all.map(yr))].sort((a,b)=>b-a),inY=all.filter(p=>dyear==='All'||yr(p)===+dyear);
- const cats=[...new Set(all.map(p=>p.type))],l=inY.filter(p=>dcat==='All'||p.type===dcat);
+ const cats=TYPES.slice(1),l=inY.filter(p=>dcat==='All'||p.type===dcat);
  const n=l.length,word=dcat==='All'?(n===1?'entry':'entries'):(PL[dcat]||['entry','entries'])[n===1?0:1];
- return `<div class="actions" style="margin:0 0 14px"><button class="btn ghost" data-a="profile" data-id="${u.id}">Back to profile</button><button class="btn ghost" data-a="watch" data-id="${u.id}">📌 Watchlist</button></div>
+ return `<div class="actions" style="margin:0 0 14px"><button class="btn ghost" data-a="profile" data-id="${u.id}">Back to profile</button><button class="btn ghost" data-a="watch" data-id="${u.id}">📌 Watchlist</button>${mine?`<button class="btn ghost" data-a="streaks" data-id="${u.id}">🔥 Streaks</button>`:''}</div>
  <section class="panel"><h2>${mine?'My diary':esc(u.name)+"'s diary"}</h2>
  <div class="filters" style="margin:10px 0"><select id="dyear" aria-label="Year" style="width:auto"><option value="All">All years</option>${years.map(y=>`<option${String(y)===String(dyear)?' selected':''}>${y}</option>`).join('')}</select><select id="dcat" aria-label="Category" style="width:auto">${['All',...cats].map(t=>`<option value="${t}"${t===dcat?' selected':''}>${t==='All'?'All categories':t+' ('+inY.filter(p=>p.type===t).length+')'}</option>`).join('')}</select></div>
  <p style="margin:0"><b>${n}</b> ${word} ${dyear==='All'?'logged so far':'in '+dyear}</p></section>`+
@@ -558,7 +556,7 @@ function diaryView(u){const mine=me()&&me().id===u.id,sl=mine?getStreaks().flatM
 const forgotView=()=>`<section class="panel"><h2>Forgot password</h2><p class="hint">Enter your username or the email you signed up with. We will email you a reset link.</p><label for="fg-w">Username or email</label><input id="fg-w" autocapitalize="none"><div class="actions"><button class="btn" data-a="sendforgot">Email me a link</button><button class="btn ghost" data-a="join">Back</button></div></section>`;
 const resetView=()=>`<section class="panel"><h2>Choose a new password</h2><label for="rs-p">New password</label><input id="rs-p" type="password" autocomplete="new-password" placeholder="At least 6 characters"><div class="actions"><button class="btn" data-a="doreset">Save and log in</button></div></section>`;
 function watchView(u){const mine=me()&&me().id===u.id,l=u.watch||[];
- return `<div class="actions" style="margin:0 0 14px"><button class="btn ghost" data-a="profile" data-id="${u.id}">Back to profile</button><button class="btn ghost" data-a="diary" data-id="${u.id}">📔 Diary</button></div>
+ return `<div class="actions" style="margin:0 0 14px"><button class="btn ghost" data-a="profile" data-id="${u.id}">Back to profile</button><button class="btn ghost" data-a="diary" data-id="${u.id}">📔 Diary</button>${mine?`<button class="btn ghost" data-a="streaks" data-id="${u.id}">🔥 Streaks</button>`:''}</div>
  <section class="panel"><h2>${mine?'My watchlist':esc(u.name)+"'s watchlist"}</h2><p class="hint">Want to watch, read or play.</p>
  ${mine?`<div class="row"><div><label for="w-type">Category</label><select id="w-type">${TYPES.slice(1).map(t=>`<option>${t}</option>`).join('')}</select></div><div><label for="w-media">Title</label><input id="w-media" maxlength="80"></div></div><div class="actions"><button class="btn" data-a="addw">Add to watchlist</button></div>`:''}</section>`+
  (l.length?`<section class="panel">${l.map(x=>`<div class="cm" style="align-items:center;flex-wrap:wrap"><span style="flex:1 1 200px">${esc(x.type)} - ${esc(x.media)}</span>${mine?`<button class="btn ghost" data-a="donew" data-id="${x.id}">✓ Done, log it</button><button class="link" data-a="delw" data-id="${x.id}">Remove</button>`:''}</div>`).join('')}</section>`:'<p class="empty">Nothing ripening on the watchlist yet.</p>')}
@@ -601,6 +599,9 @@ const fCard=(f,showStatus)=>`<article class="post"><button class="open" data-a="
  ${f.dek?`<div class="body">${esc(f.dek)}</div>`:''}
  ${showStatus&&f.status==='rejected'&&f.note?`<p class="hint">Editor's note: ${esc(f.note)}</p>`:''}
  <div class="actions"><button class="btn ghost" data-a="feat" data-id="${f.id}">Read</button>${featTools(f)}</div></article>`;
+let fpEdit=false;
+const FP_DEF='Featured articles and posts from our beloved Tangerine writers. To be featured, email <a class="link" href="mailto:tangerinetakes@gmail.com">tangerinetakes@gmail.com</a>';
+const fpIntro=()=>db.fpintro&&db.fpintro.text?esc(db.fpintro.text).replace(/\n/g,'<br>'):FP_DEF;
 function featuresView(){const all=feats(),m=me(),adm=isEd();
  const pub=all.filter(f=>f.status==='published');
  const queue=adm?all.filter(f=>f.status==='pending'):[];
@@ -609,8 +610,9 @@ function featuresView(){const all=feats(),m=me(),adm=isEd();
  const coreBox=isAdmin()?`<section class="panel"><h2>Editorial Team 🍊</h2><p class="hint">Only Editorial Team members can send pieces to Feature Picks. Writers write pieces and send them to an editor. Only editors can approve, send back, edit anyone's piece and publish. One person can have both roles, so tick Writer, Editor or both. A writer's piece never goes live until an editor approves it.</p>
   ${coreIds.length?coreIds.map(id=>`<div style="display:flex;align-items:center;gap:10px;padding:4px 0;flex-wrap:wrap">${av(user(id),'sm')}<span style="flex:1 1 140px">${esc(user(id).name)} <span class="hint">@${esc(user(id).handle)}</span></span>${roleBoxes(id,core[id])}<button class="btn ghost" data-a="setcore" data-id="${id}" data-role="">Remove</button></div>`).join(''):'<p class="hint">No one yet.</p>'}
   <label for="core-add">Add a member</label><div class="cform"><select id="core-add">${db.profiles.filter(u=>!core[u.id]&&u.id!==db.me).map(u=>`<option value="${u.id}">${esc(u.name)} (@${esc(u.handle)})</option>`).join('')}</select><label style="display:inline-flex;align-items:center;gap:4px;font-weight:500;margin:0"><input type="checkbox" id="core-w" checked style="width:auto">Writer</label><label style="display:inline-flex;align-items:center;gap:4px;font-weight:500;margin:0"><input type="checkbox" id="core-e" style="width:auto">Editor</label><button class="btn" data-a="setcoreadd">Add to Editorial Team</button></div></section>`:'';
- return `<section class="panel"><h2>Feature Picks🧺</h2><p style="margin:0">Featured articles and posts from our beloved Tangerine writers. To be featured, email <a class="link" href="mailto:tangerinetakes@gmail.com">tangerinetakes@gmail.com</a></p>
-  ${db.canWrite?'<div class="actions"><button class="btn" data-a="featnew">Write a piece</button></div>':''}</section>
+ const fpBox=fpEdit&&isAdmin()?`<label for="fp-t">Intro text (shown under the Feature Picks title)</label><textarea id="fp-t" maxlength="1000" style="min-height:90px">${esc(db.fpintro&&db.fpintro.text?db.fpintro.text:'Featured articles and posts from our beloved Tangerine writers. To be featured, email tangerinetakes@gmail.com')}</textarea><div class="actions"><button class="btn" data-a="savefp">Save</button><button class="btn ghost" data-a="cancelfp">Cancel</button>${db.fpintro?`<button class="btn ghost" data-a="resetfp">Back to original text</button>`:''}</div>`:`<p style="margin:0">${fpIntro()}</p>`;
+ return `<section class="panel"><h2>Feature Picks🧺</h2>${fpBox}
+  ${(db.canWrite||(isAdmin()&&!fpEdit))?`<div class="actions">${db.canWrite?'<button class="btn" data-a="featnew">Write a piece</button>':''}${isAdmin()&&!fpEdit?'<button class="btn ghost" data-a="editfp">✏️ Edit this text</button>':''}</div>`:''}</section>
   ${coreBox}
   ${queue.length?`<h2 style="margin:0 0 12px;color:var(--od)">Waiting for your approval (${queue.length})</h2>${queue.map(f=>fCard(f,true)).join('')}`:''}
   ${mine.length?`<h2 style="margin:0 0 12px;color:var(--od)">Your pieces</h2>${mine.map(f=>fCard(f,true)).join('')}`:''}
@@ -636,7 +638,7 @@ function featForm(id){const f=id?feats().find(x=>x.id===id):null,adm=isAdmin(),e
 const TT=[['latest','Latest'],['movies','Movies/TV'],['books','Books'],['games','Games'],['music','Music'],['culture','Culture'],['magazine','Magazine'],['about','About the Times']];
 const TT_SEC=TT.filter(x=>x[0]!=='latest'&&x[0]!=='about');
 const TT_KINDS=['Article','Essay','Review','Recommendation'];
-const TT_DEF={head:'The first edition is on its way.',body:"The Tangerine Times is the club's own paper: features, essays and recommendations written by our team.\n\nWe are still warming up the presses. Check back soon.",about:"The Tangerine Times is the publishing side of Tangerine Takes. The club is where everyone posts their own slices. The Times is where our team writes and edits longer pieces, features and picks.\n\nEvery piece is read by an editor before it goes live.",joinHead:'Join the Tangerine Tree',joinBody:'We are looking for writers, editors and creatives. Fill out our form and tell us what you would like to do.',abHead:'Peeled, sliced and shared.',abBody:'Tangerine Takes is a space to review and talk about movies, shows, books, games, music and internet culture. Rate with tangerines, write reviews and join the conversation.'};
+const TT_DEF={head:'The first edition is on its way.',body:"The Tangerine Times is our own paper: features, essays and recommendations written by our team.\n\nWe are still warming up the presses. Check back soon.",about:"The Tangerine Times is the publishing side of Tangerine Takes. Tangerine Takes is where everyone posts their own slices. The Times is where our team writes and edits longer pieces, features and picks.\n\nEvery piece is read by an editor before it goes live.",joinHead:'Join the Tangerine Tree',joinBody:'We are looking for writers, editors and creatives. Fill out our form and tell us what you would like to do.',abHead:'Peeled, sliced and shared.',abBody:'Tangerine Takes is a space to review and talk about movies, shows, books, games, music and internet culture. Rate with tangerines, write reviews and join the conversation.'};
 let timesEdit=false,timesWrite=null,ttDir=1,ttLast=null;
 function ttPath(v){return v.pid?'/times/p/'+v.pid:'/times'+(v.s&&v.s!=='latest'?'/'+v.s:'')}
 function pathOf(v){
@@ -651,11 +653,12 @@ function pathOf(v){
   case'notes':return'/notifications';
   case'watch':{const u=hd(v.id);return u?'/watchlist/'+u:'/home'}
   case'diary':{const u=hd(v.id);return u?'/diary/'+u:'/home'}
+  case'streaks':{const u=hd(v.id);return u?'/streaks/'+u:'/home'}
   case'lists':return'/lists';
   case'list':return'/lists/'+v.id;
   case'listform':return v.id?'/lists/'+v.id+'/edit':'/lists/new';
   case'settings':return'/settings';
-  case'club':return'/clubs/'+v.id;
+  case'club':return'/groups/'+v.id;
   case'prompt':return'/prompts/'+v.id;
   case'about':return'/about';
   case'features':return'/feature-picks';
@@ -681,9 +684,10 @@ function routeNow(){
   case'notifications':return need({n:'notes'});
   case'watchlist':{const u=byH(seg[1]);return u?{n:'watch',id:u.id}:{n:'feed'}}
   case'diary':{const u=byH(seg[1]);return u?need({n:'diary',id:u.id}):{n:'feed'}}
+  case'streaks':{const u=byH(seg[1]);return u?need({n:'streaks',id:u.id}):{n:'feed'}}
   case'lists':return seg[1]&&seg[1]!=='new'?{n:'list',id:seg[1]}:{n:'lists'};
   case'settings':return need({n:'settings'});
-  case'clubs':return seg[1]?need({n:'club',id:seg[1]}):{n:'feed'};
+  case'groups':case'clubs':return seg[1]?need({n:'club',id:seg[1]}):{n:'feed'};
   case'prompts':return seg[1]?{n:'prompt',id:seg[1]}:{n:'feed'};
   case'about':return{n:'about'};
   case'feature-picks':return seg[1]&&seg[1]!=='new'?{n:'feat',id:seg[1]}:{n:'features'};
@@ -777,7 +781,7 @@ const ttTeams=(T,adm)=>[['The Team',T.cr,1],['Editorial Team',T.ed,0],['Creative
 function timesView(){
  const tp=db.tposts||[],pst=view.pid&&tp.find(x=>x.id===view.pid),s=pst?pst.sec:(TT.some(x=>x[0]===view.s)?view.s:'latest'),t=db.times||{},adm=isAdmin(),can=!!db.canTimes;
  const T={head:t.head||TT_DEF.head,body:t.body||TT_DEF.body,about:t.about||TT_DEF.about,jh:t.joinHead||TT_DEF.joinHead,jb:t.joinBody||TT_DEF.joinBody,je:t.joinEmail||ABOUT_EMAIL,ah:t.abHead||TT_DEF.abHead,ab:t.abBody||TT_DEF.abBody,jl:/^https?:\/\//i.test(t.joinLink||'')?t.joinLink:'',ed:t.editorial||[],bn:bnT(t),ap:t.artpub||[],cr:(db.about&&db.about.crew)||[]};
- const mast=`<header class="tt-mast"><button class="tt-back" data-a="feed">← Back to the Club</button><h1>The Tangerine Times</h1><p>Features, essays, reviews, and recommendations from the Tangerine Takes team.</p></header><nav class="tt-nav" aria-label="Tangerine Times sections"><span class="tt-ind" aria-hidden="true"></span>${TT.map(x=>`<button data-a="timestab" data-s="${x[0]}" aria-current="${x[0]===s}">${x[1]}</button>`).join('')}</nav>`;
+ const mast=`<header class="tt-mast"><button class="tt-back" data-a="feed">← Back to Tangerine Takes</button><h1>The Tangerine Times</h1><p>Features, essays, reviews, and recommendations from the Tangerine Takes team.</p></header><nav class="tt-nav" aria-label="Tangerine Times sections"><span class="tt-ind" aria-hidden="true"></span>${TT.map(x=>`<button data-a="timestab" data-s="${x[0]}" aria-current="${x[0]===s}">${x[1]}</button>`).join('')}</nav>`;
  if(timesWrite&&can)return mast+ttForm();
  if(timesEdit&&adm)return mast+`<section class="panel"><h2>Edit the Times page</h2><label for="tt-h">Headline (front page, shows until the first piece is posted)</label><input id="tt-h" maxlength="200" value="${esc(T.head)}"><label for="tt-b">Front page text (blank line between paragraphs)</label><textarea id="tt-b" maxlength="3000" style="min-height:140px">${esc(T.body)}</textarea><label for="tt-a">About the Times text</label><textarea id="tt-a" maxlength="3000" style="min-height:140px">${esc(T.about)}</textarea><h3 style="font-size:1.1rem;margin:18px 0 4px">Homepage banner: slide 1</h3><label for="tt-k1">Small label</label><input id="tt-k1" maxlength="100" value="${esc(T.bn.k1)}"><label for="tt-h1">Title</label><input id="tt-h1" maxlength="100" value="${esc(T.bn.h1)}"><label for="tt-t1">Text</label><textarea id="tt-t1" maxlength="400" style="min-height:80px">${esc(T.bn.t1)}</textarea><label for="tt-b1">Button text</label><input id="tt-b1" maxlength="100" value="${esc(T.bn.b1)}"><h3 style="font-size:1.1rem;margin:18px 0 4px">Homepage banner: slide 2 (About us)</h3><label for="tt-k2">Small label</label><input id="tt-k2" maxlength="100" value="${esc(T.bn.k2)}"><label for="tt-h2">Title</label><input id="tt-h2" maxlength="100" value="${esc(T.bn.h2)}"><label for="tt-t2">Text</label><textarea id="tt-t2" maxlength="400" style="min-height:80px">${esc(T.bn.t2)}</textarea><label for="tt-b2">Button text (opens the About us page)</label><input id="tt-b2" maxlength="100" value="${esc(T.bn.b2)}"><h3 style="font-size:1.1rem;margin:18px 0 4px">Homepage banner: slide 3 (Join us)</h3><label for="tt-k3">Small label</label><input id="tt-k3" maxlength="100" value="${esc(T.bn.k3)}"><label for="tt-b3">Button text</label><input id="tt-b3" maxlength="100" value="${esc(T.bn.b3)}"><p class="hint">The title, text and Google Form link for this slide are the three boxes right below.</p><label for="tt-jh">Join us title</label><input id="tt-jh" maxlength="100" value="${esc(T.jh)}"><label for="tt-jb">Join us text</label><textarea id="tt-jb" maxlength="500" style="min-height:90px">${esc(T.jb)}</textarea><label for="tt-jl">Join us Google Form link</label><input id="tt-jl" type="url" maxlength="300" placeholder="https://forms.gle/..." value="${esc(T.jl)}"><p class="hint">Paste your Google Form link here. The Join us banner and the join box at the bottom will send people to it. Leave empty to use email instead.</p><label for="tt-je">Join us email (backup contact)</label><input id="tt-je" type="email" maxlength="120" value="${esc(T.je)}"><label for="tt-ed">Editorial Team (one person per line: Name @username | Role)</label><textarea id="tt-ed" maxlength="3000" style="min-height:120px" placeholder="Achelois | Editor-in-Chief">${esc(staffTxt(T.ed))}</textarea><label for="tt-ap">Creatives and Publishing Team (one person per line: Name | Role)</label><textarea id="tt-ap" maxlength="3000" style="min-height:120px" placeholder="Name | Layout Artist">${esc(staffTxt(T.ap))}</textarea><p class="hint">Use @username to link to a profile. These show at the bottom of the Latest page. Leave a box empty to hide that team.</p><div class="actions"><button class="btn" data-a="savetimes">Save</button><button class="btn ghost" data-a="canceltimes">Cancel</button>${db.times?`<button class="btn ghost" data-a="resettimes">Back to original text</button>`:''}</div></section>`;
  const join=ttJoin(T),editBtn=adm?`<div class="actions"><button class="btn ghost" data-a="edittimes">Edit this page</button></div>`:'',writeBtn=can&&!pst&&s!=='about'?`<div class="actions" style="margin:0 0 22px"><button class="btn" data-a="ttwrite">Write a piece</button></div>`:'';
@@ -840,6 +844,8 @@ function streaksSection(){
    <label for="sl-r">Review (optional)</label><textarea id="sl-r" maxlength="2000" style="min-height:80px" placeholder="Any thoughts? It will show in your diary."></textarea>
    <div class="actions"><button class="btn" data-a="streaksave" data-id="${st.id}">Log it</button><button class="btn ghost" data-a="streakcancel">Cancel</button></div></div>`
   :`<div class="actions"><button class="btn${x.done?' ghost':''}" data-a="streaklog" data-id="${st.id}">${x.done?'✓ Logged '+when+' (tap to undo)':'I '+v+' something '+when}</button><button class="btn danger" data-a="delstreak" data-id="${st.id}">Delete</button></div>`}</div>`}).join(''):'<p class="empty">No streaks yet. Start one above.</p>')+`</section>`}
+function streaksView(u){if(!me()||me().id!==u.id)return diaryView(u);
+ return `<div class="actions" style="margin:0 0 14px"><button class="btn ghost" data-a="profile" data-id="${u.id}">Back to profile</button><button class="btn ghost" data-a="diary" data-id="${u.id}">📔 Diary</button><button class="btn ghost" data-a="watch" data-id="${u.id}">📌 Watchlist</button></div>`+streaksSection()}
 let aboutEdit=false;
 const ABOUT_DEF={head:"Tangerine Takes is where opinions get peeled, sliced and shared. 🍊",body:"It's a space where people review and talk about all kinds of media and pop culture. Movies, documentaries, books, games, shows, anime, music and musicals all have a place, and so does anything else that doesn't fit those categories.\n\nRate it with tangerines, from one to five. Write a quick take or a full blog. Squeeze in a comment, answer the weekly prompt, vote in a poll, and watch the conversation get juicy. Keep a diary of everything you've peeled through, build a watchlist of what's ripening next, follow people whose taste you trust, and gather your favorites in clubs."};
 const aboutView=()=>{const ab=db.about||ABOUT_DEF,adm=isAdmin(),tm=db.times||{};
@@ -880,6 +886,7 @@ function render(){
  else if(view.n==='forgot')body=forgotView();
  else if(view.n==='reset')body=resetView();
  else if(view.n==='diary')body=diaryView(user(view.id));
+ else if(view.n==='streaks')body=streaksView(user(view.id));
  else if(view.n==='settings')body=settingsView();
  else if(view.n==='chat')body=chatView(view.id);
  else if(view.n==='club')body=clubView(view.id);
@@ -910,11 +917,11 @@ app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='cm-t'){e.p
 function mnPop(){let p=$('mention-pop');if(!p){p=document.createElement('div');p.id='mention-pop';p.style.cssText='position:fixed;z-index:60;display:none;min-width:210px;max-width:92vw;padding:4px;background:var(--bg);border:2px solid var(--line);border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.15)';($('tg')||document.body).appendChild(p)}return p}
 let mnApply=null;
 function mnClose(){const p=$('mention-pop');if(p)p.style.display='none';mnApply=null}
-function mnOpen(q,rect,apply){const l=db.profiles.filter(u=>u.handle.startsWith(q)||u.name.toLowerCase().startsWith(q)).slice(0,5);if(!l.length)return mnClose();
+function mnOpen(q,rect,apply){const fl=(me()&&me().following)||[],l=db.profiles.filter(u=>fl.includes(u.id)&&(u.handle.startsWith(q)||u.name.toLowerCase().startsWith(q))).slice(0,5);if(!l.length)return mnClose();
  const p=mnPop();p.innerHTML=l.map(u=>`<button type="button" class="link" data-mn="${esc(u.handle)}" style="display:flex;gap:8px;align-items:center;width:100%;text-align:left;padding:6px 8px">${av(u,'sm')}<span><b>${esc(u.name)}</b> <span class="hint">@${esc(u.handle)}</span></span></button>`).join('');
  p.style.display='block';p.style.left=Math.max(8,Math.min(rect.left,innerWidth-230))+'px';p.style.top=Math.min(rect.bottom+4,innerHeight-200)+'px';mnApply=apply}
 document.addEventListener('input',e=>{const t=e.target;if(!t||!t.matches)return;
- if(t.matches('input#c-t,input#r-t')){const pos=t.selectionStart,m=/(^|\s)@([a-z0-9_]{0,20})$/i.exec(t.value.slice(0,pos));if(!m)return mnClose();
+ if(t.matches('input#c-t,input#r-t,textarea#e-bio')){const pos=t.selectionStart,m=/(^|\s)@([a-z0-9_]{0,20})$/i.exec(t.value.slice(0,pos));if(!m)return mnClose();
   mnOpen(m[2].toLowerCase(),t.getBoundingClientRect(),h=>{const st=pos-m[2].length-1;t.value=t.value.slice(0,st)+'@'+h+' '+t.value.slice(pos);const c=st+h.length+2;t.focus();t.setSelectionRange(c,c)});return}
  if(t.classList.contains('rte')){const sel=getSelection();if(!sel.rangeCount||!sel.isCollapsed)return mnClose();const n=sel.anchorNode,off=sel.anchorOffset;if(!n||n.nodeType!==3)return mnClose();
   const m=/(^|\s)@([a-z0-9_]{0,20})$/i.exec(n.data.slice(0,off));if(!m)return mnClose();const r=sel.getRangeAt(0).getBoundingClientRect(),box=(r.width||r.height)?r:t.getBoundingClientRect();
@@ -984,18 +991,19 @@ app.addEventListener('click',async e=>{
  else if(a==='pickmem'){clubPick.has(id)?clubPick.delete(id):clubPick.add(id);if($('cl-chips'))$('cl-chips').innerHTML=clChips();if($('cl-res'))$('cl-res').innerHTML=clRes($('cl-q')?$('cl-q').value:'')}
  else if(a==='showadd'){clubPick=new Set();go({n:'club',id:view.id,adding:true},true)}
  else if(a==='addmem'){if(!clubPick.size){toast('Pick someone to add first');return}if(await api('addmembers',{id,members:[...clubPick]})){toast('People added');clubPick=new Set();go({n:'club',id},true)}}
- else if(a==='kick'){if(!confirm('Remove this person from the club?'))return;if(await api('kick',{id,uid:b.dataset.u}))render()}
- else if(a==='leaveclub'){if(!confirm('Leave this club?'))return;if(await api('leaveclub',{id})){toast('You left the club');go({n:'inbox'})}}
- else if(a==='newclub'){if(!g('cl-n')){toast('Give your club a name');return}const r=await api('newclub',{name:g('cl-n'),emoji:g('cl-e'),desc:g('cl-d'),members:[...clubPick]});if(r){toast('Club created');clubMsgs=[];go({n:'club',id:r.club})}}
+ else if(a==='kick'){if(!confirm('Remove this person from the group?'))return;if(await api('kick',{id,uid:b.dataset.u}))render()}
+ else if(a==='leaveclub'){if(!confirm('Leave this group?'))return;if(await api('leaveclub',{id})){toast('You left the club');go({n:'inbox'})}}
+ else if(a==='newclub'){if(!g('cl-n')){toast('Give your group a name');return}const r=await api('newclub',{name:g('cl-n'),emoji:g('cl-e'),desc:g('cl-d'),members:[...clubPick]});if(r){toast('Group chat created');clubMsgs=[];go({n:'club',id:r.club})}}
  else if(a==='sendclub'){const t=g('cm-t');if(!t)return;if(await api('sendclub',{id,t})){$('cm-t').value='';cmUpdate()}}
  else if(a==='delcm'){if(await api('delclubmsg',{id,club:view.id}))cmUpdate()}
- else if(a==='delclub'){if(!confirm('Delete this club and all its messages?'))return;if(await api('delclub',{id}))go({n:'inbox'})}
+ else if(a==='delclub'){if(!confirm('Delete this group and all its messages?'))return;if(await api('delclub',{id}))go({n:'inbox'})}
  else if(a==='sendm'){const t=g('m-t');if(!t)return;if(await api('message',{id,t})&&$('m-list')){$('m-list').innerHTML=chatList(id);$('m-t').value='';refreshBar()}}
  else if(a==='delc'){if(!confirm('Delete this comment?'))return;if(await api('delcomment',{id,i:+b.dataset.i})){go({n:'post',id},true);toast('Comment deleted')}}
  else if(a==='delm'){if(!confirm('Delete this message for both of you?'))return;if(await api('delmessage',{id})&&view.n==='chat'){$('m-list').innerHTML=chatList(view.id);refreshBar()}}
  else if(a==='diary'){dcat='All';dyear='All';go({n:'diary',id})}
  else if(a==='dcat'){dcat=b.dataset.t;render()}
  else if(a==='watch')go({n:'watch',id});
+ else if(a==='streaks')go({n:'streaks',id});
  else if(a==='addw'){if(!g('w-media')){toast('Add a title first');return}if(await api('addwatch',{type:g('w-type'),media:g('w-media')}))render()}
  else if(a==='delw'){if(await api('delwatch',{id}))render()}
  else if(a==='donew'){const x=(me().watch||[]).find(w=>w.id===id);if(!x)return;pre={type:x.type,media:x.media,wid:id};rating=0;toast('Write your review to move it into your diary');go({n:'feed'})}
@@ -1022,6 +1030,10 @@ app.addEventListener('click',async e=>{
  else if(a==='lsend'){if(!needUser())return;const t=g('lc-t');if(!t){toast('Write a comment first');return}if(await api('lcomment',{id,t})){render();toast('Comment posted')}}
  else if(a==='ldelc'){if(await api('ldelcomment',{id,i:+b.dataset.i})){render();toast('Comment deleted')}}
  else if(a==='editabout'){aboutEdit=true;render()}
+ else if(a==='editfp'){fpEdit=true;render()}
+ else if(a==='cancelfp'){fpEdit=false;render()}
+ else if(a==='savefp'){if(await api('setfpintro',{text:$('fp-t').value})){fpEdit=false;toast('Feature Picks text saved');render()}}
+ else if(a==='resetfp'){if(!confirm('Go back to the original text?'))return;if(await api('setfpintro',{text:''})){fpEdit=false;toast('Back to the original text');render()}}
  else if(a==='cancelabout'){aboutEdit=false;render()}
  else if(a==='saveabout'){if(await api('setabout',{head:g('ab-h'),body:$('ab-b').value,crew:$('ab-c').value,timesText:$('ab-t').value,insta:g('ab-i'),email:g('ab-e')})){aboutEdit=false;toast('About page saved');render()}}
  else if(a==='resetabout'){if(!confirm('Go back to the original About text?'))return;if(await api('setabout',{head:'',body:'',crew:'',timesText:'',insta:'',email:''})){aboutEdit=false;toast('Back to the original text');render()}}
