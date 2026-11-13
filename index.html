@@ -258,7 +258,7 @@ body{margin:0;background:var(--bg)}
 <div id="tg">
   <header class="top">
     <img class="logo" src="/logo.png" alt="Tangerine Takes logo" width="96" height="96">
-    <div class="grow"><h1>Tangerine Takes</h1><p>Fresh takes, honest reviews, juicy conversation. Sign up, post a slice, and share what you watch, read and play.</p></div>
+    <div class="grow"><h1>Tangerine Takes</h1><p id="tg-sub">Fresh takes, honest reviews, juicy conversation. Sign up, post a slice, and share what you watch, read and play.</p></div>
     <div class="side"><button class="theme" id="theme-btn" type="button"></button></div>
   </header>
   <div id="tg-app"><p class="empty">Loading...</p></div>
@@ -351,14 +351,14 @@ function joinView(){return `<section class="panel"><h2>Log in</h2>
 
 function composeView(){const u=me();
  if(!u)return `<section class="panel"><h2>Write a post</h2><p>Create a profile to publish reviews and blogs.</p><button class="btn" data-a="join">Create a profile</button></section>`;
- return `<section class="panel"><h2>Share a slice as ${esc(u.name)}</h2>${pre&&pre.prompt?`<p style="margin:0 0 6px;padding:8px 12px;background:var(--os);border-radius:10px">💭 You are answering the weekly prompt: <b>${esc(pre.ptitle)}</b></p>`:''}${pre&&pre.pick?`<p style="margin:0 0 6px;padding:8px 12px;background:var(--os);border-radius:10px">🍊 Reviewing the Fresh pick of the week. It shows in the feed, on your profile and in your diary.</p>`:''}
+ return `<section class="panel"><h2>Share your take as ${esc(u.name)}</h2>${pre&&pre.prompt?`<p style="margin:0 0 6px;padding:8px 12px;background:var(--os);border-radius:10px">💭 You are answering the weekly prompt: <b>${esc(pre.ptitle)}</b></p>`:''}${pre&&pre.pick?`<p style="margin:0 0 6px;padding:8px 12px;background:var(--os);border-radius:10px">🍊 Reviewing the Fresh pick of the week. It shows in the feed, on your profile and in your diary.</p>`:''}
  <div class="row"><div><label for="f-type">Category</label><select id="f-type">${TYPES.slice(1).map(t=>`<option${pre&&pre.type===t?' selected':''}>${t}</option>`).join('')}</select></div>
  <div><label for="f-media">Title</label><input id="f-media" maxlength="80"${pre?` value="${esc(pre.media)}"`:''}></div></div>
  <label>Your rating</label><div class="stars" id="f-stars">${[1,2,3,4,5].map(n=>`<button type="button" class="${n<=rating?'on':''}" data-n="${n}" aria-label="${n} stars">🍊</button>`).join('')}</div>
  <label for="f-title">Headline</label><input id="f-title" maxlength="100" placeholder="Give your post a headline (optional)">
  <label for="f-text">Your review or blog</label>${fmtBar('f-text')}<textarea class="write" data-lk id="f-text" maxlength="10000" placeholder="What did you think? Write as much as you like, the box grows with you."></textarea><p class="hint" id="f-count">0 words</p>
  <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="f-spoil" style="width:auto">This post contains spoilers</label>
- <div class="actions"><button class="btn" data-a="publish">Share a slice</button><button class="btn ghost" data-a="savedraft">Save as draft</button></div></section>`}
+ <div class="actions"><button class="btn" data-a="publish">Post</button><button class="btn ghost" data-a="savedraft">Save as draft</button></div></section>`}
 
 const likersAll=new Set();
 let menuOpen='';
@@ -549,7 +549,7 @@ function diaryView(u){const mine=me()&&me().id===u.id,sl=mine?getStreaks().flatM
  <section class="panel"><h2>${mine?'My diary':esc(u.name)+"'s diary"}</h2>
  <div class="filters" style="margin:10px 0"><select id="dyear" aria-label="Year" style="width:auto"><option value="All">All years</option>${years.map(y=>`<option${String(y)===String(dyear)?' selected':''}>${y}</option>`).join('')}</select>${['All',...cats].map(t=>`<button class="chip" data-a="dcat" data-t="${t}" aria-pressed="${t===dcat}">${t}${t==='All'?'':' ('+inY.filter(p=>p.type===t).length+')'}</button>`).join('')}</div>
  <p style="margin:0"><b>${n}</b> ${word} ${dyear==='All'?'logged so far':'in '+dyear}</p></section>`+
- (l.length?`<section class="panel dlist">${l.map(p=>p.local?`<div class="cm" style="align-items:center;flex-wrap:wrap"><span style="flex:1 1 240px"><b>${esc(p.type)} - ${esc(p.media)}</b> - <span class="rate">${stars(p.rating)}</span> <span class="tag">🔥 streak</span>${p.text?`<br><span class="hint">${esc(p.text)}</span>`:''}</span><span class="hint" style="margin:0">${new Date(p.ts).toLocaleDateString()}</span></div>`:`<div class="cm" style="align-items:center;flex-wrap:wrap"><button class="link" data-a="open" data-id="${p.id}" style="flex:1 1 240px;text-align:left">${esc(p.type)} - ${esc(p.media)} - <span class="rate">${stars(p.rating)}</span></button><span class="hint" style="margin:0">${new Date(p.ts).toLocaleDateString()}</span></div>`).join('')}</section>`:'<p class="empty">Nothing peeled yet. Share a slice to start your diary.</p>')}
+ (l.length?`<section class="panel dlist">${l.map(p=>p.local?`<div class="cm" style="align-items:center;flex-wrap:wrap"><span style="flex:1 1 240px"><b>${esc(p.type)} - ${esc(p.media)}</b> - <span class="rate">${stars(p.rating)}</span> <span class="tag">🔥 streak</span>${p.text?`<br><span class="hint">${esc(p.text)}</span>`:''}</span><span class="hint" style="margin:0">${new Date(p.ts).toLocaleDateString()}</span></div>`:`<div class="cm" style="align-items:center;flex-wrap:wrap"><button class="link" data-a="open" data-id="${p.id}" style="flex:1 1 240px;text-align:left">${esc(p.type)} - ${esc(p.media)} - <span class="rate">${stars(p.rating)}</span></button><span class="hint" style="margin:0">${new Date(p.ts).toLocaleDateString()}</span></div>`).join('')}</section>`:'<p class="empty">Nothing peeled yet. Share your take to start your diary.</p>')}
 const forgotView=()=>`<section class="panel"><h2>Forgot password</h2><p class="hint">Enter your username or the email you signed up with. We will email you a reset link.</p><label for="fg-w">Username or email</label><input id="fg-w" autocapitalize="none"><div class="actions"><button class="btn" data-a="sendforgot">Email me a link</button><button class="btn ghost" data-a="join">Back</button></div></section>`;
 const resetView=()=>`<section class="panel"><h2>Choose a new password</h2><label for="rs-p">New password</label><input id="rs-p" type="password" autocomplete="new-password" placeholder="At least 6 characters"><div class="actions"><button class="btn" data-a="doreset">Save and log in</button></div></section>`;
 function watchView(u){const mine=me()&&me().id===u.id,l=u.watch||[];
@@ -880,7 +880,7 @@ function render(){
  else if(view.n==='post'){const p=postById(view.id);body=p?postView(p):feedView()}
  else if(view.n==='profile')body=profileView(user(view.id));
  else body=feedView();
- const tt=view.n==='times';$('tg').classList.toggle('intimes',tt);document.title=tt?'The Tangerine Times':'Tangerine Takes';app.innerHTML=(tt?'':bar())+body;if(tt){ttInd();ttCar()}else ttLast=null;hbInit();
+ const tt=view.n==='times';$('tg').classList.toggle('intimes',tt);document.title=tt?'The Tangerine Times':'Tangerine Takes';app.innerHTML=(tt?'':bar())+body;{const sb=$('tg-sub');if(sb)sb.textContent=me()?'Fresh takes, honest reviews, juicy conversation.':'Fresh takes, honest reviews, juicy conversation. Sign up, post a slice, and share what you watch, read and play.'}if(tt){ttInd();ttCar()}else ttLast=null;hbInit();
  if(obs){obs.disconnect();obs=null}
  const mo=$('more');if(mo){obs=new IntersectionObserver(es=>{if(es[0].isIntersecting)loadMore()},{rootMargin:'500px'});obs.observe(mo)}
  initRte();const ft=$('f-text');if(ft)grow(ft);
@@ -1068,7 +1068,7 @@ app.addEventListener('click',async e=>{
   const d={type:g('f-type'),media:g('f-media'),title:g('f-title')||g('f-media'),rating,text:g('f-text'),spoiler:$('f-spoil').checked};
   if(!d.media||!d.text){toast('Add a title and your review first');return}
   if(!rating){toast('Pick a star rating first');return}
-  if(await api('publish',{...d,wid:pre&&pre.wid,prompt:pre&&pre.prompt})){const jump=pre&&(pre.prompt||pre.pick);pre=null;rating=0;toast('Slice shared! 🍊');const np=db.posts.filter(x=>x.by===db.me).sort((a,b)=>b.ts-a.ts)[0];if(jump&&np)go({n:'post',id:np.id});else render()}}
+  if(await api('publish',{...d,wid:pre&&pre.wid,prompt:pre&&pre.prompt})){const jump=pre&&(pre.prompt||pre.pick);pre=null;rating=0;toast('Take shared! 🍊');const np=db.posts.filter(x=>x.by===db.me).sort((a,b)=>b.ts-a.ts)[0];if(jump&&np)go({n:'post',id:np.id});else render()}}
  else if(a==='follow'){if(!needUser())return;
   if(await api('follow',{id})){if($('s-res'))$('s-res').innerHTML=searchRes($('s-q').value);else render()}}
  else if(a==='prompt')go({n:'prompt',id});
