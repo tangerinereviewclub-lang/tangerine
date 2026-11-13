@@ -330,8 +330,8 @@ const profLinks=u=>{const out=[];
  (u.links||[]).filter(x=>/^https?:\/\//.test(x)).forEach(x=>out.push(`<a class="link" href="${esc(x)}" target="_blank" rel="noopener noreferrer nofollow">🔗 ${esc(host(x))}</a>`));
  return out.length?`<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px">${out.join('')}</div>`:''};
 function joinView(){return `<section class="panel"><h2>Log in</h2>
- <label for="l-handle">Username or email</label><input id="l-handle" maxlength="120" placeholder="e.g. lacyreads" autocapitalize="none">
- <label for="l-pw">Password</label><input id="l-pw" type="password" autocomplete="current-password">
+ <label for="l-handle">Username or email<span style="color:#D64000" aria-hidden="true"> *</span></label><input id="l-handle" maxlength="120" placeholder="e.g. lacyreads" autocapitalize="none">
+ <label for="l-pw">Password<span style="color:#D64000" aria-hidden="true"> *</span></label><input id="l-pw" type="password" autocomplete="current-password">
  <div class="actions"><button class="btn" data-a="loginname">Log in</button><button class="btn ghost" data-a="forgot">Forgot password?</button></div></section>
  <section class="panel"><h2>New here? Create your profile</h2>
  <p class="hint" style="margin-top:0"><span style="color:#D64000" aria-hidden="true">*</span> Required</p>
