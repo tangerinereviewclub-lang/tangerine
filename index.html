@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Tangerine Review Club</title>
+<title>Tangerine Takes</title>
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/logo.png">
 <script>try{var t=localStorage.getItem('bb-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
@@ -124,7 +124,21 @@ body{margin:0;background:var(--bg)}
 #tg.intimes{max-width:820px}
 #tg.intimes .top{display:none}
 #tg a.btn{display:inline-block;text-decoration:none}
-#tg .tt-mast{background:var(--o);color:#3A2210;margin:0 -18px;padding:14px 18px 26px;box-shadow:0 0 0 100vmax var(--o);clip-path:inset(-100vmax -100vmax 0 -100vmax)}
+#tg .tt-mast{background:var(--o);color:#3A2210;margin:10px -8px 14px;padding:16px 22px 18px;border-radius:18px;min-height:290px;display:flex;flex-direction:column}
+#tg .tt-bn{display:flex;flex:1;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+#tg .tt-bn::-webkit-scrollbar{display:none}
+#tg .tt-bs{flex:0 0 100%;box-sizing:border-box;scroll-snap-align:start;min-height:210px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start}
+#tg .tt-bk{font-weight:800;font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;opacity:.85;margin-top:14px}
+#tg .tt-mast .tt-bh{font-family:"Fraunces","Bricolage Grotesque",Georgia,serif;font-weight:900;font-size:clamp(1.9rem,7vw,3rem);line-height:1;letter-spacing:-.01em;margin:8px 0 10px;color:#3A2210}
+#tg .tt-bbtns{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin-top:16px}
+#tg .tt-mast .tt-bb{background:#3A2210;color:#FFF3E0;border-color:#3A2210;margin:0}
+#tg .tt-mast .tt-be{background:none;border:0;padding:6px 0;cursor:pointer;font-weight:700;color:#3A2210;text-decoration:underline;text-underline-offset:3px}
+#tg .tt-bbar{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px}
+#tg .tt-bbar>button{background:none;border:0;font-size:1.3rem;font-weight:800;color:#3A2210;cursor:pointer;padding:4px 10px}
+#tg .tt-bdots{display:flex;align-items:center;gap:8px}
+#tg .tt-bdots button{width:10px;height:10px;min-width:0;min-height:0;padding:0;margin:0;border:0;border-radius:999px;background:rgba(58,34,16,.3);cursor:pointer;transition:width .25s,background-color .25s}
+#tg .tt-bdots button[aria-current="true"]{width:26px;background:#3A2210}
+@media(prefers-reduced-motion:reduce){#tg .tt-bdots button{transition:none}}
 #tg .tt-mast :focus-visible{outline-color:#3A2210}
 #tg .tt-back{background:none;border:0;padding:6px 0;cursor:pointer;font-weight:700;color:#3A2210;text-decoration:underline;text-underline-offset:3px}
 #tg .tt-mast h1{font-family:"Fraunces","Bricolage Grotesque",Georgia,serif;font-weight:900;font-size:clamp(2.5rem,10vw,4.8rem);letter-spacing:-.02em;line-height:.95;margin:20px 0 10px;color:#3A2210}
@@ -222,9 +236,9 @@ body{margin:0;background:var(--bg)}
 
 <div id="tg">
   <header class="top">
-    <img class="logo" src="/logo.png" alt="Tangerine Review Club logo" width="96" height="96">
-    <div class="grow"><h1>Tangerine Review Club</h1><p>Fresh takes, honest reviews, juicy conversation. Sign up, post a slice, and share what you watch, read and play.</p></div>
-    <div class="side"><button class="theme" id="about-btn" type="button">🍊 About us</button><button class="theme" id="theme-btn" type="button"></button></div>
+    <img class="logo" src="/logo.png" alt="Tangerine Takes logo" width="96" height="96">
+    <div class="grow"><h1>Tangerine Takes</h1><p>Fresh takes, honest reviews, juicy conversation. Sign up, post a slice, and share what you watch, read and play.</p></div>
+    <div class="side"><button class="theme" id="theme-btn" type="button"></button></div>
   </header>
   <div id="tg-app"><p class="empty">Loading...</p></div>
   <div class="toast" id="tg-toast" role="status"></div>
@@ -262,8 +276,8 @@ function ago(ts){const m=Math.round((Date.now()-ts)/60000);if(m<1)return'just no
 const excerpt=t=>{t=plainLk(t).replace(/\s+/g,' ');return t.length>150?t.slice(0,150).trim()+'...':t};
 const stars=n=>'🍊'.repeat(n)+'<span style="filter:grayscale(1);opacity:.3">'+'🍊'.repeat(5-n)+'</span>';
 const av=(u,c='')=>`<span class="av ${c}" aria-hidden="true">${esc(u.avatar)}</span>`;
-const CREW=['Editorial','Crew'];
-const badgeHtml=u=>u&&u.crew?`<span class="badge" title="Official Tangerine Review Club staff">🍊 ${u.crew==='Editorial'?'Editorial':'Crew'}</span>`:'';
+const CREW=['Editorial','Team'];
+const badgeHtml=u=>u&&u.crew?`<span class="badge" title="Official Tangerine Takes staff">🍊 ${u.crew==='Editorial'?'Editorial':'Team'}</span>`:'';
 const userLink=u=>`<button class="link" data-a="profile" data-id="${u.id}">${av(u,'sm')}${esc(u.name)}</button>${badgeHtml(u)}`;
 const unread=()=>(db.msgs||[]).filter(m=>m.to===db.me&&!m.read).length;
 const unreadN=()=>(db.notes||[]).filter(n=>!n.read).length;
@@ -596,7 +610,7 @@ function featForm(id){const f=id?feats().find(x=>x.id===id):null,adm=isAdmin(),e
 const TT=[['latest','Latest'],['movies','Movies/TV'],['books','Books'],['games','Games'],['music','Music'],['culture','Culture'],['magazine','Magazine'],['about','About the Times']];
 const TT_SEC=TT.filter(x=>x[0]!=='latest'&&x[0]!=='about');
 const TT_KINDS=['Article','Essay','Review','Recommendation'];
-const TT_DEF={head:'The first edition is on its way.',body:"The Tangerine Times is the club's own paper: features, essays and recommendations written by our crew.\n\nWe are still warming up the presses. Check back soon.",about:"The Tangerine Times is the publishing side of Tangerine Review Club. The club is where everyone posts their own slices. The Times is where our crew writes and edits longer pieces, features and picks.\n\nEvery piece is read by an editor before it goes live.",joinHead:'Want to join the Times?',joinBody:'We are looking for writers, editors and creatives. Email us and tell us what you would like to do.'};
+const TT_DEF={head:'The first edition is on its way.',body:"The Tangerine Times is the club's own paper: features, essays and recommendations written by our team.\n\nWe are still warming up the presses. Check back soon.",about:"The Tangerine Times is the publishing side of Tangerine Takes. The club is where everyone posts their own slices. The Times is where our team writes and edits longer pieces, features and picks.\n\nEvery piece is read by an editor before it goes live.",joinHead:'Want to join the Times?',joinBody:'We are looking for writers, editors and creatives. Fill out our form and tell us what you would like to do.',abHead:'Peeled, sliced and shared.',abBody:'Tangerine Takes is a space to review and talk about movies, shows, books, games, music and internet culture. Rate with tangerines, write reviews and join the conversation.'};
 let timesEdit=false,timesWrite=null,ttDir=1,ttLast=null;
 function ttPath(v){return v.pid?'/times/p/'+v.pid:'/times'+(v.s&&v.s!=='latest'?'/'+v.s:'')}
 function pathOf(v){
@@ -659,9 +673,9 @@ const ttLabel=k=>{const x=TT.find(y=>y[0]===k);return x?x[1]:k};
 const ttMeta=p=>[p.kind,ttLabel(p.sec)].filter(Boolean).map(esc).join(' · ');
 const ttDate=ts=>new Date(ts).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
 const tRole=r=>db.profiles.filter(u=>((db.tstaff||{})[u.id]||[]).includes(r));
-const ttJoin=T=>`<div class="tt-join"><p style="font-weight:700">${esc(T.jh)}</p><p>${esc(T.jb)}</p><a class="btn" href="mailto:${esc(T.je)}?subject=${encodeURIComponent('Joining the Tangerine Times')}">Email ${esc(T.je)}</a></div>`;
+const ttJoin=T=>`<div class="tt-join"><p style="font-weight:700">${esc(T.jh)}</p><p>${esc(T.jb)}</p>${T.jl?`<a class="btn" href="${esc(T.jl)}" target="_blank" rel="noopener noreferrer">Fill out the form →</a> `:''}<a class="${T.jl?'link':'btn'}" href="mailto:${esc(T.je)}?subject=${encodeURIComponent('Joining the Tangerine Times')}">Email ${esc(T.je)}</a></div>`;
 const timesParas=t=>t.split(/\n\s*\n/).filter(x=>x.trim()).map(x=>`<p style="white-space:pre-line">${lkx(x.trim())}</p>`).join('');
-const timesBanner=()=>`<section class="panel tt-promo"><div><div class="tt-pn">The Tangerine Times</div><div class="hint" style="margin:4px 0 0">Our own paper, written by the crew.${(db.tposts||[]).length?'':' Coming soon.'}</div></div><button class="btn" data-a="times">Read the Tangerine Times →</button></section>`;
+const timesBanner=()=>`<section class="panel tt-promo"><div><div class="tt-pn">The Tangerine Times</div><div class="hint" style="margin:4px 0 0">Our own paper, written by the team.${(db.tposts||[]).length?'':' Coming soon.'}</div></div><button class="btn" data-a="times">Read the Tangerine Times →</button></section>`;
 const ttCredits=p=>{const b=[];if(p.by)b.push(['By',p.by]);if(p.art)b.push(['Art by',p.art]);if(p.layout)b.push(['Layout by',p.layout]);return b.length?`<p class="tt-cred">${b.map(x=>x[0]+' <b>'+esc(user(x[1]).name)+'</b>').join(' · ')}</p>`:''};
 const ttCard=p=>`<article class="tt-card">${p.img?`<button class="tt-imgb" data-a="tpost" data-id="${p.id}" aria-label="Read ${esc(p.title)}"><img class="tt-img" src="/api?img=${p.img}" alt="" loading="lazy"></button>`:''}<div><span class="hint">${ttMeta(p)} · ${ttDate(p.ts)}</span><h3><button data-a="tpost" data-id="${p.id}">${esc(p.title)}</button></h3>${ttCredits(p)}<p class="tt-ex">${esc(excerpt(p.text))}</p>${db.canTimes?`<button class="link" data-a="tfeat" data-id="${p.id}">${p.feat?'★ Featured · remove':'☆ Feature this'}</button>`:''}</div></article>`;
 const ttTwo=t=>{t=plainLk(t).replace(/\s+/g,' ').trim();const m=t.match(/[^.!?]+[.!?]+(?=\s|$)/g);let r=m?m.slice(0,2).join(' ').trim():t;if(r.length>230)r=r.slice(0,230).replace(/\s+\S*$/,'')+'...';return r||excerpt(t)};
@@ -673,6 +687,10 @@ const ttHero=list=>{const l=list.slice(0,5);return `<section class="tt-hero" ari
 const ttFeatured=(tp,can)=>{const fl=tp.filter(x=>x.feat).sort((x,y)=>y.feat-x.feat).slice(0,6);
  if(fl.length)return `<section class="tt-featsec"><h2 class="tt-sh">Featured</h2><div class="tt-feat">${fl.map(ttCard).join('')}</div></section>`;
  return can?`<section class="tt-featsec"><h2 class="tt-sh">Featured</h2><p class="hint">Nothing featured yet. Tap "☆ Feature this" on a piece to show it here (up to 6).</p></section>`:''};
+let bnI=0;
+function bnCar(){const t=app.querySelector('.tt-bn');if(!t)return;const dots=app.querySelectorAll('.tt-bdots button'),mark=i=>dots.forEach((d,k)=>d.setAttribute('aria-current',k===i));
+ if(bnI&&bnI<dots.length){t.scrollLeft=bnI*t.clientWidth}else bnI=0;mark(bnI);
+ let raf;t.addEventListener('scroll',()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{const i=Math.round(t.scrollLeft/(t.clientWidth||1));bnI=i;mark(i)})})}
 function ttCar(){const t=app.querySelector('.tt-car');if(!t)return;const dots=app.querySelectorAll('.tt-dots button'),mark=i=>dots.forEach((d,k)=>d.setAttribute('aria-current',k===i));
  if(ttCarI&&ttCarI<dots.length){t.scrollLeft=ttCarI*t.clientWidth}else ttCarI=0;mark(ttCarI);
  let raf;t.addEventListener('scroll',()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{const i=Math.round(t.scrollLeft/(t.clientWidth||1));ttCarI=i;mark(i)})})}
@@ -707,19 +725,19 @@ function ttForm(){const w=timesWrite,wr=tRole('writer'),ar=tRole('artist');
  <label for="tt-refs">References (optional)</label>${fmtBar('tt-refs')}<textarea id="tt-refs" data-lk maxlength="3000" style="min-height:110px" placeholder="One source per line. For example: Author, Title, Year, or a link.">${esc(w.refs||'')}</textarea><p class="hint">Shows in small text at the end of the piece, as a numbered list. One reference per line.</p>
  <div class="actions"><button class="btn" data-a="ttsave">${w.id?'Save changes':'Publish'}</button><button class="btn ghost" data-a="ttcancel">Cancel</button></div></section>`}
 const crewBox=()=>{const cr=db.profiles.filter(u=>u.crew);
- return `<section class="panel"><h2>Crew badges 🍊</h2><p class="hint">Only admins can give these. Pick Editorial for editors and Crew for everyone else on the team.</p>
- ${cr.length?cr.map(u=>`<div class="cm" style="align-items:center;flex-wrap:wrap">${av(u,'sm')}<span style="flex:1 1 160px">${esc(u.name)} <span class="hint">@${esc(u.handle)}</span></span><span class="badge">🍊 ${u.crew==='Editorial'?'Editorial':'Crew'}</span><button class="link" data-a="crewrm" data-id="${u.id}">Remove</button></div>`).join(''):'<p class="hint">No crew badges yet.</p>'}
+ return `<section class="panel"><h2>Team badges 🍊</h2><p class="hint">Only admins can give these. Pick Editorial for editors and Team for everyone else.</p>
+ ${cr.length?cr.map(u=>`<div class="cm" style="align-items:center;flex-wrap:wrap">${av(u,'sm')}<span style="flex:1 1 160px">${esc(u.name)} <span class="hint">@${esc(u.handle)}</span></span><span class="badge">🍊 ${u.crew==='Editorial'?'Editorial':'Team'}</span><button class="link" data-a="crewrm" data-id="${u.id}">Remove</button></div>`).join(''):'<p class="hint">No team badges yet.</p>'}
  <label for="crew-add">Give a badge to</label><div class="cform"><select id="crew-add">${db.profiles.filter(u=>!u.crew).map(u=>`<option value="${u.id}">${esc(u.name)} (@${esc(u.handle)})</option>`).join('')}</select><select id="crew-team">${CREW.map(t=>`<option>${t}</option>`).join('')}</select><button class="btn" data-a="crewadd">Give badge</button></div></section>`};
 const TS=[['publisher','Publishers (Times admins)','Can post, edit and delete pieces in the Times. They get no other admin powers.'],['writer','Writers','Show up in the byline dropdown.'],['artist','Artists','Show up in the Art by and Layout by dropdowns.']];
 const tsBox=()=>`<section class="panel"><h2>Times team ✍️</h2><p class="hint">Only admins can change this.</p>${TS.map(x=>{const r=x[0],cur=tRole(r),rest=db.profiles.filter(u=>!cur.some(c=>c.id===u.id));
  return `<h3 style="font-size:1.05rem;margin:16px 0 2px">${x[1]}</h3><p class="hint" style="margin:0 0 6px">${x[2]}</p>${cur.length?cur.map(u=>`<div class="cm" style="align-items:center;flex-wrap:wrap">${av(u,'sm')}<span style="flex:1 1 160px">@${esc(u.handle)} <span class="hint">${esc(u.name)}</span></span><button class="link" data-a="tsrm" data-r="${r}" data-id="${u.id}">Remove</button></div>`).join(''):'<p class="hint">Nobody yet.</p>'}<div class="cform"><select id="ts-${r}" aria-label="Pick a username">${rest.map(u=>`<option value="${u.id}">@${esc(u.handle)} · ${esc(u.name)}</option>`).join('')}</select><button class="btn" data-a="tsadd" data-r="${r}">Add</button></div>`}).join('')}</section>`;
-const ttTeams=(T,adm)=>[['The Crew',T.cr,1],['Editorial Team',T.ed,0],['Creatives and Publishing Team',T.ap,0]].map(x=>x[1].length||adm?`<section class="tt-team"><h3 class="crew-h ln">${x[0]}</h3>${x[1].length?staffList(x[1]):`<p class="hint">${x[2]?'No crew listed yet.':'Nobody listed yet. Tap "Edit this page" at the bottom to add people.'}</p>`}${x[2]&&adm?`<p style="margin:8px 0 0"><button class="link" data-a="editcrew">Edit the crew (on the About us page)</button></p>`:''}</section>`:'').join('');
+const ttTeams=(T,adm)=>[['The Team',T.cr,1],['Editorial Team',T.ed,0],['Creatives and Publishing Team',T.ap,0]].map(x=>x[1].length||adm?`<section class="tt-team"><h3 class="crew-h ln">${x[0]}</h3>${x[1].length?staffList(x[1]):`<p class="hint">${x[2]?'No team listed yet.':'Nobody listed yet. Tap "Edit this page" at the bottom to add people.'}</p>`}${x[2]&&adm?`<p style="margin:8px 0 0"><button class="link" data-a="editcrew">Edit the team (on the About us page)</button></p>`:''}</section>`:'').join('');
 function timesView(){
  const tp=db.tposts||[],pst=view.pid&&tp.find(x=>x.id===view.pid),s=pst?pst.sec:(TT.some(x=>x[0]===view.s)?view.s:'latest'),t=db.times||{},adm=isAdmin(),can=!!db.canTimes;
- const T={head:t.head||TT_DEF.head,body:t.body||TT_DEF.body,about:t.about||TT_DEF.about,jh:t.joinHead||TT_DEF.joinHead,jb:t.joinBody||TT_DEF.joinBody,je:t.joinEmail||ABOUT_EMAIL,ed:t.editorial||[],ap:t.artpub||[],cr:(db.about&&db.about.crew)||[]};
- const mast=`<header class="tt-mast"><button class="tt-back" data-a="feed">← Back to the Club</button><h1>The Tangerine Times</h1><p>Features, essays, reviews, and recommendations from the Tangerine Review Club crew.</p></header><nav class="tt-nav" aria-label="Tangerine Times sections"><span class="tt-ind" aria-hidden="true"></span>${TT.map(x=>`<button data-a="timestab" data-s="${x[0]}" aria-current="${x[0]===s}">${x[1]}</button>`).join('')}</nav>`;
+ const T={head:t.head||TT_DEF.head,body:t.body||TT_DEF.body,about:t.about||TT_DEF.about,jh:t.joinHead||TT_DEF.joinHead,jb:t.joinBody||TT_DEF.joinBody,je:t.joinEmail||ABOUT_EMAIL,ah:t.abHead||TT_DEF.abHead,ab:t.abBody||TT_DEF.abBody,jl:/^https?:\/\//i.test(t.joinLink||'')?t.joinLink:'',ed:t.editorial||[],ap:t.artpub||[],cr:(db.about&&db.about.crew)||[]};
+ const mast=`<header class="tt-mast"><button class="tt-back" data-a="feed">← Back to the Club</button><div class="tt-bn" tabindex="0" aria-label="Tangerine Times banner, swipe for the next ones"><div class="tt-bs"><h1>The Tangerine Times</h1><p>Features, essays, reviews, and recommendations from the Tangerine Takes team.</p></div><div class="tt-bs"><span class="tt-bk">About us</span><h2 class="tt-bh">${esc(T.ah)}</h2><p>${esc(T.ab)}</p><div class="tt-bbtns"><button class="btn tt-bb" data-a="ttabout">Read more about us →</button>${adm?`<button class="tt-be" data-a="edittimes">✏️ Edit banner</button>`:''}</div></div><div class="tt-bs"><span class="tt-bk">Join us</span><h2 class="tt-bh">${esc(T.jh)}</h2><p>${esc(T.jb)}</p><div class="tt-bbtns">${T.jl?`<a class="btn tt-bb" href="${esc(T.jl)}" target="_blank" rel="noopener noreferrer">Fill out the form →</a>`:`<a class="btn tt-bb" href="mailto:${esc(T.je)}?subject=${encodeURIComponent('Joining the Tangerine Times')}">Email us →</a>`}${adm?`<button class="tt-be" data-a="edittimes">✏️ Edit banner</button>`:''}</div></div></div><div class="tt-bbar"><button data-a="bncar" data-d="-1" aria-label="Previous banner">←</button><span class="tt-bdots"><button data-a="bndot" data-i="0" aria-label="Show the Times banner" aria-current="true"></button><button data-a="bndot" data-i="1" aria-label="Show About us" aria-current="false"></button><button data-a="bndot" data-i="2" aria-label="Show Join us" aria-current="false"></button></span><button data-a="bncar" data-d="1" aria-label="Next banner">→</button></div></header><nav class="tt-nav" aria-label="Tangerine Times sections"><span class="tt-ind" aria-hidden="true"></span>${TT.map(x=>`<button data-a="timestab" data-s="${x[0]}" aria-current="${x[0]===s}">${x[1]}</button>`).join('')}</nav>`;
  if(timesWrite&&can)return mast+ttForm();
- if(timesEdit&&adm)return mast+`<section class="panel"><h2>Edit the Times page</h2><label for="tt-h">Headline (front page, shows until the first piece is posted)</label><input id="tt-h" maxlength="200" value="${esc(T.head)}"><label for="tt-b">Front page text (blank line between paragraphs)</label><textarea id="tt-b" maxlength="3000" style="min-height:140px">${esc(T.body)}</textarea><label for="tt-a">About the Times text</label><textarea id="tt-a" maxlength="3000" style="min-height:140px">${esc(T.about)}</textarea><label for="tt-jh">Join box title</label><input id="tt-jh" maxlength="100" value="${esc(T.jh)}"><label for="tt-jb">Join box text</label><textarea id="tt-jb" maxlength="500" style="min-height:90px">${esc(T.jb)}</textarea><label for="tt-je">Join box email</label><input id="tt-je" type="email" maxlength="120" value="${esc(T.je)}"><label for="tt-ed">Editorial Team (one person per line: Name @username | Role)</label><textarea id="tt-ed" maxlength="3000" style="min-height:120px" placeholder="Achelois | Editor-in-Chief">${esc(staffTxt(T.ed))}</textarea><label for="tt-ap">Creatives and Publishing Team (one person per line: Name | Role)</label><textarea id="tt-ap" maxlength="3000" style="min-height:120px" placeholder="Name | Layout Artist">${esc(staffTxt(T.ap))}</textarea><p class="hint">Use @username to link to a profile. These show at the bottom of the Latest page. Leave a box empty to hide that team.</p><div class="actions"><button class="btn" data-a="savetimes">Save</button><button class="btn ghost" data-a="canceltimes">Cancel</button>${db.times?`<button class="btn ghost" data-a="resettimes">Back to original text</button>`:''}</div></section>`;
+ if(timesEdit&&adm)return mast+`<section class="panel"><h2>Edit the Times page</h2><label for="tt-h">Headline (front page, shows until the first piece is posted)</label><input id="tt-h" maxlength="200" value="${esc(T.head)}"><label for="tt-b">Front page text (blank line between paragraphs)</label><textarea id="tt-b" maxlength="3000" style="min-height:140px">${esc(T.body)}</textarea><label for="tt-a">About the Times text</label><textarea id="tt-a" maxlength="3000" style="min-height:140px">${esc(T.about)}</textarea><label for="tt-ah">Banner: About us title</label><input id="tt-ah" maxlength="100" value="${esc(T.ah)}"><label for="tt-ab">Banner: About us text</label><textarea id="tt-ab" maxlength="500" style="min-height:90px">${esc(T.ab)}</textarea><label for="tt-jh">Banner: Join us title</label><input id="tt-jh" maxlength="100" value="${esc(T.jh)}"><label for="tt-jb">Banner: Join us text</label><textarea id="tt-jb" maxlength="500" style="min-height:90px">${esc(T.jb)}</textarea><label for="tt-jl">Join us Google Form link</label><input id="tt-jl" type="url" maxlength="300" placeholder="https://forms.gle/..." value="${esc(T.jl)}"><p class="hint">Paste your Google Form link here. The Join us banner and the join box at the bottom will send people to it. Leave empty to use email instead.</p><label for="tt-je">Join us email (backup contact)</label><input id="tt-je" type="email" maxlength="120" value="${esc(T.je)}"><label for="tt-ed">Editorial Team (one person per line: Name @username | Role)</label><textarea id="tt-ed" maxlength="3000" style="min-height:120px" placeholder="Achelois | Editor-in-Chief">${esc(staffTxt(T.ed))}</textarea><label for="tt-ap">Creatives and Publishing Team (one person per line: Name | Role)</label><textarea id="tt-ap" maxlength="3000" style="min-height:120px" placeholder="Name | Layout Artist">${esc(staffTxt(T.ap))}</textarea><p class="hint">Use @username to link to a profile. These show at the bottom of the Latest page. Leave a box empty to hide that team.</p><div class="actions"><button class="btn" data-a="savetimes">Save</button><button class="btn ghost" data-a="canceltimes">Cancel</button>${db.times?`<button class="btn ghost" data-a="resettimes">Back to original text</button>`:''}</div></section>`;
  const join=ttJoin(T),editBtn=adm?`<div class="actions"><button class="btn ghost" data-a="edittimes">Edit this page</button></div>`:'',writeBtn=can&&!pst&&s!=='about'?`<div class="actions" style="margin:0 0 22px"><button class="btn" data-a="ttwrite">Write a piece</button></div>`:'';
  let body;
  if(pst)body=ttArticle(pst)+join;
@@ -781,7 +799,7 @@ function streaksSection(){
    <div class="actions"><button class="btn" data-a="streaksave" data-id="${st.id}">Log it</button><button class="btn ghost" data-a="streakcancel">Cancel</button></div></div>`
   :`<div class="actions"><button class="btn${x.done?' ghost':''}" data-a="streaklog" data-id="${st.id}">${x.done?'✓ Logged '+when+' (tap to undo)':'I '+v+' something '+when}</button><button class="btn danger" data-a="delstreak" data-id="${st.id}">Delete</button></div>`}</div>`}).join(''):'<p class="empty">No streaks yet. Start one above.</p>')+`</section>`}
 let aboutEdit=false;
-const ABOUT_DEF={head:"Tangerine Review Club is where opinions get peeled, sliced and shared. 🍊",body:"It's a space where people review and talk about all kinds of media and pop culture. Movies, documentaries, books, games, shows, anime, music and musicals all have a place, and so does anything else that doesn't fit those categories.\n\nRate it with tangerines, from one to five. Write a quick take or a full blog. Squeeze in a comment, answer the weekly prompt, vote in a poll, and watch the conversation get juicy. Keep a diary of everything you've peeled through, build a watchlist of what's ripening next, follow people whose taste you trust, and gather your favorites in clubs."};
+const ABOUT_DEF={head:"Tangerine Takes is where opinions get peeled, sliced and shared. 🍊",body:"It's a space where people review and talk about all kinds of media and pop culture. Movies, documentaries, books, games, shows, anime, music and musicals all have a place, and so does anything else that doesn't fit those categories.\n\nRate it with tangerines, from one to five. Write a quick take or a full blog. Squeeze in a comment, answer the weekly prompt, vote in a poll, and watch the conversation get juicy. Keep a diary of everything you've peeled through, build a watchlist of what's ripening next, follow people whose taste you trust, and gather your favorites in clubs."};
 const aboutView=()=>{const ab=db.about||ABOUT_DEF,adm=isAdmin(),tm=db.times||{};
  const ig=db.about&&typeof ab.insta==='string'?ab.insta:ABOUT_INSTA,em=db.about&&ab.email?ab.email:ABOUT_EMAIL;
  const tText=(db.about&&ab.timesText)||tm.about||TT_DEF.about,crew=ab.crew||[];
@@ -789,11 +807,11 @@ const aboutView=()=>{const ab=db.about||ABOUT_DEF,adm=isAdmin(),tm=db.times||{};
  const follow=`<h3 style="font-size:1.1rem;margin:18px 0 8px;color:var(--od)">Follow us</h3><div style="display:flex;gap:18px;flex-wrap:wrap">${ig?`<a class="link" href="https://instagram.com/${esc(ig)}" target="_blank" rel="noopener noreferrer">📷 @${esc(ig)}</a>`:''}<a class="link" href="mailto:${esc(em)}">✉️ ${esc(em)}</a></div>`;
  const back=`<button class="btn ghost" style="margin-bottom:14px" data-a="feed">Back to home</button>`;
  if(aboutEdit&&adm)return back+`<section class="panel"><h2>Edit About page</h2><label for="ab-h">Headline</label><input id="ab-h" maxlength="200" value="${esc(ab.head)}"><label for="ab-b">Text (leave a blank line between paragraphs)</label>${fmtBar('ab-b')}<textarea id="ab-b" data-lk maxlength="3000" style="min-height:200px">${esc(ab.body)}</textarea>
- <label for="ab-c">The Crew (one person per line: Name | Role)</label><textarea id="ab-c" maxlength="3000" style="min-height:150px" placeholder="Achelois | Founder">${esc(staffTxt(crew))}</textarea><p class="hint">Use @username to link to a profile. Leave empty to hide the crew section.</p>
+ <label for="ab-c">The Team (one person per line: Name | Role)</label><textarea id="ab-c" maxlength="3000" style="min-height:150px" placeholder="Achelois | Founder">${esc(staffTxt(crew))}</textarea><p class="hint">Use @username to link to a profile. Leave empty to hide the team section.</p>
  <label for="ab-t">The Tangerine Times section</label>${fmtBar('ab-t')}<textarea id="ab-t" data-lk maxlength="3000" style="min-height:140px">${esc(tText)}</textarea>
  <label for="ab-i">Instagram username (without @, leave empty to hide)</label><input id="ab-i" maxlength="100" value="${esc(ig)}"><label for="ab-e">Contact email</label><input id="ab-e" type="email" maxlength="120" value="${esc(em)}">
  <div class="actions"><button class="btn" data-a="saveabout">Save</button><button class="btn ghost" data-a="cancelabout">Cancel</button>${db.about?`<button class="btn ghost" data-a="resetabout">Back to original text</button>`:''}</div></section>`;
- const crewSec=crew.length||adm?`<div style="${sh}"><h3 class="crew-h ln">🍊 The Crew</h3>${crew.length?staffList(crew):'<p class="hint">No crew listed yet. Tap "Edit this page" to add people and their roles.</p>'}</div>`:'';
+ const crewSec=crew.length||adm?`<div style="${sh}"><h3 class="crew-h ln">🍊 The Team</h3>${crew.length?staffList(crew):'<p class="hint">No team listed yet. Tap "Edit this page" to add people and their roles.</p>'}</div>`:'';
  const tsec=`<div style="${sh}"><h3 class="crew-h">📰 The Tangerine Times</h3>${timesParas(tText)}<p>Sections: ${TT_SEC.map(x=>esc(x[1])).join(', ')}.</p><p style="margin:16px 0 4px"><button class="btn" data-a="times" style="font-size:1.15rem;font-weight:800;padding:14px 26px">📰 Read the Tangerine Times →</button></p></div>`;
  return back+`<section class="panel">${ab.head?`<h3 style="font-size:1.5rem;font-weight:800;line-height:1.2;color:var(--od);margin:0 0 14px">${lk(ab.head)}</h3>`:''}${(ab.body||'').split(/\n\s*\n/).filter(x=>x.trim()).map(x=>`<p style="white-space:pre-line">${lkx(x.trim())}</p>`).join('')}${crewSec}${tsec}${follow}${adm?`<div class="actions"><button class="btn ghost" data-a="editabout">Edit this page</button></div>`:''}</section>`};
 function loadMore(){const fl=$('feed-list'),mo=$('more');if(!fl||!mo)return;const next=feedPosts.slice(feedShown,feedShown+20);fl.insertAdjacentHTML('beforeend',next.map(card).join(''));feedShown+=next.length;feedWant=feedShown;if(feedShown>=feedPosts.length){obs&&obs.disconnect();mo.remove()}}
@@ -825,7 +843,7 @@ function render(){
  else if(view.n==='post'){const p=postById(view.id);body=p?postView(p):feedView()}
  else if(view.n==='profile')body=profileView(user(view.id));
  else body=feedView();
- const tt=view.n==='times';$('tg').classList.toggle('intimes',tt);document.title=tt?'The Tangerine Times':'Tangerine Review Club';app.innerHTML=(tt?'':bar())+body;if(tt){ttInd();ttCar()}else ttLast=null;
+ const tt=view.n==='times';$('tg').classList.toggle('intimes',tt);document.title=tt?'The Tangerine Times':'Tangerine Takes';app.innerHTML=(tt?'':bar())+body;if(tt){ttInd();ttCar();bnCar()}else ttLast=null;
  if(obs){obs.disconnect();obs=null}
  const mo=$('more');if(mo){obs=new IntersectionObserver(es=>{if(es[0].isIntersecting)loadMore()},{rootMargin:'500px'});obs.observe(mo)}
  initRte();const ft=$('f-text');if(ft)grow(ft);
@@ -856,7 +874,7 @@ app.addEventListener('click',async e=>{
  else if(a==='editcrew'){if(!isAdmin())return;timesEdit=false;timesWrite=null;aboutEdit=true;go({n:'about'})}
  else if(a==='edittimes'){timesEdit=true;timesWrite=null;render()}
  else if(a==='canceltimes'){timesEdit=false;render()}
- else if(a==='savetimes'){if(await api('settimes',{head:g('tt-h'),body:$('tt-b').value,about:$('tt-a').value,joinHead:g('tt-jh'),joinBody:$('tt-jb').value,joinEmail:g('tt-je'),editorial:$('tt-ed').value,artpub:$('tt-ap').value})){timesEdit=false;toast('Saved');render()}}
+ else if(a==='savetimes'){if(await api('settimes',{head:g('tt-h'),body:$('tt-b').value,about:$('tt-a').value,joinHead:g('tt-jh'),joinBody:$('tt-jb').value,joinEmail:g('tt-je'),abHead:g('tt-ah'),abBody:$('tt-ab').value,joinLink:g('tt-jl'),editorial:$('tt-ed').value,artpub:$('tt-ap').value})){timesEdit=false;toast('Saved');render()}}
  else if(a==='resettimes'){if(!confirm('Go back to the original text?'))return;if(await api('settimes',{head:'',body:'',about:'',joinHead:'',joinBody:'',joinEmail:'',editorial:'',artpub:''})){timesEdit=false;toast('Back to the original text');render()}}
  else if(a==='crewadd'){const v=$('crew-add')&&$('crew-add').value;if(v&&await api('setcrew',{id:v,team:$('crew-team').value})){toast('Badge given');render()}}
  else if(a==='crewrm'){if(await api('setcrew',{id,team:''})){toast('Badge removed');render()}}
@@ -869,6 +887,9 @@ app.addEventListener('click',async e=>{
  else if(a==='ttsave'){const w=timesWrite;if(!w)return;const sec=$('tt-sec').value,r=await api('tpost',{id:w.id,sec,kind:$('tt-kind').value,refs:$('tt-refs').value,title:g('tt-title'),by:$('tt-by').value,art:$('tt-art').value,layout:$('tt-layout').value,text:$('tt-text').value,keepImg:!!w.img,data:w.data});if(r){timesWrite=null;toast(w.id?'Saved':'Published');ttDir=1;go({n:'times',s:sec,pid:r.tid})}}
  else if(a==='tpost'){const q=(db.tposts||[]).find(x=>x.id===id);if(!q)return;timesEdit=false;timesWrite=null;ttDir=1;go({n:'times',s:q.sec,pid:q.id})}
  else if(a==='ttcar'){const t=app.querySelector('.tt-car');if(t)t.scrollBy({left:(+b.dataset.d)*t.clientWidth,behavior:ttMotion()})}
+ else if(a==='bncar'){const t=app.querySelector('.tt-bn');if(t)t.scrollBy({left:(+b.dataset.d)*t.clientWidth,behavior:ttMotion()})}
+ else if(a==='bndot'){const t=app.querySelector('.tt-bn');if(t)t.scrollTo({left:(+b.dataset.i)*t.clientWidth,behavior:ttMotion()})}
+ else if(a==='ttabout'){timesEdit=false;timesWrite=null;aboutEdit=false;go({n:'about'})}
  else if(a==='ttdot'){const t=app.querySelector('.tt-car');if(t)t.scrollTo({left:(+b.dataset.i)*t.clientWidth,behavior:ttMotion()})}
  else if(a==='tfeat'){const q=(db.tposts||[]).find(x=>x.id===id);if(!q||!db.canTimes)return;if(await api('tfeature',{id,on:!q.feat})){toast(q.feat?'Removed from Featured':'Featured');render()}}
  else if(a==='ttdel'){if(!confirm('Delete this piece for good?'))return;if(await api('tdel',{id})){toast('Deleted');ttDir=-1;go({n:'times',s:view.s})}}
@@ -1053,7 +1074,7 @@ app.addEventListener('input',e=>{const r=e.target;if(r&&r.classList&&r.classList
 app.addEventListener('paste',e=>{const r=e.target&&e.target.closest?e.target.closest('.rte'):null;if(!r)return;e.preventDefault();const t=(e.clipboardData||window.clipboardData).getData('text/plain');document.execCommand('insertText',false,t)});
 app.addEventListener('mousedown',e=>{if(e.target.closest&&e.target.closest('.fmt button'))e.preventDefault()});
 document.addEventListener('selectionchange',()=>{const a=document.activeElement;if(a&&a.classList&&a.classList.contains('rte'))rteBar(a)});
-$('about-btn').addEventListener('click',()=>{aboutEdit=false;go({n:'about'})});
+
 api('state').then(()=>{const h=location.hash,rn=routeNow();if(h.startsWith('#reset='))view={n:'reset',token:h.slice(7)};else if(h.startsWith('#list-'))view={n:'list',id:h.slice(6)};else if(h.startsWith('#post-')&&postById(h.slice(6)))view={n:'post',id:h.slice(6)};else if(h==='#times'||h.startsWith('#times-'))view={n:'times',s:h.slice(7)||'latest'};else if(h==='#feature-picks')view={n:'features'};else if(h.startsWith('#feature-'))view={n:'feat',id:h.slice(9)};else if(rn)view=rn;
  if(view.n==='join')pickAv=AVATARS[0];
  render();try{const u=pathOf(view);if(u)history.replaceState({v:view},'',u);else history.replaceState({v:view},'')}catch(e){}
