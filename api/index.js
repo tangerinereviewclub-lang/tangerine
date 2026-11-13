@@ -42,7 +42,7 @@ async function save(db, raw) {
 
 const TYPES = ["Movie","Documentary","Book","Game","Show","Anime","Music","Musical","Other"];
 const TOPK = ["movies","albums","books","shows","games","other"];
-const CREW_TEAMS = ["Editorial", "Crew"];
+const CREW_TEAMS = ["Editorial", "Team"];
 const TSEC = ["movies", "books", "games", "music", "culture", "magazine"];
 const TROLES = ["publisher", "writer", "artist"];
 const TKINDS = ["Article", "Essay", "Review", "Recommendation"];
@@ -169,7 +169,7 @@ function out(db, uid, extra) {
   const r = {
     features, isCore, isEditor, canWrite, core: admin ? db.core : {}, owner, admins: owner ? db.admins : [],
     db: {
-      profiles: db.users.map(u => ({ ...pub(u, uid), crew: db.crew[u.id] ? (db.crew[u.id] === "Editorial" ? "Editorial" : "Crew") : "" })), posts,
+      profiles: db.users.map(u => ({ ...pub(u, uid), crew: db.crew[u.id] ? (db.crew[u.id] === "Editorial" ? "Editorial" : "Team") : "" })), posts,
       reposts: db.reposts.filter(r => !bs.has(r.by) && posts.some(p => p.id === r.pid && !p.draft)),
       lists: db.lists.filter(l => !bs.has(l.by)).sort((a, b) => b.ts - a.ts).map(l => ({
         ...l,
@@ -225,9 +225,9 @@ async function sendMail(to, subject, text, html) {
   if (!user || !pass) throw new Error("Email is not set up. Add GMAIL_USER and GMAIL_APP_PASSWORD in Vercel, then redeploy.");
   if (!to) throw new Error("No email address to send to");
   const t = nodemailer.createTransport({ host: "smtp.gmail.com", port: 465, secure: true, auth: { user, pass } });
-  await t.sendMail({ from: `Tangerine Review Club <${user}>`, to, subject, text, html });
+  await t.sendMail({ from: `Tangerine Takes <${user}>`, to, subject, text, html });
 }
-const sendReset = (to, link) => sendMail(to, "Reset your Tangerine Review Club password",
+const sendReset = (to, link) => sendMail(to, "Reset your Tangerine Takes password",
   `Someone asked to reset your password.\n\nOpen this link within 1 hour to choose a new one:\n${link}\n\nIf this was not you, ignore this email.`,
   `<p>Someone asked to reset your password.</p><p><a href="${link}">Choose a new password</a> (valid for 1 hour)</p><p>If this was not you, ignore this email.</p>`);
 
@@ -633,9 +633,15 @@ export default async function handler(req, res) {
         if (!isAdmin()) bad("Admins only");
         const head = clip(d.head, 200), body = clip(d.body, 3000), about = clip(d.about, 3000);
         const joinHead = clip(d.joinHead, 100), joinBody = clip(d.joinBody, 500), joinEmail = clip(d.joinEmail, 120).toLowerCase();
+        const abHead = clip(d.abHead, 100), abBody = clip(d.abBody, 500);
+        let joinLink = clip(d.joinLink, 300);
+        if (joinLink) {
+          if (!/^https?:\/\//i.test(joinLink)) joinLink = "https://" + joinLink;
+          try { if (!/^https?:$/.test(new URL(joinLink).protocol)) throw new Error("x"); } catch (e) { bad("The Google Form link is not valid"); }
+        }
         if (joinEmail && !emailOk(joinEmail)) bad("Enter a valid email for the join box");
         const editorial = parseStaff(d.editorial), artpub = parseStaff(d.artpub);
-        db.times = head || body || about || joinHead || joinBody || joinEmail || editorial.length || artpub.length ? { head, body, about, joinHead, joinBody, joinEmail, editorial, artpub, ts: Date.now() } : null;
+        db.times = head || body || about || joinHead || joinBody || joinEmail || abHead || abBody || joinLink || editorial.length || artpub.length ? { head, body, about, joinHead, joinBody, joinEmail, joinLink, abHead, abBody, editorial, artpub, ts: Date.now() } : null;
         break;
       }
       case "setcrew": {
