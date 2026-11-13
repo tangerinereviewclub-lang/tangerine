@@ -334,11 +334,12 @@ function joinView(){return `<section class="panel"><h2>Log in</h2>
  <label for="l-pw">Password</label><input id="l-pw" type="password" autocomplete="current-password">
  <div class="actions"><button class="btn" data-a="loginname">Log in</button><button class="btn ghost" data-a="forgot">Forgot password?</button></div></section>
  <section class="panel"><h2>New here? Create your profile</h2>
- <div class="row"><div><label for="j-name">Display name</label><input id="j-name" maxlength="30" placeholder="e.g. Lacy"></div>
- <div><label for="j-handle">Username</label><input id="j-handle" maxlength="20" placeholder="e.g. lacyreads" autocapitalize="none"></div></div>
+ <p class="hint" style="margin-top:0"><span style="color:#D64000" aria-hidden="true">*</span> Required</p>
+ <div class="row"><div><label for="j-name">Display name<span style="color:#D64000" aria-hidden="true"> *</span></label><input id="j-name" aria-required="true" maxlength="30" placeholder="e.g. Lacy"></div>
+ <div><label for="j-handle">Username<span style="color:#D64000" aria-hidden="true"> *</span></label><input id="j-handle" aria-required="true" maxlength="20" placeholder="e.g. lacyreads" autocapitalize="none"></div></div>
  <p class="hint">Username: 3 to 20 letters, numbers or underscores. Each username is unique.</p>
- <label for="j-pw">Password</label><input id="j-pw" type="password" autocomplete="new-password" placeholder="At least 6 characters">
- <label for="j-em">Email</label><input id="j-em" type="email" autocomplete="email" placeholder="you@example.com"><p class="hint">Your email is saved with your account. It is kept private: never shown to anyone. You can log in with it and use it to reset your password. One email per account.</p>
+ <label for="j-pw">Password<span style="color:#D64000" aria-hidden="true"> *</span></label><input id="j-pw" aria-required="true" type="password" autocomplete="new-password" placeholder="At least 6 characters">
+ <label for="j-em">Email<span style="color:#D64000" aria-hidden="true"> *</span></label><input id="j-em" aria-required="true" type="email" autocomplete="email" placeholder="you@example.com"><p class="hint">Your email is saved with your account. It is kept private: never shown to anyone. You can log in with it and use it to reset your password. One email per account.</p>
  <label for="j-bio">Short bio</label><textarea id="j-bio" maxlength="160" style="min-height:70px" placeholder="What do you love to watch, read or play?"></textarea>
  ${pronFields('j')}
  ${igFields('j')}
@@ -423,9 +424,10 @@ const meta=p=>`<div class="meta">${userLink(user(p.by))}<span class="tag">${esc(
 const card=p=>`<article class="post"><button class="open" data-a="open" data-id="${p.id}">${esc(p.title)}</button>${meta(p)}
  ${bodyHtml(p)}<div class="actions"><button class="btn ghost" data-a="open" data-id="${p.id}">Read post</button></div>${actions(p)}</article>`;
 
+const newTip=()=>{const u=me();return u&&!db.posts.some(p=>p.by===u.id)?'<div class="panel" style="background:var(--os);margin-bottom:12px"><p style="margin:0">🍊 <b>New?</b> Tap <b>Share your take</b> to post your first review.</p></div>':''};
 function feedView(){const fl=(me()&&me().following)||[];
  const list=db.posts.filter(p=>filter==='All'||(filter==='Following'?fl.includes(p.by):p.type===filter)).sort((a,b)=>b.ts-a.ts);
-  return bannerBox()+timesBanner()+composeView()+pickBanner()+promptBox()+pollBox()+bingoBox()+`<div class="filters">${TYPES.concat(me()?['Following']:[]).map(t=>`<button class="chip" data-a="filter" data-t="${t}" aria-pressed="${t===filter}">${t}</button>`).join('')}</div>`+
+  return newTip()+bannerBox()+timesBanner()+composeView()+pickBanner()+promptBox()+pollBox()+bingoBox()+`<div class="filters">${TYPES.concat(me()?['Following']:[]).map(t=>`<button class="chip" data-a="filter" data-t="${t}" aria-pressed="${t===filter}">${t}</button>`).join('')}</div>`+
  (list.length?(feedPosts=list,feedShown='IntersectionObserver' in window?Math.min(feedWant,list.length):list.length,`<div id="feed-list">${list.slice(0,feedShown).map(card).join('')}</div>${feedShown<list.length?'<div id="more" style="height:1px"></div>':''}`):`<p class="empty">${filter==='Following'?'Nothing here yet. Use Find people to follow someone.':'No fruit on the tree yet. Be the first to post.'}</p>`)}
 
 const postTools=p=>{const u=me();if(!u)return'';const own=u.id===p.by;
