@@ -23,6 +23,9 @@ body{margin:0;background:var(--bg)}
 #tg :focus-visible{outline:3px solid var(--od);outline-offset:2px}
 #tg .top{display:flex;align-items:center;gap:20px;padding:26px 0 14px;flex-wrap:nowrap}
 #tg .top .grow{flex:1 1 0;min-width:0}
+#tg .themebar{display:flex;justify-content:flex-end;margin:0 0 6px}
+#tg .themebar .theme{margin:0;align-self:auto;padding:5px 12px}
+#tg.intimes .themebar{display:none}
 #tg #tg-s1{display:inline-block;white-space:nowrap}
 #tg #tg-s2{display:block}
 @media(max-width:520px){#tg .top{gap:12px;padding:16px 0 10px}#tg .logo{width:56px;height:56px;margin-top:4px}#tg .side,#tg .theme{margin-top:10px}}
@@ -262,8 +265,8 @@ body{margin:0;background:var(--bg)}
   <header class="top">
     <img class="logo" src="/logo.png" alt="Tangerine Takes logo" width="96" height="96">
     <div class="grow"><h1>Tangerine Takes</h1><p id="tg-sub"><span id="tg-s1">Fresh takes, honest reviews, juicy conversation.</span><span id="tg-s2">Sign up, post your takes, and share what you watch, read and play.</span></p></div>
-    <div class="side"><button class="theme" id="theme-btn" type="button"></button></div>
   </header>
+  <div class="themebar"><button class="theme" id="theme-btn" type="button"></button></div>
   <div id="tg-app"><p class="empty">Loading...</p></div>
   <div class="toast" id="tg-toast" role="status"></div>
 </div>
