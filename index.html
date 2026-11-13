@@ -21,8 +21,11 @@ body{margin:0;background:var(--bg)}
 #tg h1,#tg h2,#tg h3{font-family:"Bricolage Grotesque","DM Sans",sans-serif;margin:0;line-height:1.1}
 #tg button,#tg input,#tg select,#tg textarea{font:inherit;color:inherit}
 #tg :focus-visible{outline:3px solid var(--od);outline-offset:2px}
-#tg .top{display:flex;align-items:center;gap:20px;padding:26px 0 14px;flex-wrap:wrap}
-#tg .top .grow{flex:1 1 220px}
+#tg .top{display:flex;align-items:center;gap:20px;padding:26px 0 14px;flex-wrap:nowrap}
+#tg .top .grow{flex:1 1 0;min-width:0}
+#tg #tg-s1{display:inline-block;white-space:nowrap}
+#tg #tg-s2{display:block}
+@media(max-width:520px){#tg .top{gap:12px;padding:16px 0 10px}#tg .logo{width:56px;height:56px;margin-top:4px}#tg .side,#tg .theme{margin-top:10px}}
 #tg .top h1{font-size:clamp(1.8rem,5vw,2.5rem);font-weight:800;color:var(--od)}
 #tg .top p{margin:6px 0 0;color:var(--mut)}
 #tg .logo{width:96px;height:96px;flex:none;margin-top:12px;object-fit:contain}
@@ -258,7 +261,7 @@ body{margin:0;background:var(--bg)}
 <div id="tg">
   <header class="top">
     <img class="logo" src="/logo.png" alt="Tangerine Takes logo" width="96" height="96">
-    <div class="grow"><h1>Tangerine Takes</h1><p id="tg-sub">Fresh takes, honest reviews, juicy conversation. Sign up, post a slice, and share what you watch, read and play.</p></div>
+    <div class="grow"><h1>Tangerine Takes</h1><p id="tg-sub"><span id="tg-s1">Fresh takes, honest reviews, juicy conversation.</span><span id="tg-s2">Sign up, post your takes, and share what you watch, read and play.</span></p></div>
     <div class="side"><button class="theme" id="theme-btn" type="button"></button></div>
   </header>
   <div id="tg-app"><p class="empty">Loading...</p></div>
@@ -854,14 +857,14 @@ const aboutView=()=>{const ab=db.about||ABOUT_DEF,adm=isAdmin(),tm=db.times||{};
 function loadMore(){const fl=$('feed-list'),mo=$('more');if(!fl||!mo)return;const next=feedPosts.slice(feedShown,feedShown+20);fl.insertAdjacentHTML('beforeend',next.map(card).join(''));feedShown+=next.length;feedWant=feedShown;if(feedShown>=feedPosts.length){obs&&obs.disconnect();mo.remove()}}
 const grow=t=>{t.style.height='auto';t.style.height=Math.max(t.scrollHeight+2,260)+'px';const c=$('f-count');if(c){const v=plainLk(t.value).trim(),n=v?v.split(/\s+/).length:0;c.textContent=n+' word'+(n===1?'':'s')}};
 const refreshBar=()=>{const bb=app.querySelector('.bar');if(bb)bb.outerHTML=bar()};
-function fitTitle(){const h=document.querySelector('#tg .top h1'),p=$('tg-sub');if(!h||!p||!h.offsetParent)return;
- const cs=getComputedStyle(p),m=document.createElement('span');m.textContent='Fresh takes, honest reviews, juicy conversation.';
- m.style.cssText='position:absolute;visibility:hidden;white-space:nowrap;font:'+cs.font+';letter-spacing:'+cs.letterSpacing;$('tg').appendChild(m);
- const tw=m.getBoundingClientRect().width;m.remove();
- const box=h.parentElement.clientWidth||tw,target=Math.min(tw,box);
+function fitTitle(){const h=document.querySelector('#tg .top h1'),p=$('tg-sub'),s1=$('tg-s1');if(!h||!p||!s1||!h.offsetParent)return;
+ const g=h.parentElement;p.style.fontSize='';s1.style.whiteSpace='nowrap';
+ const avail=g.clientWidth;let w=s1.getBoundingClientRect().width;if(!w||!avail)return;
+ if(w>avail){const fs=parseFloat(getComputedStyle(p).fontSize)*avail/w;p.style.fontSize=Math.max(10,fs)+'px';w=s1.getBoundingClientRect().width;
+  if(w>avail){s1.style.whiteSpace='normal';w=avail}}
  h.style.display='inline-block';h.style.whiteSpace='nowrap';h.style.fontSize='100px';
- const w=h.getBoundingClientRect().width;if(!w||!target)return;
- h.style.fontSize=Math.max(24,Math.min(90,100*target/w))+'px'}
+ const hw=h.getBoundingClientRect().width;if(!hw)return;
+ h.style.fontSize=Math.max(20,Math.min(90,100*Math.min(w,avail)/hw))+'px'}
 window.addEventListener('resize',fitTitle);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fitTitle);
 function render(){
  let body;
@@ -889,7 +892,7 @@ function render(){
  else if(view.n==='post'){const p=postById(view.id);body=p?postView(p):feedView()}
  else if(view.n==='profile')body=profileView(user(view.id));
  else body=feedView();
- const tt=view.n==='times';$('tg').classList.toggle('intimes',tt);document.title=tt?'The Tangerine Times':'Tangerine Takes';app.innerHTML=(tt?'':bar())+body;{const sb=$('tg-sub');if(sb)sb.textContent=me()?'Fresh takes, honest reviews, juicy conversation.':'Fresh takes, honest reviews, juicy conversation. Sign up, post a slice, and share what you watch, read and play.';fitTitle()}if(tt){ttInd();ttCar()}else ttLast=null;hbInit();
+ const tt=view.n==='times';$('tg').classList.toggle('intimes',tt);document.title=tt?'The Tangerine Times':'Tangerine Takes';app.innerHTML=(tt?'':bar())+body;{const s2=$('tg-s2');if(s2)s2.style.display=me()?'none':'block';fitTitle()}if(tt){ttInd();ttCar()}else ttLast=null;hbInit();
  if(obs){obs.disconnect();obs=null}
  const mo=$('more');if(mo){obs=new IntersectionObserver(es=>{if(es[0].isIntersecting)loadMore()},{rootMargin:'500px'});obs.observe(mo)}
  initRte();const ft=$('f-text');if(ft)grow(ft);
