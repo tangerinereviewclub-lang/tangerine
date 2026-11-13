@@ -64,9 +64,8 @@ body{margin:0;background:var(--bg)}
 #tg .post h3{font-size:1.4rem}
 #tg .open{background:none;border:0;padding:0;text-align:left;cursor:pointer;font-family:"Bricolage Grotesque","DM Sans",sans-serif;font-size:1.4rem;font-weight:800;line-height:1.1;color:var(--ink)}
 #tg .open:hover{color:var(--od);text-decoration:underline}
-#tg .post .meta .tag{font-size:.95rem;padding:2px 12px}
+#tg .post .meta .tag{font-size:1.02rem;padding:3px 14px}
 #tg .post .meta.bigtags{margin:8px 0 0}
-#tg .post .meta.bigtags .tag{font-size:1.15rem;padding:4px 16px}
 #tg .meta{color:var(--mut);font-size:.9rem;margin:8px 0 10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 #tg .link{background:none;border:0;padding:0;cursor:pointer;font-weight:700;color:var(--od);display:inline-flex;align-items:center;gap:6px}
 #tg .link:hover{text-decoration:underline}
@@ -270,7 +269,7 @@ body{margin:0;background:var(--bg)}
 <script>
 (function(){
 const app=document.getElementById('tg-app');
-const TYPES=['All','Movie','Documentary','Book','Game','Show','Anime','Music','Musical','Other'];
+const TYPES=['All','Movie','Documentary','Book','Game','Show','Anime','Music','Musical','Internet','Other'];
 const TOPS=[['movies','Top 4 movies','Movie'],['albums','Top 4 albums','Album'],['books','Top 4 books','Book'],['shows','Top 4 shows','Show'],['games','Top 4 games','Game'],['other','Other faves','Fave']];
 const topInputs=(p,t)=>TOPS.map(([k,l,n])=>`<label>${l}</label><div class="row">${[0,1,2,3].map(i=>`<input id="${p}-${k}-${i}" maxlength="60" placeholder="${n} ${i+1}" aria-label="${l} ${i+1}" value="${esc(((t&&t[k])||[])[i]||'')}">`).join('')}</div>`).join('');
 const readTops=p=>{const o={};TOPS.forEach(([k])=>{o[k]=[0,1,2,3].map(i=>{const el=document.getElementById(p+'-'+k+'-'+i);return el?el.value.trim():''})});return o};
@@ -428,8 +427,9 @@ const card=p=>`<article class="post"><button class="open" data-a="open" data-id=
  ${bodyHtml(p)}<div class="actions"><button class="btn ghost" data-a="open" data-id="${p.id}">Read post</button></div>${actions(p)}</article>`;
 
 const newTip=()=>{const u=me();return u&&!db.posts.some(p=>p.by===u.id)?'<div class="panel" style="background:var(--os);margin-bottom:12px"><p style="margin:0">🍊 <b>New?</b> Tap <button class="link" data-a="gocompose"><b>Share your take</b></button> to post your first review.</p></div>':''};
+const feedSeed=Math.random().toString(36).slice(2),fh=id=>{let h=0;const q=id+feedSeed;for(let i=0;i<q.length;i++)h=(h*31+q.charCodeAt(i))|0;return h};
 function feedView(){const fl=(me()&&me().following)||[];
- const list=db.posts.filter(p=>filter==='All'||(filter==='Following'?fl.includes(p.by):p.type===filter)).sort((a,b)=>b.ts-a.ts);
+ const list=db.posts.filter(p=>filter==='All'||(filter==='Following'?fl.includes(p.by):p.type===filter)).sort((a,b)=>fh(a.id)-fh(b.id));
   return newTip()+bannerBox()+timesBanner()+composeView()+pickBanner()+promptBox()+pollBox()+bingoBox()+`<div class="filters">${TYPES.concat(me()?['Following']:[]).map(t=>`<button class="chip" data-a="filter" data-t="${t}" aria-pressed="${t===filter}">${t}</button>`).join('')}</div>`+
  (list.length?(feedPosts=list,feedShown='IntersectionObserver' in window?Math.min(feedWant,list.length):list.length,`<div id="feed-list">${list.slice(0,feedShown).map(card).join('')}</div>${feedShown<list.length?'<div id="more" style="height:1px"></div>':''}`):`<p class="empty">${filter==='Following'?'Nothing here yet. Use Find people to follow someone.':'No fruit on the tree yet. Be the first to post.'}</p>`)}
 
@@ -544,7 +544,7 @@ function settingsView(){if(!me())return inboxView();
  ${adminTools()}
  ${isAdmin()?`<section class="panel"><h2>Reports</h2>${(db.reports||[]).length?db.reports.map(r=>`<div class="cm"><div style="flex:1">${esc(r.kind)} reported by ${esc(user(r.by).name)}: ${esc(r.reason||'no reason given')}</div><button class="link" data-a="open" data-id="${r.pid}">View</button>${repAuthor(r)}<button class="link" data-a="dismissr" data-id="${r.id}">Dismiss</button></div>`).join(''):'<p class="hint">No reports.</p>'}<h3 style="margin:14px 0 6px">Suspended accounts</h3>${(db.suspended||[]).length?db.suspended.map(id=>`<div class="cm"><span style="flex:1">${esc(user(id).name)} <span class="hint">@${esc(user(id).handle)}</span></span><button class="link" data-a="suspend" data-id="${id}">Unsuspend</button></div>`).join(''):'<p class="hint">None.</p>'}</section>`:''}
  <section class="panel"><h2>Delete account</h2><p class="hint">This permanently deletes your profile, posts, comments and messages.</p><label for="da-pw">Password</label><input id="da-pw" type="password" autocomplete="current-password"><div class="actions"><button class="btn danger" data-a="delacct">Delete my account</button></div></section>`}
-const PL={Movie:['movie','movies'],Documentary:['documentary','documentaries'],Book:['book','books'],Game:['game','games'],Show:['show','shows'],Anime:['anime','anime'],Music:['music','music'],Musical:['musical','musicals'],Other:['other post','other posts']};
+const PL={Movie:['movie','movies'],Documentary:['documentary','documentaries'],Book:['book','books'],Game:['game','games'],Show:['show','shows'],Anime:['anime','anime'],Music:['music','music'],Musical:['musical','musicals'],Internet:['internet post','internet posts'],Other:['other post','other posts']};
 const yr=p=>new Date(p.ts).getFullYear();
 function diaryView(u){const mine=me()&&me().id===u.id,sl=mine?getStreaks().flatMap(st=>(st.entries||[]).map(e=>({local:1,type:st.cat,media:e.title,rating:e.rating,text:e.text,ts:e.ts}))):[],all=db.posts.filter(p=>p.by===u.id).concat(sl).sort((a,b)=>b.ts-a.ts);
  const years=[...new Set(all.map(yr))].sort((a,b)=>b-a),inY=all.filter(p=>dyear==='All'||yr(p)===+dyear);
@@ -552,7 +552,7 @@ function diaryView(u){const mine=me()&&me().id===u.id,sl=mine?getStreaks().flatM
  const n=l.length,word=dcat==='All'?(n===1?'entry':'entries'):(PL[dcat]||['entry','entries'])[n===1?0:1];
  return `<div class="actions" style="margin:0 0 14px"><button class="btn ghost" data-a="profile" data-id="${u.id}">Back to profile</button><button class="btn ghost" data-a="watch" data-id="${u.id}">📌 Watchlist</button></div>
  <section class="panel"><h2>${mine?'My diary':esc(u.name)+"'s diary"}</h2>
- <div class="filters" style="margin:10px 0"><select id="dyear" aria-label="Year" style="width:auto"><option value="All">All years</option>${years.map(y=>`<option${String(y)===String(dyear)?' selected':''}>${y}</option>`).join('')}</select>${['All',...cats].map(t=>`<button class="chip" data-a="dcat" data-t="${t}" aria-pressed="${t===dcat}">${t}${t==='All'?'':' ('+inY.filter(p=>p.type===t).length+')'}</button>`).join('')}</div>
+ <div class="filters" style="margin:10px 0"><select id="dyear" aria-label="Year" style="width:auto"><option value="All">All years</option>${years.map(y=>`<option${String(y)===String(dyear)?' selected':''}>${y}</option>`).join('')}</select><select id="dcat" aria-label="Category" style="width:auto">${['All',...cats].map(t=>`<option value="${t}"${t===dcat?' selected':''}>${t==='All'?'All categories':t+' ('+inY.filter(p=>p.type===t).length+')'}</option>`).join('')}</select></div>
  <p style="margin:0"><b>${n}</b> ${word} ${dyear==='All'?'logged so far':'in '+dyear}</p></section>`+
  (l.length?`<section class="panel dlist">${l.map(p=>p.local?`<div class="cm" style="align-items:center;flex-wrap:wrap"><span style="flex:1 1 240px"><b>${esc(p.type)} - ${esc(p.media)}</b> - <span class="rate">${stars(p.rating)}</span> <span class="tag">🔥 streak</span>${p.text?`<br><span class="hint">${esc(p.text)}</span>`:''}</span><span class="hint" style="margin:0">${new Date(p.ts).toLocaleDateString()}</span></div>`:`<div class="cm" style="align-items:center;flex-wrap:wrap"><button class="link" data-a="open" data-id="${p.id}" style="flex:1 1 240px;text-align:left">${esc(p.type)} - ${esc(p.media)} - <span class="rate">${stars(p.rating)}</span></button><span class="hint" style="margin:0">${new Date(p.ts).toLocaleDateString()}</span></div>`).join('')}</section>`:'<p class="empty">Nothing peeled yet. Share your take to start your diary.</p>')}
 const forgotView=()=>`<section class="panel"><h2>Forgot password</h2><p class="hint">Enter your username or the email you signed up with. We will email you a reset link.</p><label for="fg-w">Username or email</label><input id="fg-w" autocapitalize="none"><div class="actions"><button class="btn" data-a="sendforgot">Email me a link</button><button class="btn ghost" data-a="join">Back</button></div></section>`;
@@ -812,7 +812,7 @@ const adminTools=()=>{if(!isAdmin())return'';const bn=db.banner,pr=db.prompts||[
  <section class="panel"><h2>📊 Polls and This or that</h2><p class="hint">The newest one shows on Home. For This or that, write one pair per line with a | between the two choices.</p>${el?`<p class="hint"><b>Editing:</b> ${esc(el.q)}. Votes are kept. If you change what an option means, old votes will count for the new wording.</p>`:''}<div class="row"><div><label for="po-k">Type</label><select id="po-k"${el?' disabled':''}><option value="poll"${el&&el.kind==='poll'?' selected':''}>Poll (2 to 6 options)</option><option value="thisthat"${el&&el.kind==='thisthat'?' selected':''}>This or that (3 to 9 lines, like Pizza | Burgers)</option></select></div><div><label for="po-q">Question</label><input id="po-q" maxlength="120" placeholder="e.g. Movie night snack?" value="${el?esc(el.q):''}"></div></div><label for="po-o">Options (one per line)</label><textarea id="po-o" style="min-height:80px" placeholder="Popcorn&#10;Chips">${el?esc(el.kind==='thisthat'?(el.pairs||[]).map(p=>p.a+' | '+p.b).join('\n'):(el.options||[]).map(o=>o.t).join('\n')):''}</textarea><div class="actions"><button class="btn" data-a="newpoll">${el?'Save changes':'Create'}</button>${el?`<button class="btn ghost" data-a="cancelEdit" data-k="poll">Cancel</button>`:''}</div>${po.map(l=>`<div class="cm" style="flex-wrap:wrap"><span style="flex:1 1 200px">${esc(l.q)} <span class="hint">${l.kind==='thisthat'?'This or that':'Poll'}${l.closed?', closed':''}</span></span><button class="link" data-a="editpoll" data-id="${l.id}">Edit</button><button class="link" data-a="pollclose" data-id="${l.id}">${l.closed?'Reopen':'Close'}</button><button class="link" data-a="delpoll" data-id="${l.id}">Delete</button></div>`).join('')}</section>`};
 
 /* ---------- Streaks 🔥 (saved on this device) ---------- */
-const VERB={Movie:'watched',Documentary:'watched',Show:'watched',Anime:'watched',Musical:'watched',Book:'read',Game:'played',Music:'listened to',Other:'did'};
+const VERB={Movie:'watched',Documentary:'watched',Show:'watched',Anime:'watched',Musical:'watched',Internet:'saw',Book:'read',Game:'played',Music:'listened to',Other:'did'};
 const skey=()=>'tg-streaks-'+db.me;
 const getStreaks=()=>{try{return JSON.parse(localStorage.getItem(skey())||'[]')}catch(e){return[]}};
 const putStreaks=l=>{try{localStorage.setItem(skey(),JSON.stringify(l));return true}catch(e){toast('Could not save streaks on this device');return false}};
@@ -904,9 +904,24 @@ function copyText(t){return navigator.clipboard&&navigator.clipboard.writeText?n
 function fallbackCopy(t){const x=document.createElement('textarea');x.value=t;document.body.appendChild(x);x.select();let ok=false;try{ok=document.execCommand('copy')}catch(e){}x.remove();return ok}
 function needUser(){if(me())return true;toast('Create a profile or log in first');go({n:'join'});return false}
 
-app.addEventListener('change',e=>{if(e.target.dataset.rolefor){const id=e.target.dataset.rolefor,roles=[...app.querySelectorAll('input[data-rolefor="'+id+'"]')].filter(x=>x.checked).map(x=>x.dataset.r);api('setcore',{id,roles}).then(r=>{if(r){toast(roles.length?'Roles updated':'Removed from the Editorial Team');render()}});return}if(e.target.id==='psort'){psort=e.target.value;const y=window.scrollY;render();window.scrollTo(0,y)}if(e.target.id==='dyear'){dyear=e.target.value;render()}});
+app.addEventListener('change',e=>{if(e.target.dataset.rolefor){const id=e.target.dataset.rolefor,roles=[...app.querySelectorAll('input[data-rolefor="'+id+'"]')].filter(x=>x.checked).map(x=>x.dataset.r);api('setcore',{id,roles}).then(r=>{if(r){toast(roles.length?'Roles updated':'Removed from the Editorial Team');render()}});return}if(e.target.id==='psort'){psort=e.target.value;const y=window.scrollY;render();window.scrollTo(0,y)}if(e.target.id==='dyear'){dyear=e.target.value;render()}if(e.target.id==='dcat'){dcat=e.target.value;render()}});
 app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='m-t'){e.preventDefault();app.querySelector('[data-a="sendm"]').click()}});
 app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='cm-t'){e.preventDefault();app.querySelector('[data-a="sendclub"]').click()}});
+function mnPop(){let p=$('mention-pop');if(!p){p=document.createElement('div');p.id='mention-pop';p.style.cssText='position:fixed;z-index:60;display:none;min-width:210px;max-width:92vw;padding:4px;background:var(--bg);border:2px solid var(--line);border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.15)';($('tg')||document.body).appendChild(p)}return p}
+let mnApply=null;
+function mnClose(){const p=$('mention-pop');if(p)p.style.display='none';mnApply=null}
+function mnOpen(q,rect,apply){const l=db.profiles.filter(u=>u.handle.startsWith(q)||u.name.toLowerCase().startsWith(q)).slice(0,5);if(!l.length)return mnClose();
+ const p=mnPop();p.innerHTML=l.map(u=>`<button type="button" class="link" data-mn="${esc(u.handle)}" style="display:flex;gap:8px;align-items:center;width:100%;text-align:left;padding:6px 8px">${av(u,'sm')}<span><b>${esc(u.name)}</b> <span class="hint">@${esc(u.handle)}</span></span></button>`).join('');
+ p.style.display='block';p.style.left=Math.max(8,Math.min(rect.left,innerWidth-230))+'px';p.style.top=Math.min(rect.bottom+4,innerHeight-200)+'px';mnApply=apply}
+document.addEventListener('input',e=>{const t=e.target;if(!t||!t.matches)return;
+ if(t.matches('input#c-t,input#r-t')){const pos=t.selectionStart,m=/(^|\s)@([a-z0-9_]{0,20})$/i.exec(t.value.slice(0,pos));if(!m)return mnClose();
+  mnOpen(m[2].toLowerCase(),t.getBoundingClientRect(),h=>{const st=pos-m[2].length-1;t.value=t.value.slice(0,st)+'@'+h+' '+t.value.slice(pos);const c=st+h.length+2;t.focus();t.setSelectionRange(c,c)});return}
+ if(t.classList.contains('rte')){const sel=getSelection();if(!sel.rangeCount||!sel.isCollapsed)return mnClose();const n=sel.anchorNode,off=sel.anchorOffset;if(!n||n.nodeType!==3)return mnClose();
+  const m=/(^|\s)@([a-z0-9_]{0,20})$/i.exec(n.data.slice(0,off));if(!m)return mnClose();const r=sel.getRangeAt(0).getBoundingClientRect(),box=(r.width||r.height)?r:t.getBoundingClientRect();
+  mnOpen(m[2].toLowerCase(),box,h=>{const st=off-m[2].length-1;n.data=n.data.slice(0,st)+'@'+h+' '+n.data.slice(off);const rg=document.createRange();rg.setStart(n,st+h.length+2);rg.collapse(true);const s2=getSelection();s2.removeAllRanges();s2.addRange(rg);t.focus();t.dispatchEvent(new Event('input',{bubbles:true}))});return}
+ mnClose()});
+document.addEventListener('mousedown',e=>{const b=e.target.closest&&e.target.closest('[data-mn]');if(b){e.preventDefault();const f=mnApply;mnClose();if(f)f(b.dataset.mn)}else if(!(e.target.closest&&e.target.closest('#mention-pop')))mnClose()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')mnClose()});
 app.addEventListener('input',e=>{if(e.target.id==='f-text')grow(e.target);if(e.target.id==='cl-q')$('cl-res').innerHTML=clRes(e.target.value);if(e.target.id==='pm-q')$('pm-res').innerHTML=pmRes(e.target.value);if(e.target.id==='s-q')$('s-res').innerHTML=searchRes(e.target.value);});
 app.addEventListener('click',async e=>{
  const ss=e.target.closest('#s-stars button');
