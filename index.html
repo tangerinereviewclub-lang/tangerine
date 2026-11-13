@@ -64,7 +64,6 @@ body{margin:0;background:var(--bg)}
 #tg .post h3{font-size:1.4rem}
 #tg .open{background:none;border:0;padding:0;text-align:left;cursor:pointer;font-family:"Bricolage Grotesque","DM Sans",sans-serif;font-size:1.4rem;font-weight:800;line-height:1.1;color:var(--ink)}
 #tg .open:hover{color:var(--od);text-decoration:underline}
-#tg .meta .mt{color:var(--ink);font-weight:800;font-size:1.05rem}
 #tg .meta{color:var(--mut);font-size:.9rem;margin:8px 0 10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 #tg .link{background:none;border:0;padding:0;cursor:pointer;font-weight:700;color:var(--od);display:inline-flex;align-items:center;gap:6px}
 #tg .link:hover{text-decoration:underline}
@@ -421,7 +420,7 @@ function addLink(r){if(!r)return;const sl=getSelection();const rg=sl.rangeCount?
  if(sel)document.execCommand('createLink',false,u);else document.execCommand('insertHTML',false,'<a href="'+esc(u)+'">'+esc(txt)+'</a>&#8203;');
  rteSync(r)}
 const bodyHtml=(p,full)=>p.spoiler&&!rev.has(p.id)?`<div class="body"><button class="btn ghost" data-a="reveal" data-id="${p.id}">⚠️ Contains spoilers. Tap to show</button></div>`:`<div class="body">${lkx(full?p.text:excerpt(plainLk(p.text)))}</div>`;
-const meta=p=>`<div class="meta">${userLink(user(p.by))}<span class="tag">${esc(p.type)}</span>${p.draft?'<span class="tag">Draft</span>':''}${p.prompt&&promptOf(p.prompt)?`<button class="link" data-a="prompt" data-id="${p.prompt}">💭 ${esc(promptOf(p.prompt).title)}</button>`:''}${p.media!==p.title?`<span class="mt">${esc(p.media)}</span>`:''}<span class="rate" aria-label="${p.rating} out of 5">${stars(p.rating)}</span><span>${ago(p._ots||p.ts)}${p.edited?' <span style="opacity:.6;font-size:.82em">(edited)</span>':''}</span></div>`;
+const meta=p=>`<div class="meta">${userLink(user(p.by))}<span class="tag">${esc(p.type)}</span>${p.draft?'<span class="tag">Draft</span>':''}${p.prompt&&promptOf(p.prompt)?`<button class="link" data-a="prompt" data-id="${p.prompt}">💭 ${esc(promptOf(p.prompt).title)}</button>`:''}${p.media!==p.title?`<span class="tag">${esc(p.media)}</span>`:''}<span class="rate" aria-label="${p.rating} out of 5">${stars(p.rating)}</span><span>${ago(p._ots||p.ts)}${p.edited?' <span style="opacity:.6;font-size:.82em">(edited)</span>':''}</span></div>`;
 const card=p=>`<article class="post"><button class="open" data-a="open" data-id="${p.id}">${esc(p.title)}</button>${meta(p)}
  ${bodyHtml(p)}<div class="actions"><button class="btn ghost" data-a="open" data-id="${p.id}">Read post</button></div>${actions(p)}</article>`;
 
