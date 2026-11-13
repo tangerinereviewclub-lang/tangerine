@@ -634,6 +634,8 @@ export default async function handler(req, res) {
         const head = clip(d.head, 200), body = clip(d.body, 3000), about = clip(d.about, 3000);
         const joinHead = clip(d.joinHead, 100), joinBody = clip(d.joinBody, 500), joinEmail = clip(d.joinEmail, 120).toLowerCase();
         const abHead = clip(d.abHead, 100), abBody = clip(d.abBody, 500);
+        const bnIn = d.bn && typeof d.bn === "object" ? d.bn : {}, bn = {};
+        ["k1", "h1", "t1", "b1", "k2", "h2", "t2", "b2", "k3", "b3"].forEach(k => { bn[k] = clip(bnIn[k], k[0] === "t" ? 400 : 100); });
         let joinLink = clip(d.joinLink, 300);
         if (joinLink) {
           if (!/^https?:\/\//i.test(joinLink)) joinLink = "https://" + joinLink;
@@ -641,7 +643,7 @@ export default async function handler(req, res) {
         }
         if (joinEmail && !emailOk(joinEmail)) bad("Enter a valid email for the join box");
         const editorial = parseStaff(d.editorial), artpub = parseStaff(d.artpub);
-        db.times = head || body || about || joinHead || joinBody || joinEmail || abHead || abBody || joinLink || editorial.length || artpub.length ? { head, body, about, joinHead, joinBody, joinEmail, joinLink, abHead, abBody, editorial, artpub, ts: Date.now() } : null;
+        db.times = head || body || about || joinHead || joinBody || joinEmail || abHead || abBody || joinLink || Object.values(bn).some(Boolean) || editorial.length || artpub.length ? { head, body, about, joinHead, joinBody, joinEmail, joinLink, abHead, abBody, bn, editorial, artpub, ts: Date.now() } : null;
         break;
       }
       case "setcrew": {
