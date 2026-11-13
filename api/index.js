@@ -5,7 +5,7 @@ import { randomBytes, randomUUID, scryptSync, timingSafeEqual, createHash } from
 
 const redis = Redis.fromEnv({ automaticDeserialization: false });
 const PIECES = ["users", "posts", "lists", "msgs", "clubs", "cmsgs", "features", "meta", "tposts"];
-const META = ["reports", "pick", "suspended", "sessions", "resets", "fails", "core", "admins", "banner", "prompts", "polls", "bingos", "reposts", "about", "times", "crew", "tstaff"];
+const META = ["reports", "pick", "suspended", "sessions", "resets", "fails", "core", "admins", "mods", "banner", "prompts", "polls", "bingos", "reposts", "about", "times", "crew", "tstaff"];
 const pack = v => gzipSync(JSON.stringify(v)).toString("base64");
 const unpack = s => JSON.parse(gunzipSync(Buffer.from(s, "base64")).toString());
 async function load() {
@@ -27,6 +27,7 @@ async function load() {
   if (!db.crew || typeof db.crew !== "object" || Array.isArray(db.crew)) db.crew = {};
   if (!db.tstaff || typeof db.tstaff !== "object" || Array.isArray(db.tstaff)) db.tstaff = {};
   if (!Array.isArray(db.tposts)) db.tposts = [];
+  if (!Array.isArray(db.mods)) db.mods = [];
   db.polls.forEach(l => { if (l.kind === "thisthat" && !l.pairs) { l.pairs = [l.options]; Object.keys(l.votes).forEach(u => { l.votes[u] = { 0: l.votes[u] }; }); l.options = []; } });
   return { db, raw };
 }
@@ -50,6 +51,7 @@ const DAY = 864e5;
 const ADMINS = (process.env.ADMIN_HANDLE || "").split(/[,\s]+/).map(x => x.trim().toLowerCase().replace(/^@/, "")).filter(Boolean);
 const isAdminHandle = h => ADMINS.includes(h);
 const isAdminU = (db, u) => !!(u && (isAdminHandle(u.handle) || db.admins.includes(u.id)));
+const isModU = (db, u) => !!(u && db.mods.includes(u.id));
 const rolesOf = (db, id) => (id && Array.isArray(db.core[id]) ? db.core[id] : []);
 const tRolesOf = (db, id) => (id && Array.isArray(db.tstaff[id]) ? db.tstaff[id] : []);
 
@@ -66,7 +68,7 @@ const checkPw = (pw, h) => {
   return a.length === b.length && timingSafeEqual(a, b);
 };
 const emailOk = e => e.length <= 120 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
-const fresh = () => ({ users: [], posts: [], lists: [], msgs: [], clubs: [], cmsgs: [], features: [], core: {}, crew: {}, tstaff: {}, tposts: [], admins: [], banner: null, about: null, times: null, prompts: [], polls: [], bingos: [], reposts: [], reports: [], pick: null, suspended: [], sessions: {}, resets: {}, fails: {} });
+const fresh = () => ({ users: [], posts: [], lists: [], msgs: [], clubs: [], cmsgs: [], features: [], core: {}, crew: {}, tstaff: {}, tposts: [], admins: [], mods: [], banner: null, about: null, times: null, prompts: [], polls: [], bingos: [], reposts: [], reports: [], pick: null, suspended: [], sessions: {}, resets: {}, fails: {} });
 const U = (db, id) => db.users.find(u => u.id === id);
 
 function cleanTop(t) {
@@ -152,7 +154,7 @@ const dropSessions = (db, uid) => Object.keys(db.sessions).forEach(k => { if (db
 
 function out(db, uid, extra) {
   const me = uid ? U(db, uid) : null, bs = blockedSet(db, uid);
-  const admin = isAdminU(db, me), owner = !!(me && isAdminHandle(me.handle));
+  const admin = isAdminU(db, me), owner = !!(me && isAdminHandle(me.handle)), mod = isModU(db, me);
   const canTimes = !!(me && (admin || tRolesOf(db, me.id).includes("publisher")));
   const posts = db.posts.filter(p => !bs.has(p.by) && (!p.draft || p.by === uid)).sort((a, b) => b.ts - a.ts).map(p => ({
     ...p,
@@ -167,7 +169,7 @@ function out(db, uid, extra) {
   const seeF = f => isEditor || (me && f.by === me.id) || (f.status === "published" && !bs.has(f.by));
   const features = db.features.filter(seeF).sort((a, b) => (b.publishedAt || b.ts) - (a.publishedAt || a.ts));
   const r = {
-    features, isCore, isEditor, canWrite, core: admin ? db.core : {}, owner, admins: owner ? db.admins : [],
+    features, isCore, isEditor, canWrite, core: admin ? db.core : {}, owner, mod, admins: owner ? db.admins : [], mods: owner ? db.mods : [],
     db: {
       profiles: db.users.map(u => ({ ...pub(u, uid), crew: db.crew[u.id] ? (db.crew[u.id] === "Editorial" ? "Editorial" : "Team") : "" })), posts,
       reposts: db.reposts.filter(r => !bs.has(r.by) && posts.some(p => p.id === r.pid && !p.draft)),
@@ -210,9 +212,8 @@ function out(db, uid, extra) {
     r.notes = me.notes.filter(n => !bs.has(n.from));
     r.blocked = me.blocked.map(x => U(db, x)).filter(Boolean).map(u => pub(u, uid));
     r.email = me.email;
-    if (admin) {
-      r.reports = db.reports; r.suspended = db.suspended;
-    }
+    if (admin) r.reports = db.reports;
+    if (owner || mod) r.suspended = db.suspended;
     if (owner) {
       r.members = db.users.map(u => ({ id: u.id, email: u.email || "", joined: u.joined || 0, everSuspended: !!u.everSuspended || db.suspended.includes(u.id), insta: u.insta || "" }));
     }
@@ -603,6 +604,7 @@ export default async function handler(req, res) {
         delete db.tstaff[id];
         db.tposts.forEach(x => { if (x.by === id) x.by = ""; if (x.art === id) x.art = ""; if (x.layout === id) x.layout = ""; });
         db.admins = db.admins.filter(x => x !== id);
+        db.mods = db.mods.filter(x => x !== id);
         db.polls.forEach(l => { delete l.votes[id]; });
         db.bingos.forEach(l => { delete l.marks[id]; });
         db.msgs = db.msgs.filter(x => x.from !== id && x.to !== id);
@@ -614,13 +616,13 @@ export default async function handler(req, res) {
       }
 
       case "setpick": {
-        if (!isAdmin()) bad("Admins only");
+        if (!isOwner()) bad("Lead admin only");
         const type = clip(d.type, 20), media = clip(d.media, 80);
         db.pick = media && TYPES.includes(type) ? { type, media, note: clip(d.note, 200) } : null;
         break;
       }
       case "setabout": {
-        if (!isAdmin()) bad("Admins only");
+        if (!isOwner()) bad("Lead admin only");
         const head = clip(d.head, 200), body = clip(d.body, 3000), timesText = clip(d.timesText, 3000), email = clip(d.email, 120).toLowerCase();
         const crew = parseStaff(d.crew);
         const insta = clip(d.insta, 100).replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/^@/, "").replace(/[\/?].*$/, "");
@@ -630,7 +632,7 @@ export default async function handler(req, res) {
         break;
       }
       case "settimes": {
-        if (!isAdmin()) bad("Admins only");
+        if (!isOwner()) bad("Lead admin only");
         const head = clip(d.head, 200), body = clip(d.body, 3000), about = clip(d.about, 3000);
         const joinHead = clip(d.joinHead, 100), joinBody = clip(d.joinBody, 500), joinEmail = clip(d.joinEmail, 120).toLowerCase();
         const abHead = clip(d.abHead, 100), abBody = clip(d.abBody, 500);
@@ -709,7 +711,7 @@ export default async function handler(req, res) {
         break;
       }
       case "settstaff": {
-        if (!isAdmin()) bad("Admins only");
+        if (!isOwner()) bad("Lead admin only");
         const t = U(db, d.id);
         if (!t) bad("Member not found");
         if (!TROLES.includes(d.role)) bad("Unknown role");
@@ -719,14 +721,14 @@ export default async function handler(req, res) {
         break;
       }
       case "mailtest": {
-        if (!isAdmin()) bad("Admins only");
+        if (!isOwner()) bad("Lead admin only");
         const m = me();
         try { await sendMail(m.email, "Tangerine test email", "Email is working.", "<p>Email is working. 🍊</p>"); extra.mail = "Test email sent to " + m.email + ". Check your inbox and spam."; }
         catch (e) { extra.mail = "Email failed: " + e.message; }
         break;
       }
       case "setcore": {
-        if (!isAdmin()) bad("Admins only");
+        if (!isOwner()) bad("Lead admin only");
         const t = U(db, d.id);
         if (!t) bad("Member not found");
         const want = Array.isArray(d.roles) ? d.roles : (d.role ? [d.role] : []);
@@ -795,8 +797,17 @@ export default async function handler(req, res) {
         if (!d.on && i >= 0) db.admins.splice(i, 1);
         break;
       }
+      case "setmod": {
+        if (!isOwner()) bad("Only the lead admin can change the mod list");
+        const t = U(db, d.id);
+        if (!t) bad("Member not found");
+        const i = db.mods.indexOf(t.id);
+        if (d.on && i < 0) db.mods.push(t.id);
+        if (!d.on && i >= 0) db.mods.splice(i, 1);
+        break;
+      }
       case "setbanner": {
-        if (!isAdmin()) bad("Admins only");
+        if (!isOwner()) bad("Lead admin only");
         const title = clip(d.title, 100), text = clip(d.text, 1000);
         if (!title && text) bad("Add a headline for the announcement");
         db.banner = title ? { title, text, ts: Date.now() } : null;
@@ -924,7 +935,7 @@ export default async function handler(req, res) {
       }
       case "suspend": {
         const m = me(), t = U(db, d.id);
-        if (!isAdmin()) bad("Admins only");
+        if (!isOwner()) bad("Lead admin only");
         if (!t || t.id === m.id) bad("Cannot suspend that account");
         const i = db.suspended.indexOf(t.id);
         if (i >= 0) db.suspended.splice(i, 1); else { db.suspended.push(t.id); t.everSuspended = true; dropSessions(db, t.id); }
