@@ -162,21 +162,14 @@ body{margin:0;background:var(--bg)}
 #tg .hb .tt-fl.f2{font-size:1.6rem}
 #tg .hb .tt-fl.f3{font-size:1.2rem}
 #tg .hb-v{flex:1;overflow:hidden;display:flex;touch-action:pan-y}
-#tg .hb-t{display:flex;flex:1 0 100%;min-width:100%;transition:transform .7s cubic-bezier(.22,.8,.2,1);will-change:transform}
+#tg .hb-t{display:flex;flex:1 0 100%;min-width:100%;transition:transform .3s ease-out;will-change:transform}
 #tg .hb-s{flex:0 0 100%;box-sizing:border-box;min-height:180px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start}
-#tg .hb-s>*{opacity:0;transform:translateY(16px);transition:opacity .55s ease,transform .55s ease}
-#tg .hb-s.on>*{opacity:1;transform:none}
-#tg .hb-s.on>*:nth-child(2){transition-delay:.1s}
-#tg .hb-s.on>*:nth-child(3){transition-delay:.2s}
-#tg .hb-s.on>*:nth-child(4){transition-delay:.3s}
 #tg .hb-k{font-weight:800;font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;opacity:.85}
 #tg .hb h2{font-family:"Fraunces","Bricolage Grotesque",Georgia,serif;font-weight:900;font-size:clamp(1.9rem,8vw,3.2rem);line-height:1;letter-spacing:-.02em;margin:6px 0 8px;color:#3A2210;max-width:12ch}
 #tg .hb p{margin:0;max-width:40ch;font-weight:500;font-size:.98rem}
-#tg .hb .btn{margin:14px 0 0;background:#3A2210;color:#FFF3E0;border-color:#3A2210;transition:transform .18s ease,box-shadow .18s ease}
-#tg .hb .btn:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 6px 16px rgba(58,34,16,.3)}
+#tg .hb .btn{margin:14px 0 0;background:#3A2210;color:#FFF3E0;border-color:#3A2210}
 #tg .hb-bar{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:6px}
-#tg .hb-bar>button{background:none;border:0;font-size:1.3rem;font-weight:800;color:#3A2210;cursor:pointer;padding:4px 10px;transition:transform .15s ease}
-#tg .hb-bar>button:hover{transform:scale(1.25)}
+#tg .hb-bar>button{background:none;border:0;font-size:1.3rem;font-weight:800;color:#3A2210;cursor:pointer;padding:4px 10px}
 #tg .hb-bar>.hb-ed{font-size:.9rem;text-decoration:underline;text-underline-offset:3px}
 #tg .hb-dots{display:flex;align-items:center;gap:8px}
 #tg .hb-dots button{width:10px;height:10px;min-width:0;min-height:0;padding:0;margin:0;border:0;border-radius:999px;background:rgba(58,34,16,.3);cursor:pointer;transition:width .25s,background-color .25s}
@@ -281,7 +274,7 @@ const readTops=p=>{const o={};TOPS.forEach(([k])=>{o[k]=[0,1,2,3].map(i=>{const 
 const topsView=u=>`<section class="panel"><h2>Top 4</h2><div class="tops">${TOPS.map(([k,l])=>{const a=((u.top||{})[k]||[]).filter(Boolean);return `<div class="topcard"><h3>${l.replace('Top 4 ','')}</h3>${a.length?`<ol>${a.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>`:'<p class="hint">Nothing picked yet.</p>'}</div>`}).join('')}</div></section>`;
 const ABOUT_INSTA='thetangerinetakes'; /* put your Instagram username here */
 const ABOUT_EMAIL='tangerinetakes@gmail.com';
-const AVATARS=['🍊','🧡','🟠','🔶','🦊','🐯','🎃','🥕','🏀','🔥','🥭','🐱'];
+const AVATARS=['🍊','🧡','🦊','🐯','🎃','🥕','🏀','🔥','🥭','🐱'];
 let psort='new';
 const sortPosts=(l,k)=>{l=l.slice();if(k==='old')l.sort((a,b)=>a.ts-b.ts);else if(k==='liked')l.sort((a,b)=>b.likedBy.length-a.likedBy.length||b.ts-a.ts);else if(k==='comm')l.sort((a,b)=>b.comments.length-a.comments.length||b.ts-a.ts);else l.sort((a,b)=>b.ts-a.ts);return l};
 let db={me:null,profiles:[],posts:[]}, view={n:'feed'}, filter='All', rating=0, sort='new', rev=new Set(), pre=null, dcat='All', dyear='All', clubMsgs=[], feedPosts=[], feedShown=0, feedWant=20, obs=null, pickAv=AVATARS[0], TOKEN='';
