@@ -95,9 +95,10 @@ body{margin:0;background:var(--bg)}
 #tg .tag{background:var(--os);border-radius:999px;padding:1px 10px;font-weight:700;color:var(--od);font-size:.82rem}
 #tg .rate{color:var(--o);letter-spacing:2px}
 #tg .who{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
-#tg .nm{font-weight:600}
-#tg .un{font-weight:500;color:var(--mut)}
-#tg .post .meta .un{font-size:15px}
+#tg .nm{display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--od);cursor:pointer;background:none;border:0;padding:0;box-shadow:none;-webkit-tap-highlight-color:transparent}
+#tg .nm:hover>span:last-child{text-decoration:underline}
+#tg .un{font-weight:500;color:var(--od);opacity:.65}
+#tg .post .meta .un,#tg .post .meta .nm{font-size:15px}
 #tg .pcat{margin:8px 0 0;font-size:14px;font-weight:700;color:var(--od)}
 #tg .pcat span{font-weight:400;color:var(--mut)}
 #tg .post .meta.m1{margin-bottom:4px}
@@ -425,7 +426,7 @@ function reportDialog(k,id,i){closeReport();closeReport.f=document.activeElement
  w.addEventListener('input',e=>{if(e.target.id==='rep-d')sync()});
  const f=w.querySelector('input[name="rep-r"]');if(f)f.focus()}
 document.addEventListener('click',e=>{if(!menuOpen)return;const t=e.target;if(t.closest&&(t.closest('.pmw')||t.closest('[data-a="dots"]')))return;menuOpen='';const y=window.scrollY;render();window.scrollTo(0,y)});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeReport();if(menuOpen){menuOpen='';render()}}});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.classList&&e.target.classList.contains('nm')&&e.target.dataset.a){e.target.click();return}if(e.key==='Escape'){closeReport();if(menuOpen){menuOpen='';render()}}});
 const likersPanel=p=>{if(!p.likedBy.length)return'';const us=p.likedBy.map(id=>user(id)),all=likersAll.has(p.id),sh=all?us:us.slice(0,2),rest=us.length-sh.length;
  const st='font-size:.85rem;color:inherit;font-weight:700';
  const nm=x=>`<button class="link" data-a="profile" data-id="${x.id}" style="${st}">${esc(x.handle)}</button>`;
@@ -484,7 +485,7 @@ function addLink(r){if(!r)return;const sl=getSelection();const rg=sl.rangeCount?
  if(sel)document.execCommand('createLink',false,u);else document.execCommand('insertHTML',false,'<a href="'+esc(u)+'">'+esc(txt)+'</a>&#8203;');
  rteSync(r)}
 const bodyHtml=(p,full)=>p.spoiler&&!rev.has(p.id)?`<div class="body"><button class="btn ghost" data-a="reveal" data-id="${p.id}">⚠️ Contains spoilers. Tap to show</button></div>`:`<div class="body">${lkx(full?p.text:excerpt(plainLk(p.text)))}</div>`;
-const whoHtml=(u,light,noav)=>`<span class="who"><button class="link nm${light?' lt':''}" data-a="profile" data-id="${u.id}">${noav?'':av(u,'sm')}${esc(u.name)}</button><span class="un">@${esc(u.handle)}</span>${badgeHtml(u)}</span>`;
+const whoHtml=(u,light,noav)=>`<span class="who"><span class="nm" role="link" tabindex="0" data-a="profile" data-id="${u.id}">${noav?'':av(u,'sm')}<span>${esc(u.name)}</span></span><span class="un">@${esc(u.handle)}</span>${badgeHtml(u)}</span>`;
 const meta=(p,big)=>{const when=`<span>${ago(p._ots||p.ts)}${p.edited?' <span style="opacity:.6;font-size:.82em">(edited)</span>':''}</span>`,
  draft=p.draft?'<span class="tag">Draft</span>':'',
  prm=p.prompt&&promptOf(p.prompt)?`<button class="link" data-a="prompt" data-id="${p.prompt}">💭 ${esc(promptOf(p.prompt).title)}</button>`:'',
