@@ -49,6 +49,8 @@ const TROLES = ["publisher", "writer", "artist"];
 const TKINDS = ["Article", "Essay", "Review", "Recommendation"];
 const DAY = 864e5;
 const REASONS = ["Spoiler", "Copying", "Not kind", "Crime"];
+/* Report reasons shown to members. "Others" needs a short written detail. REASONS above is still used by the admin warning. */
+const REPORT_REASONS = ["Spoiler", "Plagiarism", "Bullying or harassment", "Others"];
 const ADMINS = (process.env.ADMIN_HANDLE || "").split(/[,\s]+/).map(x => x.trim().toLowerCase().replace(/^@/, "")).filter(Boolean);
 const isAdminHandle = h => ADMINS.includes(h);
 const isAdminU = (db, u) => !!(u && (isAdminHandle(u.handle) || db.admins.includes(u.id)));
@@ -389,7 +391,8 @@ export default async function handler(req, res) {
       case "comment": {
         const m = me(), p = P(d.id), t = clip(d.t, 300);
         if (!t) bad("Write a comment first");
-        p.comments.push({ by: m.id, t, ts: Date.now(), replies: [] });
+        /* CHANGED: a comment can be marked as containing spoilers */
+        p.comments.push({ by: m.id, t, ts: Date.now(), replies: [], ...(d.spoiler ? { spoiler: true } : {}) });
         note(db, p.by, "comment", m.id, p.id); mentions(db, t, m.id, p.id);
         break;
       }
@@ -398,6 +401,8 @@ export default async function handler(req, res) {
         if (!c || c.by !== m.id) bad("You can only edit your own comments");
         if (!t) bad("Comment cannot be empty");
         c.t = t; c.edited = true;
+        /* CHANGED: spoiler checkbox can be changed when editing */
+        if (d.spoiler) c.spoiler = true; else delete c.spoiler;
         break;
       }
       case "delcomment": {
@@ -762,9 +767,10 @@ export default async function handler(req, res) {
       case "treport": {
         const m = me(), tp = db.tposts.find(x => x.id === d.id) || bad("Piece not found"), i = parseInt(d.i, 10);
         if (!(tp.comments || [])[i]) bad("Comment not found");
-        const reason = REASONS.includes(d.reason) ? d.reason : bad("Pick a reason");
+        /* CHANGED: uses the new report reasons (Spoiler, Plagiarism, Bullying or harassment, Others) */
+        const reason = REPORT_REASONS.includes(d.reason) ? d.reason : bad("Pick a reason");
         if (db.reports.some(r => r.by === m.id && r.pid === tp.id && r.i === i && r.tt)) break;
-        db.reports.push({ id: id8(), kind: "comment", tt: true, by: m.id, pid: tp.id, i, reason, ts: Date.now() });
+        db.reports.push({ id: id8(), kind: "comment", tt: true, by: m.id, pid: tp.id, i, reason, detail: reason === "Others" ? clip(d.detail, 200) : "", ts: Date.now() });
         if (db.reports.length > 200) db.reports.shift();
         break;
       }
@@ -997,9 +1003,15 @@ export default async function handler(req, res) {
       case "report": {
         const m = me(), kind = d.k === "comment" ? "comment" : "post", p = P(d.id);
         const i = kind === "comment" ? +d.i : undefined;
-        const reason = REASONS.includes(d.reason) ? d.reason : bad("Pick a reason");
+        /* CHANGED: reasons are Spoiler, Plagiarism, Bullying or harassment, Others (Others needs a short written detail) */
+        const reason = REPORT_REASONS.includes(d.reason) ? d.reason : bad("Pick a reason");
+        const target = kind === "comment" ? p.comments[i] : p;
+        if (!target) bad("Comment not found");
+        if (target.by === m.id) bad("You cannot report your own " + kind);
+        const detail = reason === "Others" ? clip(d.detail, 200) : "";
+        if (reason === "Others" && !detail) bad("Tell us a little about what happened");
         if (db.reports.some(r => r.by === m.id && r.pid === p.id && r.i === i && r.kind === kind)) break;
-        db.reports.push({ id: id8(), kind, by: m.id, pid: p.id, i, reason, ts: Date.now() });
+        db.reports.push({ id: id8(), kind, by: m.id, pid: p.id, i, reason, detail, ts: Date.now() });
         if (db.reports.length > 200) db.reports.shift();
         break;
       }
