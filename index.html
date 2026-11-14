@@ -210,6 +210,20 @@ body{margin:0;background:var(--bg)}
 #tg .cm-acts .link:hover,#tg .cm-acts .link:focus-visible{color:var(--od);text-decoration:underline}
 #tg .tt-cmts{margin-top:28px;padding-top:18px;border-top:1px solid var(--line)}
 #tg .tt-related{margin-top:34px}
+#tg .sgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+#tg .scard{background:var(--os);border-radius:14px;padding:12px 14px}
+#tg .scard b{display:block;font-size:1.6rem;line-height:1.1;color:var(--od)}
+#tg .scard span{font-size:.85rem;color:var(--mut)}
+#tg .sbars{display:flex;align-items:stretch;gap:6px;height:170px;margin:12px 0 2px}
+#tg .sb{flex:1;display:flex;flex-direction:column;align-items:center;min-width:0}
+#tg .sbt{flex:1;width:100%;display:flex;align-items:flex-end}
+#tg .sbc{display:block;width:100%;background:var(--o);border-radius:6px 6px 0 0;min-height:2px}
+#tg .sbn{font-size:.8rem;font-weight:700}
+#tg .sbl{font-size:.68rem;color:var(--mut);margin-top:4px;white-space:nowrap}
+#tg .hrow{display:flex;align-items:center;gap:10px;margin:7px 0}
+#tg .hrow>span:first-child{flex:0 0 100px;font-weight:600}
+#tg .hbar{flex:1;height:14px;background:var(--os);border-radius:999px;overflow:hidden}
+#tg .hbar i{display:block;height:100%;background:var(--o);border-radius:999px}
 #tg .tt-ex{margin:0}
 #tg .tt-text p{font-size:1.08rem;line-height:1.7;max-width:64ch}
 #tg .fmt{display:flex;gap:6px;margin:6px 0 12px}
@@ -313,7 +327,7 @@ async function api(a,d){
  try{const r=await fetch('/api',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+TOKEN},body:JSON.stringify({a,d})});
   const j=await r.json();if(j.error){toast(j.error);return null}
   if(j.token!==undefined){TOKEN=j.token;try{localStorage.setItem('tg-token',TOKEN)}catch(e){}}
-  db=j.db;db.me=j.me;db.msgs=j.msgs||[];db.notes=j.notes||[];db.blocked=j.blocked||[];db.admin=!!j.admin;db.reports=j.reports||[];db.email=j.email||'';db.suspended=j.suspended||[];db.clubs=j.clubs||[];db.features=j.features||[];db.owner=!!j.owner;db.admins=j.admins||[];db.mod=!!j.mod;db.mods=j.mods||[];db.members=j.members||[];db.drafts=(db.posts||[]).filter(p=>p.draft);db.posts=(db.posts||[]).filter(p=>!p.draft);db.isCore=!!j.isCore;db.isEditor=!!j.isEditor;db.canWrite=!!j.canWrite;db.core=j.core||{};if(j.cmsgs)clubMsgs=j.cmsgs;return j}
+  db=j.db;db.me=j.me;db.msgs=j.msgs||[];db.notes=j.notes||[];db.blocked=j.blocked||[];db.admin=!!j.admin;db.reports=j.reports||[];db.email=j.email||'';db.suspended=j.suspended||[];db.clubs=j.clubs||[];db.features=j.features||[];db.owner=!!j.owner;db.stats=j.stats||null;db.admins=j.admins||[];db.mod=!!j.mod;db.mods=j.mods||[];db.members=j.members||[];db.drafts=(db.posts||[]).filter(p=>p.draft);db.posts=(db.posts||[]).filter(p=>!p.draft);db.isCore=!!j.isCore;db.isEditor=!!j.isEditor;db.canWrite=!!j.canWrite;db.core=j.core||{};if(j.cmsgs)clubMsgs=j.cmsgs;return j}
  catch(e){toast('Network problem, try again');return null}}
 function ago(ts){const m=Math.round((Date.now()-ts)/60000);if(m<1)return'just now';if(m<60)return m+' min ago';const h=Math.round(m/60);if(h<24)return h+' h ago';return Math.round(h/24)+' d ago'}
 const excerpt=t=>{t=plainLk(String(t==null?'':t).replace(/\[h\][\s\S]*?(?:\[\/h\]|$)/gi,'▮▮▮')).replace(/\s+/g,' ');return t.length>150?t.slice(0,150).trim()+'...':t};
@@ -495,7 +509,7 @@ function postView(p){const u=me();if(view.edit&&u&&u.id===p.by)return editForm(p
 function profileView(u){const mine=me()&&me().id===u.id, posts=db.posts.filter(p=>p.by===u.id), shown=posts;
  return `<section class="panel"><div class="phead">${av(u,'lg')}<div><h2>${esc(u.name)}</h2>${badgeHtml(u)?`<div style="margin:6px 0 2px">${badgeHtml(u)}</div>`:''}<div style="color:var(--mut)">@${esc(u.handle)}${pronTxt(u)}</div>
  <div class="stats"><button type="button" data-a="pscroll"><b>${posts.length}</b> posts</button><button type="button" data-a="plist" data-id="${u.id}" data-k="followers"><b>${followers(u)}</b> followers</button><button type="button" data-a="plist" data-id="${u.id}" data-k="following"><b>${(u.following||[]).length}</b> following</button></div>
- <div class="actions"><button class="btn ghost" data-a="diary" data-id="${u.id}">📔 Diary</button>${fbtn(u)}${me()&&!mine?`<button class="btn ghost" data-a="chat" data-id="${u.id}">✉️ Message</button><button class="btn ghost" data-a="block" data-id="${u.id}">🚫 Block</button>`:''}${isLead()&&!mine?`<button class="btn ghost" data-a="suspend" data-id="${u.id}">${(db.suspended||[]).includes(u.id)?'Unsuspend':'Suspend'}</button>`:''}</div></div></div>
+ <div class="actions"><button class="btn ghost" data-a="diary" data-id="${u.id}">📔 Diary</button>${fbtn(u)}${me()&&!mine?`<button class="btn ghost" data-a="chat" data-id="${u.id}">✉️ Message</button><button class="btn ghost" data-a="block" data-id="${u.id}">🚫 Block</button>`:''}${mine?'':modBtn(u.id,'','btn ghost')}</div></div></div>
  <p>${u.bio?lk(u.bio):'No bio yet.'}</p>${profLinks(u)}</section>
  ${topsView(u)}
  ${bingoShares(u)}
@@ -533,7 +547,7 @@ const pinView=()=>`<section class="panel"><h2>📌 Pinned content (view only)</h
 const statsPanel=()=>{if(!isAdmin()&&!isMod())return'';
  const tally=(key,label)=>{const m={};db.posts.forEach(p=>{const k=key(p);if(!k)return;const x=m[k]||(m[k]={l:label(p),p:0,c:0,k:0});x.p++;x.k+=p.likedBy.length;x.c+=p.comments.reduce((s,c)=>s+(c.hidden?0:1)+(c.replies||[]).length,0)});return Object.values(m).sort((a,b)=>(b.p+b.c)-(a.p+a.c)||b.k-a.k).slice(0,10)};
  const tbl=(t,rows)=>`<h3 style="margin:14px 0 6px">${t}</h3>`+(rows.length?`<div class="tblwrap"><table class="mtable"><thead><tr><th>#</th><th>Topic</th><th>Posts</th><th>Comments</th><th>Likes</th></tr></thead><tbody>${rows.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.l)}</td><td>${x.p}</td><td>${x.c}</td><td>${x.k}</td></tr>`).join('')}</tbody></table></div>`:'<p class="hint">Nothing yet.</p>');
- return `<section class="panel"><h2>📈 Most talked about (admin)</h2><p class="hint">Ranked by posts plus comments and replies.</p>${tbl('Titles',tally(p=>(p.media||'').trim().toLowerCase(),p=>p.media))}${tbl('Categories',tally(p=>p.type,p=>p.type))}${tbl('Weekly prompts',tally(p=>p.prompt,p=>(promptOf(p.prompt)||{}).title||'Deleted prompt'))}</section>`};
+ return `<section class="panel"><h2>📈 Stats (admin)</h2>${communityStats()}<h3 style="margin:22px 0 2px;font-size:1.05rem">Most talked about</h3><p class="hint">Ranked by posts plus comments and replies.</p>${tbl('Titles',tally(p=>(p.media||'').trim().toLowerCase(),p=>p.media))}${tbl('Categories',tally(p=>p.type,p=>p.type))}${tbl('Weekly prompts',tally(p=>p.prompt,p=>(promptOf(p.prompt)||{}).title||'Deleted prompt'))}</section>`};
 const searchView=()=>`<section class="panel"><h2>Search</h2><input id="s-q" placeholder="Search people, reviews or titles" autocomplete="off"></section><div id="s-res">${searchRes('')}</div>`;
 
 const threads=()=>{const m={};(db.msgs||[]).forEach(x=>{const o=x.from===db.me?x.to:x.from;(m[o]=m[o]||[]).push(x)});return Object.entries(m).map(([o,l])=>({o,l,last:l[l.length-1]})).sort((a,b)=>b.last.ts-a.last.ts)};
@@ -561,9 +575,9 @@ function clubView(id){const c=(db.clubs||[]).find(x=>x.id===id);if(!c||!me())ret
 const cmUpdate=()=>{const l=$('cm-list');if(l){l.innerHTML=clubList();l.scrollTop=l.scrollHeight}};
 const chatList=id=>{const l=(db.msgs||[]).filter(m=>m.from===id||m.to===id);return l.length?l.map(m=>{const mine=m.from===db.me;return `<div style="display:flex;justify-content:${mine?'flex-end':'flex-start'};margin:6px 0"><div style="max-width:80%;padding:8px 12px;border-radius:14px;white-space:pre-wrap;word-break:break-word;background:${mine?'var(--o)':'var(--os)'};color:${mine?'#fff':'var(--ink)'}">${esc(m.t)}<div style="font-size:.72rem;opacity:.75">${ago(m.ts)}${mine?` · <button class="link" data-a="delm" data-id="${m.id}" style="font-size:.72rem;color:#fff">Delete</button>`:''}</div></div></div>`}).join(''):'<p class="empty">Say hi.</p>'};
 function chatView(id){if(!me())return inboxView();const u=user(id);return `<button class="btn ghost" style="margin-bottom:14px" data-a="inbox">Back to messages</button><section class="panel"><div class="phead">${av(u)}<h2 style="font-size:1.3rem">${esc(u.name)}</h2></div><div id="m-list" style="margin-top:12px">${chatList(id)}</div><div class="cform"><input id="m-t" maxlength="1000" placeholder="Write a message"><button class="btn" data-a="sendm" data-id="${id}">Send</button></div></section>`}
-const noteText={like:'liked your post',comment:'commented on your post',reply:'replied to a comment',follow:'started following you',repost:'reposted your post',mention:'mentioned you'};
+const noteText={warn:'sent you a warning about a community rule',like:'liked your post',comment:'commented on your post',reply:'replied to a comment',follow:'started following you',repost:'reposted your post',mention:'mentioned you'};
 function notesView(){if(!me())return inboxView();const l=db.notes||[];
- return `<section class="panel"><h2>Notifications</h2></section>`+(l.length?l.map(n=>`<div class="panel person" style="${n.read?'':'border-color:var(--o)'}">${av(user(n.from),'sm')}<button class="link" data-a="${n.pid?'open':'profile'}" data-id="${n.pid||n.from}">${esc(user(n.from).name)} ${noteText[n.kind]||'did something'}</button><span class="hint" style="margin:0">${ago(n.ts)}</span></div>`).join(''):'<p class="empty">No juicy news yet.</p>')}
+ return `<section class="panel"><h2>Notifications</h2></section>`+(l.length?l.map(n=>`<div class="panel person" style="${n.read?'':'border-color:var(--o)'}">${av(user(n.from),'sm')}<button class="link" data-a="${n.pid?'open':'profile'}" data-id="${n.pid||n.from}">${esc(user(n.from).name)} ${noteText[n.kind]||'did something'}${n.text?': '+esc(n.text):''}</button><span class="hint" style="margin:0">${ago(n.ts)}</span></div>`).join(''):'<p class="empty">No juicy news yet.</p>')}
 function settingsView(){if(!me())return inboxView();
  return `<section class="panel"><h2>Email for password reset</h2><p class="hint">${db.email?'Current: '+esc(db.email):'No email yet. Add one so you can reset a forgotten password.'}</p><label for="em-n">Email</label><input id="em-n" type="email" placeholder="you@example.com"><label for="em-p">Your password</label><input id="em-p" type="password" autocomplete="current-password"><div class="actions"><button class="btn" data-a="setemail">Save email</button></div></section>
  <section class="panel"><h2>Change password</h2><label for="pw-o">Current password</label><input id="pw-o" type="password" autocomplete="current-password"><label for="pw-n">New password</label><input id="pw-n" type="password" autocomplete="new-password" placeholder="At least 6 characters"><div class="actions"><button class="btn" data-a="changepw">Change password</button></div></section>
@@ -618,7 +632,28 @@ const bingoBox=()=>{const l=(db.bingos||[])[0];if(!l)return'';const m=me(),done=
  return `<section class="panel"><h2>🎯 ${esc(l.title)}</h2><p class="hint" style="margin:0 0 10px">${m?'Tap a square when you have done it. Get a full row, column or diagonal to share your card on your profile.':'Log in to play.'}</p>${bviewBtns()}${bingoGrid(l.cells,l.marks,m?l.id:'')}${m?`<p class="hint">${bingoSet(l.cells,l.marks).size}/25 squares${done?' · 🎉 Bingo!':''}</p><div class="actions">${done?`<button class="btn" data-a="bshare" data-id="${l.id}">${shared?'Update my profile card':'Share my card on my profile'}</button>`:''}${shared?`<button class="btn ghost" data-a="bunshare" data-id="${l.id}">Remove from my profile</button>`:''}</div>`:''}</section>`};
 const bingoShares=u=>{const l=u.bingoShares||[];return l.length?`<section class="panel"><h2>🎯 Bingo cards</h2>${bviewBtns()}${l.map(x=>`<div style="margin-bottom:16px"><div style="font-weight:700;margin-bottom:8px">${esc(x.title)} ${bingoDone(x.cells,x.marks)?'🎉':''} <span class="hint">${ago(x.ts)}</span></div>${bingoGrid(x.cells,x.marks,'')}${me()&&me().id===u.id?`<div class="actions"><button class="btn ghost" data-a="bunshare" data-id="${x.id}">Remove from my profile</button></div>`:''}</div>`).join('')}</section>`:''};
 const pickBanner=()=>{const k=db.pick;return k?`<section class="panel" style="background:var(--os)"><h2>🍊 Fresh pick of the week</h2><div style="font-weight:700">${esc(k.type)} - ${esc(k.media)}</div>${k.note?`<p style="margin:6px 0 0">${lk(k.note)}</p>`:''}${me()?`<div class="actions"><button class="btn" data-a="pickreview">Review it</button></div>`:''}</section>`:''};
-const repAuthor=r=>{const p=(r.tt?db.tposts||[]:db.posts).find(x=>x.id===r.pid),by=p?(r.kind==='comment'&&r.i!=null&&p.comments[r.i]?p.comments[r.i].by:p.by):null;if(!by||by===db.me)return'';const sus=(db.suspended||[]).includes(by);return ` <button class="link" data-a="suspend" data-id="${by}">${sus?'Unsuspend':'Suspend'} ${esc(user(by).name)}</button>`};
+const REASONS=['Spoiler','Copying','Not kind','Crime'];
+function askReason(title,cb){const old=document.getElementById('rep-pop');if(old)old.remove();
+ const w=document.createElement('div');w.id='rep-pop';w.setAttribute('role','dialog');w.setAttribute('aria-modal','true');w.setAttribute('aria-label',title);
+ w.style.cssText='position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px';
+ w.innerHTML=`<div style="background:var(--bg);color:var(--ink);border-radius:16px;padding:18px;max-width:340px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.3)"><h3 style="margin:0 0 10px;font-size:1.1rem">${esc(title)}</h3>${REASONS.map(x=>`<button type="button" class="btn ghost" data-r="${x}" style="display:block;width:100%;text-align:left;margin:6px 0">${x}</button>`).join('')}<button type="button" class="link" data-r="" style="margin-top:8px">Cancel</button></div>`;
+ const close=()=>{w.remove();document.removeEventListener('keydown',esc2)},esc2=e=>{if(e.key==='Escape')close()};
+ w.addEventListener('click',e=>{const b=e.target.closest('[data-r]');if(b||e.target===w){const v=b?b.dataset.r:'';close();if(v)cb(v)}});
+ document.addEventListener('keydown',esc2);document.getElementById('tg').appendChild(w);const f=w.querySelector('button');if(f)f.focus()}
+const modBtn=(id,name,cls)=>{if(!isAdmin()||id===db.me)return'';const u=db.profiles.find(x=>x.id===id)||{},sus=(db.suspended||[]).includes(id);
+ if(sus)return isLead()?`<button class="${cls}" data-a="suspend" data-id="${id}">Unsuspend${name}</button>`:'';
+ if(!u.warned)return `<button class="${cls}" data-a="warn" data-id="${id}">⚠️ Warn${name}</button>`;
+ return (isLead()?`<button class="${cls}" data-a="suspend" data-id="${id}">Suspend${name}</button>`:'')+` <span class="hint">Warned ${ago(u.warned)}</span>`};
+const wkLabel=(k,W)=>new Date(Date.now()-(W-1-k)*6048e5).toLocaleDateString(undefined,{month:'short',day:'numeric'});
+const sBars=(arr,W)=>{const mx=Math.max(1,...arr);return `<div class="sbars" role="img" aria-label="Weekly bar chart: ${arr.join(', ')}">${arr.map((n,k)=>`<div class="sb"><span class="sbn">${n}</span><div class="sbt"><span class="sbc" style="height:${Math.round(n*100/mx)}%"></span></div><span class="sbl">${wkLabel(k,W)}</span></div>`).join('')}</div>`};
+function communityStats(){const st=db.stats;if(!st)return'';
+ const rows=Object.entries(st.cats||{}).map(([t,x])=>({t,p:x.p,c:x.c,l:x.l,sc:x.p+x.c})).sort((a,b)=>b.sc-a.sc||b.l-a.l),mx=Math.max(1,...rows.map(x=>x.sc));
+ const sum=a=>a.reduce((x,y)=>x+y,0);
+ return `<div class="sgrid"><div class="scard"><b>${st.totalMembers}</b><span>members</span></div><div class="scard"><b>${sum(st.members)}</b><span>new in ${st.weeks} weeks</span></div><div class="scard"><b>${st.totalPosts}</b><span>posts in total</span></div><div class="scard"><b>${st.comments}</b><span>comments</span></div></div>
+ <h3 style="margin:14px 0 0;font-size:1.05rem">Posts per week</h3>${sBars(st.posts,st.weeks)}
+ <h3 style="margin:18px 0 0;font-size:1.05rem">New members per week</h3>${sBars(st.members,st.weeks)}
+ <h3 style="margin:18px 0 2px;font-size:1.05rem">Most active categories (last 30 days)</h3><p class="hint" style="margin:0 0 6px">Ranked by posts plus comments.</p>${rows.length?rows.map(x=>`<div class="hrow"><span>${esc(x.t)}</span><span class="hbar"><i style="width:${Math.round(x.sc*100/mx)}%"></i></span><span>${x.p} posts · ${x.c} comments</span></div>`).join(''):'<p class="hint">No posts in the last 30 days.</p>'}`}
+const repAuthor=r=>{const p=(r.tt?db.tposts||[]:db.posts).find(x=>x.id===r.pid),by=p?(r.kind==='comment'&&r.i!=null&&p.comments[r.i]?p.comments[r.i].by:p.by):null;if(!by||by===db.me)return'';return ' '+modBtn(by,' '+esc(user(by).name),'link')};
 
 /* ---------- Feature picks 🧺 ---------- */
 const FSTAT={pending:'⏳ Waiting for the editor',published:'✅ Published',rejected:'↩️ Sent back'};
@@ -1028,7 +1063,7 @@ app.addEventListener('click',async e=>{
  else if(a==='tsendr'){const t=g('r-t');if(!t){toast('Write a reply first');return}if(await api('treply',{id,i:+b.dataset.i,t})){go({n:'times',s:view.s,pid:id},true);toast('Reply posted')}}
  else if(a==='tdelc'){if(!confirm('Delete this comment?'))return;if(await api('tdelcomment',{id,i:+b.dataset.i})){go({n:'times',s:view.s,pid:id},true);toast('Comment deleted')}}
  else if(a==='tdelr'){if(!confirm('Delete this reply?'))return;if(await api('tdelreply',{id,i:+b.dataset.i,j:+b.dataset.j}))go({n:'times',s:view.s,pid:id},true)}
- else if(a==='treportc'){const reason=prompt('Why are you reporting this? (optional)');if(reason===null)return;if(await api('treport',{id,i:+b.dataset.i,reason}))toast('Thanks, an admin will take a look')}
+ else if(a==='treportc'){const ci=+b.dataset.i;askReason('Why are you reporting this?',async reason=>{if(await api('treport',{id,i:ci,reason}))toast('Thanks, your report was sent')})}
  else if(a==='tpost'){const q=(db.tposts||[]).find(x=>x.id===id);if(!q)return;timesEdit=false;timesWrite=null;ttDir=1;go({n:'times',s:q.sec,pid:q.id})}
  else if(a==='ttcar'){const t=app.querySelector('.tt-car');if(t)t.scrollBy({left:(+b.dataset.d)*t.clientWidth,behavior:ttMotion()})}
  else if(a==='hbcar'){hbGo(hbI+(+b.dataset.d))}
@@ -1127,8 +1162,9 @@ app.addEventListener('click',async e=>{
  else if(a==='replyto')go({n:'post',id:view.id,rp:+b.dataset.i},true);
  else if(a==='sendr'){const t=g('r-t');if(!t){toast('Write a reply first');return}if(await api('reply',{id,i:+b.dataset.i,t})){go({n:'post',id},true);toast('Reply posted')}}
  else if(a==='delr'){if(!confirm('Delete this reply?'))return;if(await api('delreply',{id,i:+b.dataset.i,j:+b.dataset.j}))go({n:'post',id},true)}
- else if(a==='report'){menuOpen='';render();const reason=prompt('Why are you reporting this? (optional)');if(reason===null)return;
-  if(await api('report',{k:b.dataset.k,id,i:b.dataset.i===undefined?undefined:+b.dataset.i,reason}))toast('Thanks, your report was sent')}
+ else if(a==='report'){const k=b.dataset.k,ci=b.dataset.i===undefined?undefined:+b.dataset.i;menuOpen='';render();
+  askReason('Why are you reporting this?',async reason=>{if(await api('report',{k,id,i:ci,reason}))toast('Thanks, your report was sent')})}
+ else if(a==='warn'){askReason('Warn them about:',async reason=>{if(await api('warn',{id,reason})){toast('Warning sent. If it happens again you can suspend.');render()}})}
  else if(a==='block'){const un=b.textContent==='Unblock';
   if(!un&&!confirm('Block this person? You will no longer see their posts or messages, and they will no longer see yours.'))return;
   if(await api('block',{id})){toast(un?'Unblocked':'Blocked');go({n:un?'settings':'feed'})}}
