@@ -97,7 +97,7 @@ body{margin:0;background:var(--bg)}
 #tg .who{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
 #tg .nm{display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--od);cursor:pointer;background:none;border:0;padding:0;box-shadow:none;-webkit-tap-highlight-color:transparent}
 #tg .nm:hover>span:last-child{text-decoration:underline}
-#tg .un{font-weight:500;color:var(--od);opacity:.65}
+#tg .un{font-weight:500;color:var(--od);opacity:.85}
 #tg .post .meta .un,#tg .post .meta .nm{font-size:15px}
 #tg .pcat{margin:8px 0 0;font-size:14px;font-weight:700;color:var(--od)}
 #tg .pcat span{font-weight:400;color:var(--mut)}
@@ -485,7 +485,7 @@ function addLink(r){if(!r)return;const sl=getSelection();const rg=sl.rangeCount?
  if(sel)document.execCommand('createLink',false,u);else document.execCommand('insertHTML',false,'<a href="'+esc(u)+'">'+esc(txt)+'</a>&#8203;');
  rteSync(r)}
 const bodyHtml=(p,full)=>p.spoiler&&!rev.has(p.id)?`<div class="body"><button class="btn ghost" data-a="reveal" data-id="${p.id}">⚠️ Contains spoilers. Tap to show</button></div>`:`<div class="body">${lkx(full?p.text:excerpt(plainLk(p.text)))}</div>`;
-const whoHtml=(u,light,noav)=>`<span class="who"><span class="nm" role="link" tabindex="0" data-a="profile" data-id="${u.id}">${noav?'':av(u,'sm')}<span>${esc(u.name)}</span></span><span class="un">@${esc(u.handle)}</span>${badgeHtml(u)}</span>`;
+const whoHtml=(u,light,noav)=>`<span class="who"><span class="nm" role="link" tabindex="0" data-a="profile" data-id="${u.id}"><span>${esc(u.name)}</span></span><span class="un">@${esc(u.handle)}</span>${badgeHtml(u)}</span>`;
 const meta=(p,big)=>{const when=`<span>${ago(p._ots||p.ts)}${p.edited?' <span style="opacity:.6;font-size:.82em">(edited)</span>':''}</span>`,
  draft=p.draft?'<span class="tag">Draft</span>':'',
  prm=p.prompt&&promptOf(p.prompt)?`<button class="link" data-a="prompt" data-id="${p.prompt}">💭 ${esc(promptOf(p.prompt).title)}</button>`:'',
@@ -515,8 +515,8 @@ function commentHtml(p,c,i){const u=me();
  const own=u&&u.id===c.by, mod=u&&(own||u.id===p.by||isAdmin());
  const hid=!!c.spoiler&&!own&&!rev.has('c'+p.id+'-'+i), cbody=hid?`<button class="link" data-a="reveal" data-id="c${p.id}-${i}">⚠️ Contains spoilers. Tap to show</button>`:lk(c.t)+(c.spoiler?' <span class="hint">(spoiler)</span>':'');
  const main=view.ec===i&&own?`<div class="cm">${av(u,'sm')}<div class="cform" style="flex:1;margin:0"><input id="ce-t" maxlength="300" value="${esc(c.t)}"><button class="btn" data-a="savec" data-id="${p.id}" data-i="${i}">Save</button><button class="btn ghost" data-a="open" data-id="${p.id}">Cancel</button><label class="cspoil"><input type="checkbox" id="ce-spoil"${c.spoiler?' checked':''}>This comment contains spoilers</label></div></div>`
-  :`<div class="cm">${av(user(c.by),'sm')}<div style="flex:1;min-width:0"><div class="chead">${whoHtml(user(c.by),0,1)}${u&&!own?`<button class="link pale sm" data-a="report" data-k="comment" data-id="${p.id}" data-i="${i}">Report</button>`:''}</div>${cbody}${c.edited?' <span class="hint">(edited)</span>':''}<div class="cacts">${likeRow(p,c,i)}${u?`<button class="link pale" data-a="replyto" data-i="${i}">Reply</button>`:''}${own?`<button class="link pale" data-a="editc" data-i="${i}">Edit</button>`:''}${mod?`<button class="link pale" data-a="delc" data-id="${p.id}" data-i="${i}">Delete</button>`:''}</div>${clikersPanel(p,c,i)}</div></div>`;
- const reps=(c.replies||[]).map((r,j)=>r.hidden?'':`<div class="cm" style="margin-left:34px">${av(user(r.by),'sm')}<div>${whoHtml(user(r.by),0,1)}<div>${lk(r.t)}</div>${u&&(u.id===r.by||u.id===p.by||isAdmin())?`<div class="cacts"><button class="link pale" data-a="delr" data-id="${p.id}" data-i="${i}" data-j="${j}">Delete</button></div>`:''}</div></div>`).join('');
+  :`<div class="cm"><div style="flex:1;min-width:0"><div class="chead">${whoHtml(user(c.by),0,1)}${u&&!own?`<button class="link pale sm" data-a="report" data-k="comment" data-id="${p.id}" data-i="${i}">Report</button>`:''}</div>${cbody}${c.edited?' <span class="hint">(edited)</span>':''}<div class="cacts">${likeRow(p,c,i)}${u?`<button class="link pale" data-a="replyto" data-i="${i}">Reply</button>`:''}${own?`<button class="link pale" data-a="editc" data-i="${i}">Edit</button>`:''}${mod?`<button class="link pale" data-a="delc" data-id="${p.id}" data-i="${i}">Delete</button>`:''}</div>${clikersPanel(p,c,i)}</div></div>`;
+ const reps=(c.replies||[]).map((r,j)=>r.hidden?'':`<div class="cm" style="margin-left:34px"><div>${whoHtml(user(r.by),0,1)}<div>${lk(r.t)}</div>${u&&(u.id===r.by||u.id===p.by||isAdmin())?`<div class="cacts"><button class="link pale" data-a="delr" data-id="${p.id}" data-i="${i}" data-j="${j}">Delete</button></div>`:''}</div></div>`).join('');
  const form=view.rp===i&&u?`<div class="cform" style="margin-left:34px"><input id="r-t" maxlength="300" placeholder="Reply as ${esc(u.name)}"><button class="btn" data-a="sendr" data-id="${p.id}" data-i="${i}">Reply</button><button class="btn ghost" data-a="open" data-id="${p.id}">Cancel</button></div>`:'';
  return main+reps+form}
 function editForm(p){return `<section class="panel"><h2>Edit your post</h2>${p.prompt&&promptOf(p.prompt)?`<p style="margin:0 0 6px;padding:8px 12px;background:var(--os);border-radius:10px">💭 Answering the weekly prompt: <b>${esc(promptOf(p.prompt).title)}</b></p>`:''}
