@@ -200,7 +200,7 @@ function out(db, uid, extra) {
     /* NEW: lead admins assigned in Settings, and the permanent ones from ADMIN_HANDLE */
     owners: owner ? db.owners : [], ownerHandles: owner ? ADMINS : [],
     db: {
-      profiles: db.users.map(u => ({ ...pub(u, uid), warned: admin && u.warned ? u.warned : 0, crew: db.crew[u.id] ? (db.crew[u.id] === "Editorial" ? "Editorial" : "Team") : "" })), posts,
+      profiles: db.users.map(u => ({ ...pub(u, uid), warned: (owner || mod) && u.warned ? u.warned : 0, crew: db.crew[u.id] ? (db.crew[u.id] === "Editorial" ? "Editorial" : "Team") : "" })), posts,
       reposts: db.reposts.filter(r => !bs.has(r.by) && posts.some(p => p.id === r.pid && !p.draft)),
       lists: db.lists.filter(l => !bs.has(l.by)).sort((a, b) => b.ts - a.ts).map(l => ({
         ...l,
@@ -248,7 +248,8 @@ function out(db, uid, extra) {
     r.notes = me.notes.filter(n => !bs.has(n.from));
     r.blocked = me.blocked.map(x => U(db, x)).filter(Boolean).map(u => pub(u, uid));
     r.email = me.email;
-    if (admin) { r.reports = db.reports; r.sugg = db.sugg; }
+    if (admin) r.sugg = db.sugg;
+    if (owner || mod) r.reports = db.reports;
     if (admin || mod) r.stats = statsOf(db);
     if (owner || mod) r.suspended = db.suspended;
     if (owner) {
@@ -311,6 +312,7 @@ export default async function handler(req, res) {
   const P = id => db.posts.find(p => p.id === id) || bad("Post not found");
   const isAdmin = () => isAdminU(db, uid && U(db, uid));
   const isOwner = () => isOwnerU(db, uid && U(db, uid));
+  const isMod = () => isModU(db, uid && U(db, uid));
   const isEditor = () => isAdmin() || rolesOf(db, uid).includes("editor");
 
   try {
@@ -712,7 +714,7 @@ export default async function handler(req, res) {
         break;
       }
       case "setcrew": {
-        if (!isAdmin()) bad("Admins only");
+        if (!isOwner() && !isMod()) bad("Lead admin and mods only");
         const t = U(db, d.id);
         if (!t) bad("Member not found");
         const team = CREW_TEAMS.includes(d.team) ? d.team : "";
@@ -1086,7 +1088,7 @@ export default async function handler(req, res) {
         if (db.reports.length > 200) db.reports.shift();
         break;
       }
-      case "dismissreport": if (!isAdmin()) bad("Admins only"); db.reports = db.reports.filter(r => r.id !== d.id); break;
+      case "dismissreport": if (!isOwner() && !isMod()) bad("Lead admin and mods only"); db.reports = db.reports.filter(r => r.id !== d.id); break;
       case "block": {
         const m = me(), t = U(db, d.id);
         if (!t || t.id === m.id) bad("Cannot block that account");
@@ -1096,14 +1098,40 @@ export default async function handler(req, res) {
         break;
       }
       case "warn": {
-        if (!isAdmin()) bad("Admins only");
+        if (!isOwner() && !isMod()) bad("Lead admin and mods only");
         const m = me(), t = U(db, d.id);
         if (!t || t.id === m.id) bad("Cannot warn that account");
-        if (isAdminU(db, t)) bad("You cannot warn an admin");
-        const reason = REASONS.includes(d.reason) ? d.reason : bad("Pick a reason");
-        t.warned = Date.now(); t.warnReason = reason;
-        t.notes.unshift({ id: id8(), kind: "warn", from: m.id, text: reason, ts: Date.now(), read: false });
+        if (isAdminU(db, t) || isModU(db, t)) bad("You cannot warn an admin or mod");
+        t.warned = Date.now();
+        t.notes.unshift({ id: id8(), kind: "warn", from: m.id, ts: Date.now(), read: false });
         if (t.notes.length > 100) t.notes.length = 100;
+        break;
+      }
+      /* NEW: lead admin or mod deletes a reported post or comment and tells the author */
+      case "modremove": {
+        if (!isOwner() && !isMod()) bad("Lead admin and mods only");
+        const m = me(), kind = d.k === "comment" ? "comment" : "post", p = P(d.id);
+        let by;
+        if (kind === "comment") {
+          const i = parseInt(d.i, 10), c = p.comments[i];
+          if (!c) bad("Comment not found");
+          by = c.by;
+          if (isAdminU(db, U(db, by)) && !isOwner()) bad("Not allowed");
+          p.comments.splice(i, 1);
+          db.reports = db.reports.filter(r => !(r.kind === "comment" && !r.tt && r.pid === p.id && r.i === i));
+          db.reports.forEach(r => { if (r.kind === "comment" && !r.tt && r.pid === p.id && r.i > i) r.i--; });
+        } else {
+          by = p.by;
+          if (isAdminU(db, U(db, by)) && !isOwner()) bad("Not allowed");
+          db.posts = db.posts.filter(x => x.id !== p.id);
+          db.reports = db.reports.filter(r => r.pid !== p.id);
+          db.reposts = db.reposts.filter(r => r.pid !== p.id);
+        }
+        const t = U(db, by);
+        if (t && t.id !== m.id) {
+          t.notes.unshift({ id: id8(), kind: "removed", from: m.id, text: kind, ts: Date.now(), read: false });
+          if (t.notes.length > 100) t.notes.length = 100;
+        }
         break;
       }
       case "suspend": {
