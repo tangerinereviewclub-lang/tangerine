@@ -178,8 +178,9 @@ function out(db, uid, extra) {
   const posts = db.posts.filter(p => !bs.has(p.by) && (!p.draft || p.by === uid)).sort((a, b) => b.ts - a.ts).map(p => ({
     ...p,
     likedBy: p.likedBy.filter(x => !bs.has(x)),
+    /* CHANGED: comments carry likedBy (blocked people removed) */
     comments: p.comments.map(c => bs.has(c.by) ? { hidden: true, replies: [] }
-      : { ...c, replies: (c.replies || []).map(r => bs.has(r.by) ? { hidden: true } : r) })
+      : { ...c, likedBy: (c.likedBy || []).filter(x => !bs.has(x)), replies: (c.replies || []).map(r => bs.has(r.by) ? { hidden: true } : r) })
   }));
   const myRoles = me ? rolesOf(db, me.id) : [];
   const isCore = !!(me && (admin || myRoles.length));
@@ -393,8 +394,18 @@ export default async function handler(req, res) {
         const m = me(), p = P(d.id), t = clip(d.t, 300);
         if (!t) bad("Write a comment first");
         /* CHANGED: a comment can be marked as containing spoilers */
-        p.comments.push({ by: m.id, t, ts: Date.now(), replies: [], ...(d.spoiler ? { spoiler: true } : {}) });
+        p.comments.push({ by: m.id, t, ts: Date.now(), replies: [], likedBy: [], ...(d.spoiler ? { spoiler: true } : {}) });
         note(db, p.by, "comment", m.id, p.id); mentions(db, t, m.id, p.id);
+        break;
+      }
+      /* NEW: like or unlike a comment on a post */
+      case "clike": {
+        const m = me(), p = P(d.id), c = p.comments[parseInt(d.i, 10)];
+        if (!c) bad("Comment not found");
+        if (blockedSet(db, m.id).has(c.by)) bad("Not allowed");
+        c.likedBy = c.likedBy || [];
+        const k = c.likedBy.indexOf(m.id);
+        if (k >= 0) c.likedBy.splice(k, 1); else c.likedBy.push(m.id);
         break;
       }
       case "editcomment": {
@@ -617,6 +628,8 @@ export default async function handler(req, res) {
         db.posts.forEach(p => {
           p.likedBy = p.likedBy.filter(x => x !== id);
           p.comments = p.comments.filter(c => c.by !== id);
+          /* CHANGED: also remove this person's likes from comments */
+          p.comments.forEach(c => { c.likedBy = (c.likedBy || []).filter(x => x !== id); });
           p.comments.forEach(c => { c.replies = (c.replies || []).filter(r => r.by !== id); });
         });
         db.reposts = db.reposts.filter(r => r.by !== id && db.posts.some(p => p.id === r.pid));
