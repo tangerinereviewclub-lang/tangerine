@@ -385,7 +385,12 @@ export default async function handler(req, res) {
         if (p.by === m.id) bad("You cannot repost your own post");
         if (blockedSet(db, m.id).has(p.by)) bad("Not allowed");
         const i = db.reposts.findIndex(r => r.pid === p.id && r.by === m.id);
-        if (i >= 0) db.reposts.splice(i, 1);
+        /* CHANGED: a repost can carry a short comment (repost with comment). With no comment it toggles on/off as before. */
+        const t = clip(d.t, 300);
+        if (t) {
+          if (i >= 0) { db.reposts[i].t = t; db.reposts[i].ts = Date.now(); }
+          else { db.reposts.push({ id: id8(), pid: p.id, by: m.id, t, ts: Date.now() }); note(db, p.by, "repost", m.id, p.id); }
+        } else if (i >= 0) db.reposts.splice(i, 1);
         else { db.reposts.push({ id: id8(), pid: p.id, by: m.id, ts: Date.now() }); note(db, p.by, "repost", m.id, p.id); }
         break;
       }
