@@ -92,6 +92,19 @@ body{margin:0;background:var(--bg)}
 #tg .post .meta .link{font-size:15px}
 #tg .tag{background:var(--os);border-radius:999px;padding:1px 10px;font-weight:700;color:var(--od);font-size:.82rem}
 #tg .rate{color:var(--o);letter-spacing:2px}
+#tg .who{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
+#tg .nm{font-weight:600}
+#tg .nm.lt{font-weight:400}
+#tg .un{font-weight:400;color:var(--mut)}
+#tg .post .meta .un{font-size:15px}
+#tg .pcat{margin:8px 0 0;font-size:14px;font-weight:700;color:var(--od)}
+#tg .pcat span{font-weight:400;color:var(--mut)}
+#tg .post .meta.m1{margin-bottom:4px}
+#tg .post .meta.m2{margin-top:0}
+#tg .chead{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+#tg .cacts{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:4px}
+#tg .link.pale{color:var(--mut);font-weight:500}
+#tg .link.pale.on{color:var(--od);font-weight:700}
 #tg .body{white-space:pre-wrap;max-width:68ch}
 #tg .actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
 #tg .act{background:var(--os);border:0;border-radius:999px;padding:7px 14px;cursor:pointer;font-weight:700;color:var(--od)}
@@ -465,7 +478,13 @@ function addLink(r){if(!r)return;const sl=getSelection();const rg=sl.rangeCount?
  if(sel)document.execCommand('createLink',false,u);else document.execCommand('insertHTML',false,'<a href="'+esc(u)+'">'+esc(txt)+'</a>&#8203;');
  rteSync(r)}
 const bodyHtml=(p,full)=>p.spoiler&&!rev.has(p.id)?`<div class="body"><button class="btn ghost" data-a="reveal" data-id="${p.id}">⚠️ Contains spoilers. Tap to show</button></div>`:`<div class="body">${lkx(full?p.text:excerpt(plainLk(p.text)))}</div>`;
-const meta=(p,big)=>`${big?`<div class="meta bigtags"><span class="tag">${esc(p.type)}</span>${p.media!==p.title?`<span class="tag">${esc(p.media)}</span>`:''}</div>`:''}<div class="meta">${userLink(user(p.by))}${big?'':`<span class="tag">${esc(p.type)}</span>`}${p.draft?'<span class="tag">Draft</span>':''}${p.prompt&&promptOf(p.prompt)?`<button class="link" data-a="prompt" data-id="${p.prompt}">💭 ${esc(promptOf(p.prompt).title)}</button>`:''}${!big&&p.media!==p.title?`<span class="tag">${esc(p.media)}</span>`:''}<span class="rate" aria-label="${p.rating} out of 5">${stars(p.rating)}</span><span>${ago(p._ots||p.ts)}${p.edited?' <span style="opacity:.6;font-size:.82em">(edited)</span>':''}</span></div>`;
+const whoHtml=(u,light,noav)=>`<span class="who"><button class="link nm${light?' lt':''}" data-a="profile" data-id="${u.id}">${noav?'':av(u,'sm')}${esc(u.name)}</button><span class="un">@${esc(u.handle)}</span>${badgeHtml(u)}</span>`;
+const meta=(p,big)=>{const when=`<span>${ago(p._ots||p.ts)}${p.edited?' <span style="opacity:.6;font-size:.82em">(edited)</span>':''}</span>`,
+ draft=p.draft?'<span class="tag">Draft</span>':'',
+ prm=p.prompt&&promptOf(p.prompt)?`<button class="link" data-a="prompt" data-id="${p.prompt}">💭 ${esc(promptOf(p.prompt).title)}</button>`:'',
+ rate=`<span class="rate" aria-label="${p.rating} out of 5">${stars(p.rating)}</span>`;
+ if(big)return `<div class="pcat">${esc(p.type)} <span>-</span> ${esc(p.media)}</div><div class="meta">${whoHtml(user(p.by))}${draft}${prm}${rate}${when}</div>`;
+ return `<div class="meta m1">${whoHtml(user(p.by),1)}<span class="tag">${esc(p.type)}</span>${draft}${prm}</div><div class="meta m2"><span>${esc(p.media)} - ${rate}</span>${when}</div>`};
 const card=p=>`<article class="post">${postMenu(p)}<button class="open" data-a="open" data-id="${p.id}">${esc(p.title)}</button>${meta(p)}
  ${bodyHtml(p)}<div class="actions"><button class="btn ghost" data-a="open" data-id="${p.id}">Read post</button></div>${actions(p)}</article>`;
 
@@ -479,13 +498,18 @@ function feedView(){const fl=(me()&&me().following)||[];
 const postMenu=p=>{const u=me();if(!u)return'';const own=u.id===p.by,adm=isAdmin();if(!own&&!adm&&p.draft)return'';
  const edit=`<button role="menuitem" data-a="editp" data-id="${p.id}">Edit post</button>`,del=`<button role="menuitem" class="dng" data-a="delete" data-id="${p.id}">Delete post</button>`,rpt=`<button role="menuitem" data-a="report" data-k="post" data-id="${p.id}">Report</button>`;
  return pmenu('p'+p.id,own?edit+del:rpt+(adm?del:''))};
+const cliked=new Set();
+const likeRow=(p,c,i)=>{const u=me(),L=(c.likedBy||[]),on=!!(u&&L.includes(u.id));
+ return `<button class="link pale${on?' on':''}" data-a="clike" data-id="${p.id}" data-i="${i}" aria-pressed="${on}">${on?'Liked':'Like'}</button>${L.length?`<button class="link pale" data-a="clikers" data-id="c${p.id}-${i}" aria-expanded="${cliked.has('c'+p.id+'-'+i)}">${L.length} like${L.length===1?'':'s'}</button>`:''}`};
+const clikersPanel=(p,c,i)=>{const L=(c.likedBy||[]).map(id=>user(id)).filter(Boolean);if(!L.length||!cliked.has('c'+p.id+'-'+i))return'';
+ return `<div class="hint" style="display:flex;flex-wrap:wrap;gap:0 6px;align-items:center">Liked by ${L.map(x=>`<button class="link nm" data-a="profile" data-id="${x.id}" style="font-size:.85rem">${esc(x.name)} <span class="un">@${esc(x.handle)}</span></button>`).join(', ')}</div>`};
 function commentHtml(p,c,i){const u=me();
  if(c.hidden)return `<div class="cm"><span class="hint">Comment hidden (blocked user).</span></div>`;
  const own=u&&u.id===c.by, mod=u&&(own||u.id===p.by||isAdmin());
  const hid=!!c.spoiler&&!own&&!rev.has('c'+p.id+'-'+i), cbody=hid?`<button class="link" data-a="reveal" data-id="c${p.id}-${i}">⚠️ Contains spoilers. Tap to show</button>`:lk(c.t)+(c.spoiler?' <span class="hint">(spoiler)</span>':'');
  const main=view.ec===i&&own?`<div class="cm">${av(u,'sm')}<div class="cform" style="flex:1;margin:0"><input id="ce-t" maxlength="300" value="${esc(c.t)}"><button class="btn" data-a="savec" data-id="${p.id}" data-i="${i}">Save</button><button class="btn ghost" data-a="open" data-id="${p.id}">Cancel</button><label class="cspoil"><input type="checkbox" id="ce-spoil"${c.spoiler?' checked':''}>This comment contains spoilers</label></div></div>`
- :`<div class="cm">${av(user(c.by),'sm')}<div><button class="link" data-a="profile" data-id="${c.by}">${esc(user(c.by).name)}</button> ${cbody}${c.edited?' <span class="hint">(edited)</span>':''}${u?` <button class="link" data-a="replyto" data-i="${i}">Reply</button>`:''}${own?` <button class="link" data-a="editc" data-i="${i}">Edit</button>`:''}${mod?` <button class="link" data-a="delc" data-id="${p.id}" data-i="${i}">Delete</button>`:''}${u&&!own?` ${pmenu('c'+p.id+'-'+i,`<button role="menuitem" data-a="report" data-k="comment" data-id="${p.id}" data-i="${i}">Report</button>`,1)}`:''}</div></div>`;
- const reps=(c.replies||[]).map((r,j)=>r.hidden?'':`<div class="cm" style="margin-left:34px">${av(user(r.by),'sm')}<div><button class="link" data-a="profile" data-id="${r.by}">${esc(user(r.by).name)}</button> ${lk(r.t)}${u&&(u.id===r.by||u.id===p.by||isAdmin())?` <button class="link" data-a="delr" data-id="${p.id}" data-i="${i}" data-j="${j}">Delete</button>`:''}</div></div>`).join('');
+  :`<div class="cm">${av(user(c.by),'sm')}<div style="flex:1;min-width:0"><div class="chead">${whoHtml(user(c.by),0,1)}${u&&!own?`<button class="link pale" data-a="report" data-k="comment" data-id="${p.id}" data-i="${i}">Report</button>`:''}</div>${cbody}${c.edited?' <span class="hint">(edited)</span>':''}<div class="cacts">${likeRow(p,c,i)}${u?`<button class="link pale" data-a="replyto" data-i="${i}">Reply</button>`:''}${own?`<button class="link pale" data-a="editc" data-i="${i}">Edit</button>`:''}${mod?`<button class="link pale" data-a="delc" data-id="${p.id}" data-i="${i}">Delete</button>`:''}</div>${clikersPanel(p,c,i)}</div></div>`;
+ const reps=(c.replies||[]).map((r,j)=>r.hidden?'':`<div class="cm" style="margin-left:34px">${av(user(r.by),'sm')}<div>${whoHtml(user(r.by),0,1)}<div>${lk(r.t)}</div>${u&&(u.id===r.by||u.id===p.by||isAdmin())?`<div class="cacts"><button class="link pale" data-a="delr" data-id="${p.id}" data-i="${i}" data-j="${j}">Delete</button></div>`:''}</div></div>`).join('');
  const form=view.rp===i&&u?`<div class="cform" style="margin-left:34px"><input id="r-t" maxlength="300" placeholder="Reply as ${esc(u.name)}"><button class="btn" data-a="sendr" data-id="${p.id}" data-i="${i}">Reply</button><button class="btn ghost" data-a="open" data-id="${p.id}">Cancel</button></div>`:'';
  return main+reps+form}
 function editForm(p){return `<section class="panel"><h2>Edit your post</h2>${p.prompt&&promptOf(p.prompt)?`<p style="margin:0 0 6px;padding:8px 12px;background:var(--os);border-radius:10px">💭 Answering the weekly prompt: <b>${esc(promptOf(p.prompt).title)}</b></p>`:''}
@@ -1157,6 +1181,8 @@ app.addEventListener('click',async e=>{
   if(!g('e-name')){toast('Display name cannot be empty');return}
   const r=await api('saveprofile',{name:g('e-name'),handle:g('e-handle').toLowerCase().replace(/^@/,''),bio:g('e-bio'),avatar:pickAv,top:readTops('e'),...readPron('e'),...readIg('e')});
   if(r){toast('Profile saved');render()}}
+ else if(a==='clike'){if(!needUser())return;const y=window.scrollY;if(await api('clike',{id,i:+b.dataset.i})){render();window.scrollTo(0,y)}}
+ else if(a==='clikers'){if(cliked.has(id))cliked.delete(id);else cliked.add(id);const y=window.scrollY;render();window.scrollTo(0,y)}
  else if(a==='likers'){if(likersAll.has(id))likersAll.delete(id);else likersAll.add(id);const y=window.scrollY;render();window.scrollTo(0,y)}
  else if(a==='dots'){menuOpen=menuOpen===id?'':id;const y=window.scrollY;render();window.scrollTo(0,y)}
  else if(a==='like'){if(!needUser())return;const y=window.scrollY;if(await api('like',{id})){if($('s-res'))$('s-res').innerHTML=searchRes($('s-q').value);else render();window.scrollTo(0,y)}}
