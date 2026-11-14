@@ -110,6 +110,7 @@ body{margin:0;background:var(--bg)}
 #tg{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 #tg input,#tg textarea,#tg select,#tg .rte,#tg [contenteditable="true"]{-webkit-user-select:text;user-select:text}
 @media print{#tg .post,#tg .cm{display:none!important}}
+#tg .rpbar{font-size:.85rem;color:var(--mut);margin:0 0 6px}
 #tg .rpstrip{font-size:.85rem;color:var(--mut);margin:0 0 8px;padding-right:52px}
 #tg .sugg-row{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}
 #tg .sugg-row textarea{flex:1 1 220px;min-height:46px}
@@ -539,7 +540,7 @@ const meta=(p,big)=>{const when=`<span>${ago(p._ots||p.ts)}${p.edited?' <span st
  rate=`<span class="rate" aria-label="${p.rating} out of 5">${stars(p.rating)}</span>`;
  if(big)return `<div class="meta bigtags"><span class="tag">${esc(p.type)}</span><span class="tag">${esc(p.media)}</span></div><div class="meta">${whoHtml(user(p.by))}${draft}${prm}${rate}${when}</div>`;
  return `<div class="meta m1">${whoHtml(user(p.by))}<span class="tag">${esc(p.type)}</span>${draft}${prm}</div><div class="meta m2"><span class="tag">${esc(p.media)}</span>${rate}${when}</div>`};
-const card=p=>`<article class="post">${postMenu(p)}${repStrip(p)}<button class="open" data-a="open" data-id="${p.id}">${esc(p.title)}</button>${meta(p)}
+const card=(p,_i,_a,noStrip)=>`<article class="post">${postMenu(p)}${noStrip?'':repStrip(p)}<button class="open" data-a="open" data-id="${p.id}">${esc(p.title)}</button>${meta(p)}
  ${bodyHtml(p)}${actions(p)}</article>`;
 
 const newTip=()=>{const u=me();return u&&!db.posts.some(p=>p.by===u.id)?'<div class="panel" style="background:var(--os);margin-bottom:12px"><p style="margin:0">🍊 <b>New?</b> Tap <button class="link" data-a="gocompose"><b>Share your take</b></button> to post your first review.</p></div>':''};
@@ -582,6 +583,17 @@ function postView(p){const u=me();if(view.edit&&u&&u.id===p.by)return editForm(p
  ${u?`<div class="cform"><input id="c-t" maxlength="300" placeholder="Comment as ${esc(u.name)}"><button class="btn" data-a="send" data-id="${p.id}">Comment</button><label class="cspoil"><input type="checkbox" id="c-spoil">This comment contains spoilers</label></div>`
  :`<div class="actions"><button class="btn" data-a="join">Create a profile to comment</button></div>`}</div></article>`}
 
+let ptab='all';
+function profileFeed(u,posts){
+ const reps=(db.reposts||[]).filter(r=>r.by===u.id).map(r=>({r,p:db.posts.find(x=>x.id===r.pid)})).filter(x=>x.p).sort((a,b)=>b.r.ts-a.r.ts);
+ const chip=(k,l)=>`<button class="chip" data-a="ptab" data-t="${k}" aria-pressed="${ptab===k}">${l}</button>`;
+ const rItem=x=>`<div class="rpbar">🔄 <b>${esc(u.name)}</b> reposted${x.r.t?': '+lk(x.r.t):''}</div>${card(x.p,0,0,1)}`;
+ let list;
+ if(ptab==='posts')list=posts.length?sortPosts(posts,psort).map(p=>card(p)).join(''):'<p class="empty">No posts yet.</p>';
+ else if(ptab==='reposts')list=reps.length?reps.map(rItem).join(''):'<p class="empty">No reposts yet.</p>';
+ else{const all=posts.map(p=>({t:p.ts,h:()=>card(p)})).concat(reps.map(x=>({t:x.r.ts,h:()=>rItem(x)}))).sort((a,b)=>b.t-a.t);list=all.length?all.map(x=>x.h()).join(''):'<p class="empty">Nothing here yet.</p>'}
+ const sel=ptab==='posts'&&posts.length>1?`<select id="psort" aria-label="Sort posts" style="width:auto"><option value="new"${psort==='new'?' selected':''}>Newest</option><option value="old"${psort==='old'?' selected':''}>Oldest</option><option value="liked"${psort==='liked'?' selected':''}>Most liked</option><option value="comm"${psort==='comm'?' selected':''}>Most commented</option></select>`:'';
+ return `<div id="u-posts" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 12px"><div class="filters" style="margin:0">${chip('all','Latest')}${chip('posts','Posts')}${chip('reposts','Reposts')}</div>${sel}</div>${list}`}
 function profileView(u){const mine=me()&&me().id===u.id, posts=db.posts.filter(p=>p.by===u.id), shown=posts;
  return `<section class="panel"><div class="phead">${av(u,'lg')}<div><h2>${esc(u.name)}</h2>${badgeHtml(u)?`<div style="margin:6px 0 2px">${badgeHtml(u)}</div>`:''}<div style="color:var(--mut)">@${esc(u.handle)}${pronTxt(u)}</div>
  <div class="stats"><button type="button" data-a="pscroll"><b>${posts.length}</b> posts</button><button type="button" data-a="plist" data-id="${u.id}" data-k="followers"><b>${followers(u)}</b> followers</button><button type="button" data-a="plist" data-id="${u.id}" data-k="following"><b>${(u.following||[]).length}</b> following</button></div>
@@ -596,7 +608,7 @@ function profileView(u){const mine=me()&&me().id===u.id, posts=db.posts.filter(p
  ${pronFields('e',u)}
  ${igFields('e',u)}
  <label>Avatar </label>${avPicker(pickAv)}<div class="actions"><button class="btn" data-a="saveprofile">Save profile</button></div></section>`:''}
- ${draftsView(u)}<div id="u-posts" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 12px"><h2 style="color:var(--od)">Posts by ${esc(u.name)}</h2>${shown.length>1?`<select id="psort" aria-label="Sort posts" style="width:auto"><option value="new"${psort==='new'?' selected':''}>Newest</option><option value="old"${psort==='old'?' selected':''}>Oldest</option><option value="liked"${psort==='liked'?' selected':''}>Most liked</option><option value="comm"${psort==='comm'?' selected':''}>Most commented</option></select>`:''}</div>${shown.length?sortPosts(shown,psort).map(card).join(''):'<p class="empty">No posts yet.</p>'}`}
+ ${draftsView(u)}${profileFeed(u,shown)}`}
 
 function peopleView(u,k){const bl=(db.blocked||[]).map(x=>x.id),l=(k==='followers'?db.profiles.filter(x=>(x.following||[]).includes(u.id)):(u.following||[]).map(i=>db.profiles.find(x=>x.id===i)).filter(Boolean)).filter(x=>!bl.includes(x.id));
  return `<button class="btn ghost" style="margin-bottom:14px" data-a="profile" data-id="${u.id}">Back to profile</button><section class="panel"><h2>${k==='followers'?'Followers':'Following'} (${l.length})</h2><p class="hint" style="margin:0 0 8px">${esc(u.name)} · @${esc(u.handle)}</p>${l.length?l.map(x=>`<div style="display:flex;align-items:center;gap:12px;padding:6px 0;flex-wrap:wrap">${av(x)}<div style="flex:1 1 140px"><button class="link" data-a="profile" data-id="${x.id}">${esc(x.name)}</button>${badgeHtml(x)}<div class="hint" style="margin:0">@${esc(x.handle)}</div></div>${fbtn(x)}</div>`).join(''):`<p class="empty">${k==='followers'?'No followers yet.':'Not following anyone yet.'}</p>`}</section>`}
@@ -1222,7 +1234,7 @@ app.addEventListener('click',async e=>{
  else if(a==='open')go({n:'post',id});
  else if(a==='pscroll'){const e2=$('u-posts');if(e2)e2.scrollIntoView({behavior:'smooth',block:'start'})}
  else if(a==='plist'){go({n:'people',id,k:b.dataset.k})}
- else if(a==='profile'){const u=user(id);pickAv=u.avatar;psort='new';go({n:'profile',id})}
+ else if(a==='profile'){const u=user(id);pickAv=u.avatar;psort='new';ptab='all';go({n:'profile',id})}
  else if(a==='filter'){filter=b.dataset.t;feedWant=20;render()}
  else if(a==='pickav'){pickAv=b.dataset.v;app.querySelectorAll('#avpick button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.v===pickAv))}
  else if(a==='create'){
@@ -1242,6 +1254,7 @@ app.addEventListener('click',async e=>{
   if(r){toast('Profile saved');render()}}
  else if(a==='repost'){if(!needUser())return;menuOpen='';const y=window.scrollY;if(await api('repost',{id})){render();window.scrollTo(0,y);toast((db.reposts||[]).some(r=>r.pid===id&&r.by===db.me)?'Reposted 🔄':'Repost removed')}}
  else if(a==='quote'){if(!needUser())return;menuOpen='';render();quoteDialog(id)}
+ else if(a==='ptab'){ptab=b.dataset.t;const y=window.scrollY;render();window.scrollTo(0,y)}
  else if(a==='clike'){if(!needUser())return;const y=window.scrollY;if(await api('clike',{id,i:+b.dataset.i})){render();window.scrollTo(0,y)}}
  else if(a==='clikers'){if(cliked.has(id))cliked.delete(id);else cliked.add(id);const y=window.scrollY;render();window.scrollTo(0,y)}
  else if(a==='likers'){if(likersAll.has(id))likersAll.delete(id);else likersAll.add(id);const y=window.scrollY;render();window.scrollTo(0,y)}
