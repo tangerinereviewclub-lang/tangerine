@@ -424,11 +424,8 @@ document.addEventListener('keydown',e=>{const k=(e.key||'').toLowerCase(),ed=edi
  if((e.ctrlKey||e.metaKey)&&!ed&&['a','c','x'].includes(k)){e.preventDefault();return}
  if(e.key==='F12'||((e.ctrlKey||e.metaKey)&&e.shiftKey&&['i','j','c'].includes(k)))e.preventDefault()});
 document.addEventListener('keyup',e=>{if(e.key==='PrintScreen'){try{navigator.clipboard.writeText(' ')}catch(x){}}});
-/* Faint watermark with the viewer's @username, so a screenshot can be traced back */
-function setMark(){let m=$('tg-mark');const u=me();if(!u){if(m)m.remove();return}
- if(!m){m=document.createElement('div');m.id='tg-mark';m.setAttribute('aria-hidden','true');m.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:8';document.body.appendChild(m)}
- const t=String(u.handle).replace(/[^a-z0-9_]/gi,''),svg="<svg xmlns='http://www.w3.org/2000/svg' width='220' height='140'><text x='20' y='80' font-family='sans-serif' font-size='16' font-weight='700' fill='#D95F00' fill-opacity='0.07' transform='rotate(-25 110 70)'>@"+t+"</text></svg>";
- m.style.backgroundImage="url(\"data:image/svg+xml,"+encodeURIComponent(svg)+"\")"}
+/* The repeating @username watermark was removed. This just clears any old one. */
+function setMark(){const m=$('tg-mark');if(m)m.remove()}
 const ckey=()=>'tg-compose-'+(db.me||'');
 const cv=id=>$(id)?$(id).value:'';
 function saveCompose(){try{if(!$('compose-box')||!db.me)return;const r=app.querySelector('.rte[data-for="f-text"]');
