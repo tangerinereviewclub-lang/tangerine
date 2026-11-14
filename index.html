@@ -67,6 +67,8 @@ body{margin:0;background:var(--bg)}
 #tg .pmw.inl{position:relative;top:auto;right:auto;display:inline-block;vertical-align:middle}
 #tg .pdots{width:38px;height:38px;min-width:0;padding:0 0 4px;border:2px solid var(--line);border-radius:999px;background:var(--os);color:var(--od);font-size:24px;font-weight:800;line-height:1;cursor:pointer;display:grid;place-items:center}
 #tg .pdots:hover,#tg .pdots[aria-expanded="true"]{background:var(--o);border-color:var(--o);color:#fff}
+#tg .pmw:not(.inl) .pdots{width:36px;height:36px;font-size:22px;background:transparent}
+#tg .pmw:not(.inl) .pdots:hover,#tg .pmw:not(.inl) .pdots[aria-expanded="true"]{background:var(--o);border-color:var(--o);color:#fff}
 #tg .pmw.inl .pdots{width:28px;height:28px;font-size:18px;padding-bottom:3px}
 #tg .pmenu button.dng{color:#B3261E}
 #tg .pmenu{position:absolute;top:100%;right:0;margin-top:4px;min-width:150px;background:var(--bg);border:2px solid var(--line);border-radius:12px;box-shadow:0 6px 18px rgba(217,95,0,.18);padding:4px;z-index:6;display:flex;flex-direction:column}
@@ -94,13 +96,12 @@ body{margin:0;background:var(--bg)}
 #tg .rate{color:var(--o);letter-spacing:2px}
 #tg .who{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
 #tg .nm{font-weight:600}
-#tg .nm.lt{font-weight:400}
-#tg .un{font-weight:400;color:var(--mut)}
+#tg .un{font-weight:500;color:var(--mut)}
 #tg .post .meta .un{font-size:15px}
 #tg .pcat{margin:8px 0 0;font-size:14px;font-weight:700;color:var(--od)}
 #tg .pcat span{font-weight:400;color:var(--mut)}
 #tg .post .meta.m1{margin-bottom:4px}
-#tg .post .meta .rate{font-size:calc(.9rem + 1px)}
+#tg .post .meta .rate{font-size:calc(.9rem + 2px)}
 #tg .post .meta .ptype{font-size:14px;font-weight:500;color:var(--od)}
 #tg .link.pale.sm{font-size:calc(1em - 2px)}
 #tg .sugg-row{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}
@@ -488,8 +489,8 @@ const meta=(p,big)=>{const when=`<span>${ago(p._ots||p.ts)}${p.edited?' <span st
  draft=p.draft?'<span class="tag">Draft</span>':'',
  prm=p.prompt&&promptOf(p.prompt)?`<button class="link" data-a="prompt" data-id="${p.prompt}">💭 ${esc(promptOf(p.prompt).title)}</button>`:'',
  rate=`<span class="rate" aria-label="${p.rating} out of 5">${stars(p.rating)}</span>`;
- if(big)return `<div class="pcat">${esc(p.type)} <span>-</span> ${esc(p.media)}</div><div class="meta">${whoHtml(user(p.by))}${draft}${prm}${rate}${when}</div>`;
- return `<div class="meta m1">${whoHtml(user(p.by),1)}<span class="ptype">${esc(p.type)}</span>${draft}${prm}</div><div class="meta m2"><span>${esc(p.media)} - ${rate}</span>${when}</div>`};
+ if(big)return `<div class="meta bigtags"><span class="tag">${esc(p.type)}</span><span class="tag">${esc(p.media)}</span></div><div class="meta">${whoHtml(user(p.by))}${draft}${prm}${rate}${when}</div>`;
+ return `<div class="meta m1">${whoHtml(user(p.by))}<span class="tag">${esc(p.type)}</span>${draft}${prm}</div><div class="meta m2"><span class="tag">${esc(p.media)}</span>${rate}${when}</div>`};
 const card=p=>`<article class="post">${postMenu(p)}<button class="open" data-a="open" data-id="${p.id}">${esc(p.title)}</button>${meta(p)}
  ${bodyHtml(p)}<div class="actions"><button class="btn ghost" data-a="open" data-id="${p.id}">Read post</button></div>${actions(p)}</article>`;
 
