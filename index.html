@@ -105,6 +105,7 @@ body{margin:0;background:var(--bg)}
 #tg .post .meta .rate{font-size:calc(.9rem + 2px)}
 #tg .post .meta .ptype{font-size:14px;font-weight:500;color:var(--od)}
 #tg .link.pale.sm{font-size:calc(1em - 2px)}
+#tg .rpstrip{font-size:.85rem;color:var(--mut);margin:0 0 8px;padding-right:52px}
 #tg .sugg-row{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}
 #tg .sugg-row textarea{flex:1 1 220px;min-height:46px}
 #tg .post .meta.m2{margin-top:0}
@@ -396,6 +397,22 @@ function joinView(){return `<section class="panel"><h2>Log in</h2>
  <div class="actions"><button class="btn" data-a="create">Create profile</button></div>
  <p class="hint">Your profile is saved online, so you can log in from any device.</p></section>`}
 
+const ckey=()=>'tg-compose-'+(db.me||'');
+const cv=id=>$(id)?$(id).value:'';
+function saveCompose(){try{if(!$('compose-box')||!db.me)return;const r=app.querySelector('.rte[data-for="f-text"]');
+ const o={type:cv('f-type'),media:cv('f-media'),title:cv('f-title'),text:r?rteToMd(r):cv('f-text'),spoil:!!($('f-spoil')&&$('f-spoil').checked),rating};
+ if(o.media||o.title||o.text||o.rating)localStorage.setItem(ckey(),JSON.stringify(o));else localStorage.removeItem(ckey())}catch(e){}}
+function restoreCompose(){try{if(!$('compose-box')||!db.me)return;const s=localStorage.getItem(ckey());if(!s)return;const o=JSON.parse(s);
+ if(!(pre&&pre.type)&&o.type&&$('f-type'))$('f-type').value=o.type;
+ if(!(pre&&pre.media)&&$('f-media'))$('f-media').value=o.media||'';
+ if($('f-title'))$('f-title').value=o.title||'';
+ if($('f-text'))$('f-text').value=o.text||'';
+ if($('f-spoil'))$('f-spoil').checked=!!o.spoil;
+ if(!rating&&o.rating){rating=o.rating;app.querySelectorAll('#f-stars button').forEach(x=>x.classList.toggle('on',+x.dataset.n<=rating))}}catch(e){}}
+const clearCompose=()=>{try{localStorage.removeItem(ckey())}catch(e){}};
+['input','change'].forEach(t=>document.addEventListener(t,e=>{if(e.target.closest&&e.target.closest('#compose-box'))saveCompose()}));
+document.addEventListener('visibilitychange',()=>{if(document.hidden)saveCompose()});
+window.addEventListener('pagehide',saveCompose);
 function composeView(){const u=me();
  if(!u)return `<section class="panel"><h2>Write a post</h2><p>Create a profile to publish reviews and blogs.</p><button class="btn" data-a="join">Create a profile</button></section>`;
  return `<section class="panel" id="compose-box"><h2>Share your take as ${esc(u.name)}</h2>${pre&&pre.prompt?`<p style="margin:0 0 6px;padding:8px 12px;background:var(--os);border-radius:10px">💭 You are answering the weekly prompt: <b>${esc(pre.ptitle)}</b></p>`:''}${pre&&pre.pick?`<p style="margin:0 0 6px;padding:8px 12px;background:var(--os);border-radius:10px">🍊 Reviewing the Fresh pick of the week. It shows in the feed, on your profile and in your diary.</p>`:''}
@@ -431,8 +448,19 @@ const likersPanel=p=>{if(!p.likedBy.length)return'';const us=p.likedBy.map(id=>u
  const st='font-size:.85rem;color:inherit;font-weight:700';
  const nm=x=>`<button class="link" data-a="profile" data-id="${x.id}" style="${st}">${esc(x.handle)}</button>`;
  return `<div class="hint" style="margin:8px 0 0;display:flex;flex-wrap:wrap;gap:0 4px;align-items:center">Liked by ${sh.map(nm).join(', ')}${rest>0?` and <button class="link" data-a="likers" data-id="${p.id}" style="${st}">${rest} other${rest===1?'':'s'}</button>`:(all&&us.length>2?` <button class="link" data-a="likers" data-id="${p.id}" style="${st}">Show less</button>`:'')}</div>`};
-function actions(p,full){const u=me(),liked=u&&p.likedBy.includes(u.id);
- return `<div class="actions"><button class="act" data-a="like" data-id="${p.id}" aria-label="Like" aria-pressed="${!!liked}"><span class="tl${liked?'':' off'}" aria-hidden="true">🍊</span> ${p.likedBy.length}</button> <button class="act" data-a="open" data-id="${p.id}" aria-label="Comments">💬 ${p.comments.length}</button><button class="act" data-a="share" data-id="${p.id}" aria-label="Copy link to share">🔗</button></div>${full?likersPanel(p):''}`}
+const repostBtn=p=>{const u=me(),mine=!!(u&&(db.reposts||[]).some(r=>r.pid===p.id&&r.by===u.id)),key='r'+p.id,o=menuOpen===key;
+ return `<span class="pmw inl"><button class="act" data-a="dots" data-id="${key}" aria-pressed="${mine}" aria-haspopup="menu" aria-expanded="${o}">🔄 ${mine?'Reposted':'Repost'}</button>${o?`<div class="pmenu" role="menu"><button role="menuitem" data-a="repost" data-id="${p.id}">${mine?'Undo repost':'Repost'}</button><button role="menuitem" data-a="quote" data-id="${p.id}">Repost with comment</button></div>`:''}</span>`};
+const repStrip=p=>{const L=(db.reposts||[]).filter(r=>r.pid===p.id&&user(r.by)).sort((a,b)=>b.ts-a.ts).slice(0,3);if(!L.length)return'';
+ return `<div class="rpstrip">${L.map(r=>`<div>🔄 <b>${esc(user(r.by).name)}</b> reposted${r.t?`: ${lk(r.t)}`:''}</div>`).join('')}</div>`};
+function quoteDialog(id){closeReport();closeReport.f=document.activeElement;const p=postById(id);if(!p)return;
+ const w=document.createElement('div');w.id='tg-rep';w.className='rep-bg';
+ w.innerHTML=`<div class="rep" role="dialog" aria-modal="true" aria-labelledby="q-h"><h3 id="q-h">Repost with comment</h3><p class="hint" style="margin:4px 0 10px">Add your own words. They show above this post for others to see.</p><textarea id="q-t" maxlength="300" style="min-height:90px" placeholder="Add a comment" aria-label="Your comment"></textarea><div class="actions"><button class="btn" id="q-go" disabled>Repost</button><button class="btn ghost" id="q-x">Cancel</button></div></div>`;
+ $('tg').appendChild(w);const t=$('q-t');t.focus();
+ w.addEventListener('input',e=>{if(e.target.id==='q-t')$('q-go').disabled=!t.value.trim()});
+ w.addEventListener('click',async e=>{if(e.target===w||e.target.id==='q-x'){closeReport();return}
+  if(e.target.id==='q-go'){const b=e.target;b.disabled=true;const ok=await api('repost',{id,t:t.value.trim()});if(ok){closeReport();render();toast('Reposted with your comment 🔄')}else b.disabled=false}})}
+function actions(p,full){const u=me(),liked=u&&p.likedBy.includes(u.id),rp=!p.draft&&!(u&&u.id===p.by)?repostBtn(p):'';
+ return `<div class="actions">${full?'':`<button class="btn ghost" data-a="open" data-id="${p.id}">Read post</button>`}<button class="act" data-a="like" data-id="${p.id}" aria-label="Like" aria-pressed="${!!liked}"><span class="tl${liked?'':' off'}" aria-hidden="true">🍊</span> ${p.likedBy.length}</button> <button class="act" data-a="open" data-id="${p.id}" aria-label="Comments">💬 ${p.comments.length}</button>${full?`<button class="act" data-a="share" data-id="${p.id}" aria-label="Copy link to share">🔗</button>`:''}${rp}</div>${full?likersPanel(p):''}`}
 const lk=t=>esc(t).replace(/@([a-z0-9_]{3,20})/gi,(m,h)=>{const u=db.profiles.find(x=>x.handle===h.toLowerCase());return u?`<button class="link" data-a="profile" data-id="${u.id}">@${esc(u.handle)}</button>`:m});
 /* Writing boxes work like Word. Bold, italic, underline and strikethrough are saved as hidden [b] [i] [u] [s] tags. Links are saved as [text](https://...). Only http(s) links are shown as links. */
 const fmt=s=>{const op={b:0,i:0,u:0,s:0},st=[];s=s.replace(/\[(\/?)([bius])\]/g,(m,c,t)=>{if(!c){op[t]++;st.push(t);return '<'+t+'>'}if(!op[t])return '';op[t]--;const k=st.lastIndexOf(t);if(k>=0)st.splice(k,1);return '</'+t+'>'});return s+st.reverse().map(t=>'</'+t+'>').join('')};
@@ -492,8 +520,8 @@ const meta=(p,big)=>{const when=`<span>${ago(p._ots||p.ts)}${p.edited?' <span st
  rate=`<span class="rate" aria-label="${p.rating} out of 5">${stars(p.rating)}</span>`;
  if(big)return `<div class="meta bigtags"><span class="tag">${esc(p.type)}</span><span class="tag">${esc(p.media)}</span></div><div class="meta">${whoHtml(user(p.by))}${draft}${prm}${rate}${when}</div>`;
  return `<div class="meta m1">${whoHtml(user(p.by))}<span class="tag">${esc(p.type)}</span>${draft}${prm}</div><div class="meta m2"><span class="tag">${esc(p.media)}</span>${rate}${when}</div>`};
-const card=p=>`<article class="post">${postMenu(p)}<button class="open" data-a="open" data-id="${p.id}">${esc(p.title)}</button>${meta(p)}
- ${bodyHtml(p)}<div class="actions"><button class="btn ghost" data-a="open" data-id="${p.id}">Read post</button></div>${actions(p)}</article>`;
+const card=p=>`<article class="post">${postMenu(p)}${repStrip(p)}<button class="open" data-a="open" data-id="${p.id}">${esc(p.title)}</button>${meta(p)}
+ ${bodyHtml(p)}${actions(p)}</article>`;
 
 const newTip=()=>{const u=me();return u&&!db.posts.some(p=>p.by===u.id)?'<div class="panel" style="background:var(--os);margin-bottom:12px"><p style="margin:0">🍊 <b>New?</b> Tap <button class="link" data-a="gocompose"><b>Share your take</b></button> to post your first review.</p></div>':''};
 const feedSeed=Math.random().toString(36).slice(2),fh=id=>{let h=0;const q=id+feedSeed;for(let i=0;i<q.length;i++)h=(h*31+q.charCodeAt(i))|0;return h};
@@ -997,7 +1025,7 @@ function render(){
  const tt=view.n==='times';$('tg').classList.toggle('intimes',tt);document.title=tt?'The Tangerine Times':'Tangerine Takes';app.innerHTML=(tt?'':bar())+body;{const s2=$('tg-s2');if(s2)s2.style.display=me()?'none':'block';fitTitle()}if(tt){ttInd();ttCar()}else ttLast=null;hbInit();
  if(obs){obs.disconnect();obs=null}
  const mo=$('more');if(mo){obs=new IntersectionObserver(es=>{if(es[0].isIntersecting)loadMore()},{rootMargin:'500px'});obs.observe(mo)}
- initRte();const ft=$('f-text');if(ft)grow(ft);
+ restoreCompose();initRte();const ft=$('f-text');if(ft)grow(ft);
 }
 
 window.addEventListener('popstate',e=>{view=(e.state&&e.state.v)||routeNow()||{n:'feed'};render();window.scrollTo(0,0)});
@@ -1028,7 +1056,7 @@ app.addEventListener('click',async e=>{
  const ss=e.target.closest('#s-stars button');
  if(ss){sRating=sRating===+ss.dataset.n?0:+ss.dataset.n;app.querySelectorAll('#s-stars button').forEach(x=>x.classList.toggle('on',+x.dataset.n<=sRating));return}
  const st=e.target.closest('#f-stars button');
- if(st){rating=rating===+st.dataset.n?0:+st.dataset.n;app.querySelectorAll('#f-stars button').forEach(x=>x.classList.toggle('on',+x.dataset.n<=rating));return}
+ if(st){rating=rating===+st.dataset.n?0:+st.dataset.n;app.querySelectorAll('#f-stars button').forEach(x=>x.classList.toggle('on',+x.dataset.n<=rating));saveCompose();return}
  const b=e.target.closest('[data-a]');if(!b)return;
  if(b.dataset.a==='fmt'){rteCmd(b.dataset.for,b.dataset.c);return}
  const a=b.dataset.a, id=b.dataset.id, p=postById(id), g=i=>$(i)?$(i).value.trim():'';
@@ -1171,7 +1199,7 @@ app.addEventListener('click',async e=>{
  else if(a==='savedraft'){if(!needUser())return;
   const d={type:g('f-type'),media:g('f-media'),title:g('f-title')||g('f-media'),rating,text:g('f-text'),spoiler:$('f-spoil').checked,draft:true};
   if(!d.media){toast('Add a title to save a draft');return}
-  if(await api('publish',{...d,prompt:pre&&pre.prompt})){const wp=pre&&pre.prompt;pre=null;rating=0;toast('Draft saved. Find it on your profile.');const nd=(db.drafts||[]).filter(x=>x.by===db.me).sort((a,b)=>b.ts-a.ts)[0];if(wp&&nd)go({n:'post',id:nd.id});else render()}}
+  if(await api('publish',{...d,prompt:pre&&pre.prompt})){const wp=pre&&pre.prompt;pre=null;rating=0;clearCompose();toast('Draft saved. Find it on your profile.');const nd=(db.drafts||[]).filter(x=>x.by===db.me).sort((a,b)=>b.ts-a.ts)[0];if(wp&&nd)go({n:'post',id:nd.id});else render()}}
  else if(a==='open')go({n:'post',id});
  else if(a==='pscroll'){const e2=$('u-posts');if(e2)e2.scrollIntoView({behavior:'smooth',block:'start'})}
  else if(a==='plist'){go({n:'people',id,k:b.dataset.k})}
@@ -1193,6 +1221,8 @@ app.addEventListener('click',async e=>{
   if(!g('e-name')){toast('Display name cannot be empty');return}
   const r=await api('saveprofile',{name:g('e-name'),handle:g('e-handle').toLowerCase().replace(/^@/,''),bio:g('e-bio'),avatar:pickAv,top:readTops('e'),...readPron('e'),...readIg('e')});
   if(r){toast('Profile saved');render()}}
+ else if(a==='repost'){if(!needUser())return;menuOpen='';const y=window.scrollY;if(await api('repost',{id})){render();window.scrollTo(0,y);toast((db.reposts||[]).some(r=>r.pid===id&&r.by===db.me)?'Reposted 🔄':'Repost removed')}}
+ else if(a==='quote'){if(!needUser())return;menuOpen='';render();quoteDialog(id)}
  else if(a==='clike'){if(!needUser())return;const y=window.scrollY;if(await api('clike',{id,i:+b.dataset.i})){render();window.scrollTo(0,y)}}
  else if(a==='clikers'){if(cliked.has(id))cliked.delete(id);else cliked.add(id);const y=window.scrollY;render();window.scrollTo(0,y)}
  else if(a==='likers'){if(likersAll.has(id))likersAll.delete(id);else likersAll.add(id);const y=window.scrollY;render();window.scrollTo(0,y)}
@@ -1206,7 +1236,7 @@ app.addEventListener('click',async e=>{
   const d={type:g('f-type'),media:g('f-media'),title:g('f-title')||g('f-media'),rating,text:g('f-text'),spoiler:$('f-spoil').checked};
   if(!d.media||!d.text){toast('Add a title and your review first');return}
   if(!rating){toast('Pick a star rating first');return}
-  if(await api('publish',{...d,wid:pre&&pre.wid,prompt:pre&&pre.prompt})){const jump=pre&&(pre.prompt||pre.pick);pre=null;rating=0;toast('Take shared! 🍊');const np=db.posts.filter(x=>x.by===db.me).sort((a,b)=>b.ts-a.ts)[0];if(jump&&np)go({n:'post',id:np.id});else render()}}
+  if(await api('publish',{...d,wid:pre&&pre.wid,prompt:pre&&pre.prompt})){const jump=pre&&(pre.prompt||pre.pick);pre=null;rating=0;clearCompose();toast('Take shared! 🍊');const np=db.posts.filter(x=>x.by===db.me).sort((a,b)=>b.ts-a.ts)[0];if(jump&&np)go({n:'post',id:np.id});else render()}}
  else if(a==='follow'){if(!needUser())return;
   if(await api('follow',{id})){if($('s-res'))$('s-res').innerHTML=searchRes($('s-q').value);else render()}}
  else if(a==='prompt')go({n:'prompt',id});
