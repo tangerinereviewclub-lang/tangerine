@@ -548,7 +548,7 @@ function addLink(r){if(!r)return;const sl=getSelection();const rg=sl.rangeCount?
  r.focus();sl.removeAllRanges();sl.addRange(rg);
  if(sel)document.execCommand('createLink',false,u);else document.execCommand('insertHTML',false,'<a href="'+esc(u)+'">'+esc(txt)+'</a>&#8203;');
  rteSync(r)}
-const bodyHtml=(p,full)=>p.spoiler&&!rev.has(p.id)?`<div class="body"><button class="btn ghost" data-a="reveal" data-id="${p.id}">⚠️ Contains spoilers. Tap to show</button></div>`:`<div class="body">${lkx(full?p.text:excerpt(plainLk(p.text)))}</div>`;
+const bodyHtml=(p,full)=>p.spoiler&&!rev.has(p.id)?`<div class="body"><button class="btn ghost" data-a="reveal" data-id="${p.id}">⚠️ Contains spoilers. Tap to show</button></div>`:`<div class="body">${lkx(full?p.text:excerpt(p.text))}</div>`;
 const whoHtml=(u,light,noav)=>`<span class="pwho"><span class="nm" role="link" tabindex="0" data-a="profile" data-id="${u.id}">${noav?'':av(u,'sm')}<span>${esc(u.name)}</span></span><span class="un">@${esc(u.handle)}</span>${badgeHtml(u)}</span>`;
 const meta=(p,big)=>{const when=`<span>${ago(p._ots||p.ts)}${p.edited?' <span style="opacity:.6;font-size:.82em">(edited)</span>':''}</span>`,
  draft=p.draft?'<span class="tag">Draft</span>':'',
