@@ -61,12 +61,13 @@ body{margin:0;background:var(--bg)}
 #tg .chip{border:2px solid var(--line);background:var(--bg);border-radius:999px;padding:5px 14px;cursor:pointer;font-weight:500}
 #tg .chip[aria-pressed="true"]{background:var(--o);border-color:var(--o);color:#fff;font-weight:700}
 #tg .post{background:var(--bg);border:2px solid var(--line);border-radius:18px;padding:18px;margin-bottom:18px;position:relative}
-#tg .post>.open,#tg .post>h3{padding-right:44px}
-#tg .pmw{position:absolute;top:10px;right:10px;z-index:3}
+#tg .post>.open,#tg .post>h3{padding-right:52px}
+#tg .pmw{position:absolute;top:12px;right:12px;z-index:3}
 #tg .pmw.inl{position:relative;top:auto;right:auto;display:inline-block;vertical-align:middle}
-#tg .pdots{width:36px;height:36px;min-width:0;padding:0;border:0;border-radius:999px;background:transparent;color:var(--mut);font-size:22px;line-height:1;cursor:pointer;display:grid;place-items:center}
-#tg .pdots:hover,#tg .pdots[aria-expanded="true"]{background:var(--os);color:var(--od)}
-#tg .pmw.inl .pdots{width:28px;height:28px;font-size:18px}
+#tg .pdots{width:40px;height:40px;min-width:0;padding:0 0 4px;border:2px solid var(--line);border-radius:999px;background:var(--os);color:var(--od);font-size:26px;font-weight:800;line-height:1;cursor:pointer;display:grid;place-items:center}
+#tg .pdots:hover,#tg .pdots[aria-expanded="true"]{background:var(--o);border-color:var(--o);color:#fff}
+#tg .pmw.inl .pdots{width:30px;height:30px;font-size:20px;padding-bottom:3px}
+#tg .pmenu button.dng{color:#B3261E}
 #tg .pmenu{position:absolute;top:100%;right:0;margin-top:4px;min-width:150px;background:var(--bg);border:2px solid var(--line);border-radius:12px;box-shadow:0 6px 18px rgba(217,95,0,.18);padding:4px;z-index:6;display:flex;flex-direction:column}
 #tg .pmenu button{background:none;border:0;text-align:left;padding:10px 12px;border-radius:8px;cursor:pointer;font-weight:700;color:var(--ink);white-space:nowrap}
 #tg .pmenu button:hover,#tg .pmenu button:focus-visible{background:var(--os);color:var(--od)}
@@ -410,7 +411,7 @@ const likersPanel=p=>{if(!p.likedBy.length)return'';const us=p.likedBy.map(id=>u
  const nm=x=>`<button class="link" data-a="profile" data-id="${x.id}" style="${st}">${esc(x.handle)}</button>`;
  return `<div class="hint" style="margin:8px 0 0;display:flex;flex-wrap:wrap;gap:0 4px;align-items:center">Liked by ${sh.map(nm).join(', ')}${rest>0?` and <button class="link" data-a="likers" data-id="${p.id}" style="${st}">${rest} other${rest===1?'':'s'}</button>`:(all&&us.length>2?` <button class="link" data-a="likers" data-id="${p.id}" style="${st}">Show less</button>`:'')}</div>`};
 function actions(p,full){const u=me(),liked=u&&p.likedBy.includes(u.id);
- return `<div class="actions"><button class="act" data-a="like" data-id="${p.id}" aria-label="Like" aria-pressed="${!!liked}"><span class="tl${liked?'':' off'}" aria-hidden="true">🍊</span> ${p.likedBy.length}</button> <button class="act" data-a="open" data-id="${p.id}">💬 ${p.comments.length}</button><button class="act" data-a="share" data-id="${p.id}">Share</button></div>${full?likersPanel(p):''}`}
+ return `<div class="actions"><button class="act" data-a="like" data-id="${p.id}" aria-label="Like" aria-pressed="${!!liked}"><span class="tl${liked?'':' off'}" aria-hidden="true">🍊</span> ${p.likedBy.length}</button> <button class="act" data-a="open" data-id="${p.id}" aria-label="Comments">💬 ${p.comments.length}</button><button class="act" data-a="share" data-id="${p.id}" aria-label="Copy link to share">🔗</button></div>${full?likersPanel(p):''}`}
 const lk=t=>esc(t).replace(/@([a-z0-9_]{3,20})/gi,(m,h)=>{const u=db.profiles.find(x=>x.handle===h.toLowerCase());return u?`<button class="link" data-a="profile" data-id="${u.id}">@${esc(u.handle)}</button>`:m});
 /* Writing boxes work like Word. Bold, italic, underline and strikethrough are saved as hidden [b] [i] [u] [s] tags. Links are saved as [text](https://...). Only http(s) links are shown as links. */
 const fmt=s=>{const op={b:0,i:0,u:0,s:0},st=[];s=s.replace(/\[(\/?)([bius])\]/g,(m,c,t)=>{if(!c){op[t]++;st.push(t);return '<'+t+'>'}if(!op[t])return '';op[t]--;const k=st.lastIndexOf(t);if(k>=0)st.splice(k,1);return '</'+t+'>'});return s+st.reverse().map(t=>'</'+t+'>').join('')};
@@ -474,10 +475,9 @@ function feedView(){const fl=(me()&&me().following)||[];
   return newTip()+bannerBox()+timesBanner()+composeView()+pickBanner()+promptBox()+pollBox()+bingoBox()+`<div class="filters">${TYPES.concat(me()?['Following']:[]).map(t=>`<button class="chip" data-a="filter" data-t="${t}" aria-pressed="${t===filter}">${t}</button>`).join('')}</div>`+
  (list.length?(feedPosts=list,feedShown='IntersectionObserver' in window?Math.min(feedWant,list.length):list.length,`<div id="feed-list">${list.slice(0,feedShown).map(card).join('')}</div>${feedShown<list.length?'<div id="more" style="height:1px"></div>':''}`):`<p class="empty">${filter==='Following'?'Nothing here yet. Use Find people to follow someone.':'No fruit on the tree yet. Be the first to post.'}</p>`)}
 
-const postMenu=p=>{const u=me();if(!u)return'';const own=u.id===p.by;if(!own&&p.draft)return'';
- return pmenu('p'+p.id,own?`<button role="menuitem" data-a="editp" data-id="${p.id}">Edit post</button>`:`<button role="menuitem" data-a="report" data-k="post" data-id="${p.id}">Report</button>`)};
-const postTools=p=>{const u=me();if(!u||!(u.id===p.by||isAdmin()))return'';
- return `<div class="actions"><button class="btn danger" data-a="delete" data-id="${p.id}">Delete post</button></div>`};
+const postMenu=p=>{const u=me();if(!u)return'';const own=u.id===p.by,adm=isAdmin();if(!own&&!adm&&p.draft)return'';
+ const edit=`<button role="menuitem" data-a="editp" data-id="${p.id}">Edit post</button>`,del=`<button role="menuitem" class="dng" data-a="delete" data-id="${p.id}">Delete post</button>`,rpt=`<button role="menuitem" data-a="report" data-k="post" data-id="${p.id}">Report</button>`;
+ return pmenu('p'+p.id,own?edit+del:rpt+(adm?del:''))};
 function commentHtml(p,c,i){const u=me();
  if(c.hidden)return `<div class="cm"><span class="hint">Comment hidden (blocked user).</span></div>`;
  const own=u&&u.id===c.by, mod=u&&(own||u.id===p.by||isAdmin());
@@ -498,7 +498,6 @@ function editForm(p){return `<section class="panel"><h2>Edit your post</h2>${p.p
 function postView(p){const u=me();if(view.edit&&u&&u.id===p.by)return editForm(p);
  return `<button class="btn ghost" style="margin-bottom:14px" data-a="feed">Back to all posts</button>
  <article class="post">${postMenu(p)}<h3>${esc(p.title)}</h3>${meta(p,1)}${bodyHtml(p,1)}${p.draft?'<p class="hint">'+(p.prompt&&promptOf(p.prompt)?'💭 Answering the weekly prompt: <b>'+esc(promptOf(p.prompt).title)+'</b>. ':'')+'Draft: only you can see this. Edit it to publish.</p>':actions(p,1)}
- ${postTools(p)}
  <div class="comments"${p.draft?' hidden':''}><h3 style="font-size:1.1rem;margin-bottom:6px">Comments (${p.comments.length})</h3>
  ${p.comments.map((c,i)=>commentHtml(p,c,i)).join('')||'<p class="empty" style="padding:6px 0">No comments yet. Be the first to squeeze one in.</p>'}
  ${u?`<div class="cform"><input id="c-t" maxlength="300" placeholder="Comment as ${esc(u.name)}"><button class="btn" data-a="send" data-id="${p.id}">Comment</button><label class="cspoil"><input type="checkbox" id="c-spoil">This comment contains spoilers</label></div>`
