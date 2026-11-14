@@ -105,6 +105,11 @@ body{margin:0;background:var(--bg)}
 #tg .post .meta .rate{font-size:calc(.9rem + 2px)}
 #tg .post .meta .ptype{font-size:14px;font-weight:500;color:var(--od)}
 #tg .link.pale.sm{font-size:calc(1em - 2px)}
+#tg .actions .pmw.inl{display:flex;align-self:stretch}
+#tg .actions .pmw.inl>.act{display:flex;align-items:center;justify-content:center}
+#tg{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#tg input,#tg textarea,#tg select,#tg .rte,#tg [contenteditable="true"]{-webkit-user-select:text;user-select:text}
+@media print{#tg .post,#tg .cm{display:none!important}}
 #tg .rpstrip{font-size:.85rem;color:var(--mut);margin:0 0 8px;padding-right:52px}
 #tg .sugg-row{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}
 #tg .sugg-row textarea{flex:1 1 220px;min-height:46px}
@@ -397,6 +402,20 @@ function joinView(){return `<section class="panel"><h2>Log in</h2>
  <div class="actions"><button class="btn" data-a="create">Create profile</button></div>
  <p class="hint">Your profile is saved online, so you can log in from any device.</p></section>`}
 
+/* Copy protection: posts and comments cannot be selected, copied, dragged or saved with long-press. Typing boxes still work. */
+const editableEl=t=>{const n=t&&t.nodeType===3?t.parentElement:t;return !!(n&&n.closest&&n.closest('input,textarea,select,[contenteditable="true"],.rte'))};
+['copy','cut','dragstart','selectstart'].forEach(ev=>document.addEventListener(ev,e=>{if(editableEl(e.target))return;e.preventDefault()}));
+document.addEventListener('contextmenu',e=>{if(!editableEl(e.target))e.preventDefault()});
+document.addEventListener('keydown',e=>{const k=(e.key||'').toLowerCase(),ed=editableEl(e.target);
+ if((e.ctrlKey||e.metaKey)&&['s','p','u'].includes(k)){e.preventDefault();return}
+ if((e.ctrlKey||e.metaKey)&&!ed&&['a','c','x'].includes(k)){e.preventDefault();return}
+ if(e.key==='F12'||((e.ctrlKey||e.metaKey)&&e.shiftKey&&['i','j','c'].includes(k)))e.preventDefault()});
+document.addEventListener('keyup',e=>{if(e.key==='PrintScreen'){try{navigator.clipboard.writeText(' ')}catch(x){}}});
+/* Faint watermark with the viewer's @username, so a screenshot can be traced back */
+function setMark(){let m=$('tg-mark');const u=me();if(!u){if(m)m.remove();return}
+ if(!m){m=document.createElement('div');m.id='tg-mark';m.setAttribute('aria-hidden','true');m.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:8';document.body.appendChild(m)}
+ const t=String(u.handle).replace(/[^a-z0-9_]/gi,''),svg="<svg xmlns='http://www.w3.org/2000/svg' width='220' height='140'><text x='20' y='80' font-family='sans-serif' font-size='16' font-weight='700' fill='#D95F00' fill-opacity='0.07' transform='rotate(-25 110 70)'>@"+t+"</text></svg>";
+ m.style.backgroundImage="url(\"data:image/svg+xml,"+encodeURIComponent(svg)+"\")"}
 const ckey=()=>'tg-compose-'+(db.me||'');
 const cv=id=>$(id)?$(id).value:'';
 function saveCompose(){try{if(!$('compose-box')||!db.me)return;const r=app.querySelector('.rte[data-for="f-text"]');
@@ -1025,7 +1044,7 @@ function render(){
  const tt=view.n==='times';$('tg').classList.toggle('intimes',tt);document.title=tt?'The Tangerine Times':'Tangerine Takes';app.innerHTML=(tt?'':bar())+body;{const s2=$('tg-s2');if(s2)s2.style.display=me()?'none':'block';fitTitle()}if(tt){ttInd();ttCar()}else ttLast=null;hbInit();
  if(obs){obs.disconnect();obs=null}
  const mo=$('more');if(mo){obs=new IntersectionObserver(es=>{if(es[0].isIntersecting)loadMore()},{rootMargin:'500px'});obs.observe(mo)}
- restoreCompose();initRte();const ft=$('f-text');if(ft)grow(ft);
+ setMark();restoreCompose();initRte();const ft=$('f-text');if(ft)grow(ft);
 }
 
 window.addEventListener('popstate',e=>{view=(e.state&&e.state.v)||routeNow()||{n:'feed'};render();window.scrollTo(0,0)});
