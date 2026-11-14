@@ -379,7 +379,7 @@ async function api(a,d){
  try{const r=await fetch('/api',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+TOKEN},body:JSON.stringify({a,d})});
   const j=await r.json();if(j.error){toast(j.error);return null}
   if(j.token!==undefined){TOKEN=j.token;try{localStorage.setItem('tg-token',TOKEN)}catch(e){}}
-  db=j.db;db.me=j.me;db.msgs=j.msgs||[];db.notes=j.notes||[];db.blocked=j.blocked||[];db.admin=!!j.admin;db.reports=j.reports||[];db.email=j.email||'';db.suspended=j.suspended||[];db.clubs=j.clubs||[];db.features=j.features||[];db.owner=!!j.owner;db.owners=j.owners||[];db.stats=j.stats||null;db.ownerHandles=j.ownerHandles||[];db.admins=j.admins||[];db.mod=!!j.mod;db.mods=j.mods||[];db.members=j.members||[];db.drafts=(db.posts||[]).filter(p=>p.draft);db.posts=(db.posts||[]).filter(p=>!p.draft);db.sugg=j.sugg||[];db.isCore=!!j.isCore;db.isEditor=!!j.isEditor;db.canWrite=!!j.canWrite;db.core=j.core||{};if(j.cmsgs)clubMsgs=j.cmsgs;return j}
+  db=j.db;db.me=j.me;db.msgs=j.msgs||[];db.notes=j.notes||[];db.blocked=j.blocked||[];db.admin=!!j.admin;db.reports=j.reports||[];db.email=j.email||'';db.suspended=j.suspended||[];db.clubs=j.clubs||[];db.features=j.features||[];db.owner=!!j.owner;db.owners=j.owners||[];db.stats=j.stats||null;db.discover=j.discover||null;db.ownerHandles=j.ownerHandles||[];db.admins=j.admins||[];db.mod=!!j.mod;db.mods=j.mods||[];db.members=j.members||[];db.drafts=(db.posts||[]).filter(p=>p.draft);db.posts=(db.posts||[]).filter(p=>!p.draft);db.sugg=j.sugg||[];db.isCore=!!j.isCore;db.isEditor=!!j.isEditor;db.canWrite=!!j.canWrite;db.core=j.core||{};if(j.cmsgs)clubMsgs=j.cmsgs;return j}
  catch(e){toast('Network problem, try again');return null}}
 function ago(ts){const m=Math.round((Date.now()-ts)/60000);if(m<1)return'just now';if(m<60)return m+' min ago';const h=Math.round(m/60);if(h<24)return h+' h ago';return Math.round(h/24)+' d ago'}
 const excerpt=t=>{t=plainLk(hideCut(t)).replace(/\s+/g,' ');return t.length>150?t.slice(0,150).trim()+'...':t};
@@ -680,10 +680,10 @@ const MCOLS=[['Username','handle'],['Name','name'],['Email','email'],['Date made
 function membersTsv(q){const cell=v=>String(v).replace(/[\t\r\n]+/g,' ');return [MCOLS.map(c=>c[0]).join('\t')].concat(memberRows(q).map(r=>MCOLS.map(c=>cell(r[c[1]])).join('\t'))).join('\n')}
 function searchRes(q){q=q.trim().toLowerCase().replace(/^@/,'');
  let rows=memberRows(q);
- if(!q)rows=rows.filter(r=>r.u.id!==db.me).sort((a,b)=>fh(a.u.id)-fh(b.u.id)).slice(0,5);
+ if(!q){const D=db.discover;rows=D&&Array.isArray(D.people)?D.people.map(id=>rows.find(r=>r.u.id===id)).filter(Boolean):rows.filter(r=>r.u.id!==db.me).sort((a,b)=>fh(a.u.id)-fh(b.u.id)).slice(0,5)}
  const people=`<h2 style="margin:0 0 10px;color:var(--od)">People</h2>`+(rows.length?rows.map(r=>{const u=r.u;return `<div class="panel person">${av(u)}<div style="flex:1 1 140px"><button class="link" data-a="profile" data-id="${u.id}">${esc(u.name)}</button><div class="hint" style="margin:0">@${esc(u.handle)}</div></div>${fbtn(u)}</div>`}).join(''):'<p class="empty">No one found.</p>');
- if(!q){const tp=db.posts.map(p=>({p,s:p.likedBy.length+p.comments.reduce((n,c)=>n+(c.hidden?0:1)+(c.replies||[]).length,0)})).sort((a,b)=>b.s-a.s||b.p.ts-a.p.ts).slice(0,5).map(x=>x.p);
-  return people+`<h2 style="margin:18px 0 10px;color:var(--od)">Top posts</h2>`+(tp.length?tp.map(card).join(''):'<p class="empty">No posts yet.</p>')}
+ if(!q){const D=db.discover,dp=D&&Array.isArray(D.posts)?D.posts.map(id=>db.posts.find(p=>p.id===id)).filter(Boolean):null;const tp=dp||db.posts.map(p=>({p,s:p.likedBy.length+p.comments.reduce((n,c)=>n+(c.hidden?0:1)+(c.replies||[]).length,0)})).sort((a,b)=>b.s-a.s||b.p.ts-a.p.ts).slice(0,5).map(x=>x.p);
+  return `<h2 style="margin:0 0 10px;color:var(--od)">Posts</h2>`+(tp.length?tp.map(card).join(''):'<p class="empty">No posts yet.</p>')+`<div style="height:18px"></div>`+people}
  const ps=db.posts.filter(p=>[p.title,p.media,p.type].some(x=>x.toLowerCase().includes(q))||(!p.spoiler&&hideCut(p.text).toLowerCase().includes(q))).slice(0,20);
  return people+`<h2 style="margin:18px 0 10px;color:var(--od)">Posts</h2>`+(ps.length?ps.map(card).join(''):'<p class="empty">No posts found.</p>')}
 const membersPanel=()=>{if(!db.owner)return'';const rows=memberRows('');
@@ -709,20 +709,19 @@ const statsPanel=()=>{if(!isAdmin()&&!isMod())return'';
  const bars=l=>l.length?l.map((x,i)=>`<div class="st-hb"><span class="st-n">${i+1}</span><span>${esc(x.l)}</span><span class="st-tr"><i style="width:${Math.max(4,Math.round((x.p+x.c)/cmx*100))}%"></i></span><small>${x.p} post${x.p===1?'':'s'}, ${x.c} comments, ${x.k} likes</small></div>`).join(''):'<p class="hint">No posts yet.</p>';
  const ml=rank(media).map(m=>({...m,cat:Object.entries(m.t).sort((a,b)=>b[1]-a[1])[0][0]}));
  const mrow=(x,i)=>`<div class="st-rank"><span class="st-n">${i+1}</span><div><b>${esc(x.l)}</b> <span class="tag">${esc(x.cat)}</span><div class="hint" style="margin:0">${x.p} post${x.p===1?'':'s'}, ${x.c} comments, ${x.k} likes</div></div></div>`;
- const tp=top.filter(x=>x.s>0).sort((a,b)=>b.s-a.s||b.p.ts-a.p.ts).slice(0,5).map((x,i)=>`<div class="st-rank"><span class="st-n">${i+1}</span><div><button class="link" data-a="open" data-id="${x.p.id}">${esc(x.p.title)}</button><div class="hint" style="margin:0">${esc((user(x.p.by)||{}).name||'')}, ${x.l} likes, ${x.n} comments</div></div></div>`).join('');
- const am=Object.entries(act30).filter(([u])=>user(u)).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([u,n],i)=>`<div class="st-rank"><span class="st-n">${i+1}</span><div><button class="link" data-a="profile" data-id="${u}">${esc(user(u).name)}</button> <span class="hint">@${esc(user(u).handle)}</span></div><span class="hint" style="margin:0">${n} action${n===1?'':'s'}</span></div>`).join('');
+ const tp=top.filter(x=>x.s>0).sort((a,b)=>b.s-a.s||b.p.ts-a.p.ts).slice(0,10).map((x,i)=>`<div class="st-rank"><span class="st-n">${i+1}</span><div><button class="link" data-a="open" data-id="${x.p.id}">${esc(x.p.title)}</button><div class="hint" style="margin:0">${esc((user(x.p.by)||{}).name||'')}, ${x.l} likes, ${x.n} comments</div></div></div>`).join('');
+ const am=Object.entries(act30).filter(([u])=>user(u)).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([u,n],i)=>`<div class="st-rank"><span class="st-n">${i+1}</span><div><button class="link" data-a="profile" data-id="${u}">${esc(user(u).name)}</button> <span class="hint">@${esc(user(u).handle)}</span></div><span class="hint" style="margin:0">${n} action${n===1?'':'s'}</span></div>`).join('');
  const pr={};db.posts.forEach(p=>{if(!p.prompt)return;const x=pr[p.prompt]||(pr[p.prompt]={l:(promptOf(p.prompt)||{}).title||'Deleted prompt',p:0,c:0,k:0});x.p++;x.k+=p.likedBy.length;x.c+=p.comments.reduce((s,c)=>s+(c.hidden?0:1)+(c.replies||[]).length,0)});
- const prl=rank(pr).slice(0,5);
+ const prl=rank(pr).slice(0,10);
  return `<section class="panel"><h2>Stats</h2><p class="hint">Since launch. Ranked by posts plus comments and replies.</p>
  <div class="st-grid">${kpi(tm,'Members',mw?wkTxt(mw):'')}${kpi(db.posts.length,'Posts',wkTxt(pw))}${kpi(cmt,'Comments and replies',wkTxt(cw))}${kpi(act.size,'Active members','<span class="st-d">posted or commented this week</span>')}</div>
- <h3 style="margin:18px 0 4px">Top categories</h3>${bars(cl.slice(0,4))}
- <h3 style="margin:18px 0 4px">Top media titles</h3>${ml.length?ml.slice(0,5).map(mrow).join(''):'<p class="hint">No posts yet.</p>'}
- <h3 style="margin:18px 0 4px">Most active members</h3><p class="hint" style="margin:0 0 2px">Posts, comments and replies in the last 30 days.</p>${am||'<p class="hint">No activity yet.</p>'}
+ <h3 style="margin:18px 0 4px">Top 10 categories</h3>${bars(cl.slice(0,10))}
+ <h3 style="margin:18px 0 4px">Top 10 media titles</h3>${ml.length?ml.slice(0,10).map(mrow).join(''):'<p class="hint">No posts yet.</p>'}
+ <h3 style="margin:18px 0 4px">Top 10 most active members</h3><p class="hint" style="margin:0 0 2px">Posts, comments and replies in the last 30 days.</p>${am||'<p class="hint">No activity yet.</p>'}
  <details class="st-more"><summary>Show full stats</summary>
   <div class="st-grid" style="margin-top:12px">${kpi(likes,'Likes on posts')}${canMod()?kpi((db.reports||[]).length,'Open reports'):''}</div>
   <div class="st-charts">${ch('Posts per week',pw)}${ch('Comments and replies per week',cw)}${mw?ch('New members per week',mw):''}</div>
-  ${cl.length>4?`<h3 style="margin:18px 0 4px">All categories</h3>${bars(cl)}`:''}
-  ${ml.length>5?`<h3 style="margin:18px 0 4px">More media titles</h3>${ml.slice(5,15).map((x,i)=>mrow(x,i+5)).join('')}`:''}
+  ${ml.length>10?`<h3 style="margin:18px 0 4px">More media titles</h3>${ml.slice(10,25).map((x,i)=>mrow(x,i+10)).join('')}`:''}
   <h3 style="margin:18px 0 4px">Top posts</h3>${tp||'<p class="hint">No likes or comments yet.</p>'}
   ${prl.length?`<h3 style="margin:18px 0 4px">Weekly prompts</h3>${prl.map((x,i)=>`<div class="st-rank"><span class="st-n">${i+1}</span><div>${esc(x.l)}<div class="hint" style="margin:0">${x.p} post${x.p===1?'':'s'}, ${x.c} comments, ${x.k} likes</div></div></div>`).join('')}`:''}
  </details></section>`};
@@ -754,7 +753,7 @@ const cmUpdate=()=>{const l=$('cm-list');if(l){l.innerHTML=clubList();l.scrollTo
 const chatList=id=>{const l=(db.msgs||[]).filter(m=>m.from===id||m.to===id);return l.length?l.map(m=>{const mine=m.from===db.me;return `<div style="display:flex;justify-content:${mine?'flex-end':'flex-start'};margin:6px 0"><div style="max-width:80%;padding:8px 12px;border-radius:14px;white-space:pre-wrap;word-break:break-word;background:${mine?'var(--o)':'var(--os)'};color:${mine?'#fff':'var(--ink)'}">${esc(m.t)}<div style="font-size:.72rem;opacity:.75">${ago(m.ts)}${mine?` · <button class="link" data-a="delm" data-id="${m.id}" style="font-size:.72rem;color:#fff">Delete</button>`:''}</div></div></div>`}).join(''):'<p class="empty">Say hi.</p>'};
 function chatView(id){if(!me())return inboxView();const u=user(id);return `<button class="btn ghost" style="margin-bottom:14px" data-a="inbox">Back to messages</button><section class="panel"><div class="phead">${av(u)}<h2 style="font-size:1.3rem">${esc(u.name)}</h2></div><div id="m-list" style="margin-top:12px">${chatList(id)}</div><div class="cform"><input id="m-t" maxlength="1000" placeholder="Write a message"><button class="btn" data-a="sendm" data-id="${id}">Send</button></div></section>`}
 const noteText={like:'liked your post',comment:'commented on your post',reply:'replied to a comment',follow:'started following you',repost:'reposted your post',mention:'mentioned you'};
-const sysNote=n=>{const em=(db.about&&db.about.email)||ABOUT_EMAIL,w=n.kind==='warn';return `<div class="panel" style="${n.read?'':'border-color:var(--o)'}"><b>${w?'Warning':(n.text==='comment'?'Comment removed':'Post removed')}</b><div style="margin:4px 0">${w?`3 more reports on your profile and you will be suspended. Email <a href="mailto:${esc(em)}" style="color:var(--od)">${esc(em)}</a> to fix it.`:`Your ${n.text==='comment'?'comment':'post'} was deleted because it violates the rules.`}</div><span class="hint" style="margin:0">${ago(n.ts)}</span></div>`};
+const sysNote=n=>{const em=(db.about&&db.about.email)||ABOUT_EMAIL,w=n.kind==='warn';return `<div class="panel" style="${n.read?'':'border-color:var(--o)'}"><b>${w?'Warning':(n.text==='comment'?'Comment removed':'Post removed')}</b><div style="margin:4px 0">${w?`${n.n?`This is warning ${n.n} of 3. `:''}${n.n>=3?'Your account can now be suspended.':'At 3 warnings your account can be suspended.'} For any concern, email <a href="mailto:${esc(em)}" style="color:var(--od)">${esc(em)}</a>.`:`Your ${n.text==='comment'?'comment':'post'} was deleted because it violates the rules.`}</div><span class="hint" style="margin:0">${ago(n.ts)}</span></div>`};
 function notesView(){if(!me())return inboxView();const l=db.notes||[];
  return `<section class="panel"><h2>Notifications</h2></section>`+(l.length?l.map(n=>(n.kind==='warn'||n.kind==='removed')?sysNote(n):`<div class="panel person" style="${n.read?'':'border-color:var(--o)'}">${av(user(n.from),'sm')}<button class="link" data-a="${n.pid?'open':'profile'}" data-id="${n.pid||n.from}">${esc(user(n.from).name)} ${noteText[n.kind]||'did something'}</button><span class="hint" style="margin:0">${ago(n.ts)}</span></div>`).join(''):'<p class="empty">No juicy news yet.</p>')}
 function settingsView(){if(!me())return inboxView();const A=adminTools();
@@ -818,7 +817,7 @@ const bingoShares=u=>{const l=u.bingoShares||[];return l.length?`<section class=
 const pickBanner=()=>{const k=db.pick;return k?`<section class="panel" style="background:var(--os)"><h2>🍊 Fresh pick of the week</h2><div style="font-weight:700">${esc(k.type)} - ${esc(k.media)}</div>${k.note?`<p style="margin:6px 0 0">${lk(k.note)}</p>`:''}${me()?`<div class="actions"><button class="btn" data-a="pickreview">Review it</button></div>`:''}</section>`:''};
 const repWhat=r=>{const p=db.posts.find(x=>x.id===r.pid);if(!p)return'';const c=r.kind==='comment'&&r.i!=null?p.comments[r.i]:null,t=c&&!c.hidden?c.t:p.title;return t?` <span class="hint">“${esc(String(t).slice(0,80))}”</span>`:''};
 const repAuthor=r=>{const p=db.posts.find(x=>x.id===r.pid),isC=r.kind==='comment'&&r.i!=null&&p&&p.comments[r.i],by=p?(isC?p.comments[r.i].by:p.by):null;if(!by||by===db.me||!user(by))return'';const sus=(db.suspended||[]).includes(by),u=user(by),k=isC?'comment':'post';
- return ` <button class="link" data-a="warnu" data-id="${by}">${u.warned?'Warn again':'Warn'} ${esc(u.name)}</button><button class="link" data-a="modrm" data-id="${r.pid}" data-k="${k}" data-i="${isC?r.i:''}">Delete ${k}</button>${isLead()?`<button class="link" data-a="suspend" data-id="${by}">${sus?'Unsuspend':'Suspend'} ${esc(u.name)}</button>`:''}`};
+ return ` <button class="link" data-a="warnu" data-id="${by}">${(u.warned||0)?'Warn again':'Warn'} ${esc(u.name)} (${u.warned||0}/3)</button><button class="link" data-a="modrm" data-id="${r.pid}" data-k="${k}" data-i="${isC?r.i:''}">Delete ${k}</button>${isLead()?`<button class="link" data-a="suspend" data-id="${by}">${sus?'Unsuspend':'Suspend'} ${esc(u.name)}</button>`:''}`};
 
 /* ---------- Feature picks 🧺 ---------- */
 const FSTAT={pending:'⏳ Waiting for the editor',published:'✅ Published',rejected:'↩️ Sent back'};
@@ -1319,8 +1318,8 @@ app.addEventListener('click',async e=>{
   if(await api('changepw',{old:$('pw-o').value,pw:n})){$('pw-o').value='';$('pw-n').value='';toast('Password changed')}}
  else if(a==='delacct'){if(!confirm('Delete your account forever? This cannot be undone.'))return;
   if(await api('deleteaccount',{pw:$('da-pw').value})){toast('Account deleted');go({n:'feed'})}}
- else if(a==='warnu'){const u=user(id);if(!confirm('Send a warning to '+(u?u.name:'this member')+'? They will see: 3 more reports and they are suspended, with the contact email to fix it.'))return;if(await api('warn',{id})){toast('Warning sent');render()}}
- else if(a==='modrm'){if(!confirm('Delete this '+b.dataset.k+'? The author will be told it was removed for breaking the rules.'))return;if(await api('modremove',{id,k:b.dataset.k,i:b.dataset.i})){toast('Deleted and author notified');render()}}
+ else if(a==='warnu'){const u=user(id);if(!confirm('Send a warning to '+(u?u.name:'this member')+'? This counts as one of 3 warnings. At 3 warnings the account can be suspended. They will see the contact email for any concern.'))return;if(await api('warn',{id})){toast('Warning sent');render()}}
+ else if(a==='modrm'){if(!confirm('Delete this '+b.dataset.k+'? The author will be told it was removed. Deleting does not count as a warning.'))return;if(await api('modremove',{id,k:b.dataset.k,i:b.dataset.i})){toast('Deleted and author notified');render()}}
  else if(a==='dismissr'){if(await api('dismissreport',{id}))render()}
  else if(a==='editp'){rating=p.rating;go({n:'post',id,edit:true})}
  else if(a==='editc')go({n:'post',id:view.id,ec:+b.dataset.i},true);
@@ -1335,7 +1334,7 @@ app.addEventListener('click',async e=>{
   const d={type:g('f-type'),media:g('f-media'),title:g('f-title')||g('f-media'),rating,text:g('f-text'),spoiler:$('f-spoil').checked,draft:true};
   if(!d.media){toast('Add a title to save a draft');return}
   if(await api('publish',{...d,prompt:pre&&pre.prompt})){const wp=pre&&pre.prompt;pre=null;rating=0;clearCompose();toast('Draft saved. Find it on your profile.');const nd=(db.drafts||[]).filter(x=>x.by===db.me).sort((a,b)=>b.ts-a.ts)[0];if(wp&&nd)go({n:'post',id:nd.id});else render()}}
- else if(a==='open')go({n:'post',id});
+ else if(a==='open'){if(me())api('viewpost',{id});go({n:'post',id})}
  else if(a==='pscroll'){const e2=$('u-posts');if(e2)e2.scrollIntoView({behavior:'smooth',block:'start'})}
  else if(a==='plist'){go({n:'people',id,k:b.dataset.k})}
  else if(a==='profile'){const u=user(id);pickAv=u.avatar;psort='new';ptab='all';go({n:'profile',id})}
