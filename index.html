@@ -100,6 +100,11 @@ body{margin:0;background:var(--bg)}
 #tg .pcat{margin:8px 0 0;font-size:14px;font-weight:700;color:var(--od)}
 #tg .pcat span{font-weight:400;color:var(--mut)}
 #tg .post .meta.m1{margin-bottom:4px}
+#tg .post .meta .rate{font-size:calc(.9rem + 1px)}
+#tg .post .meta .ptype{font-size:14px;font-weight:500;color:var(--od)}
+#tg .link.pale.sm{font-size:calc(1em - 2px)}
+#tg .sugg-row{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}
+#tg .sugg-row textarea{flex:1 1 220px;min-height:46px}
 #tg .post .meta.m2{margin-top:0}
 #tg .chead{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 #tg .cacts{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:4px}
@@ -328,7 +333,7 @@ async function api(a,d){
  try{const r=await fetch('/api',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+TOKEN},body:JSON.stringify({a,d})});
   const j=await r.json();if(j.error){toast(j.error);return null}
   if(j.token!==undefined){TOKEN=j.token;try{localStorage.setItem('tg-token',TOKEN)}catch(e){}}
-  db=j.db;db.me=j.me;db.msgs=j.msgs||[];db.notes=j.notes||[];db.blocked=j.blocked||[];db.admin=!!j.admin;db.reports=j.reports||[];db.email=j.email||'';db.suspended=j.suspended||[];db.clubs=j.clubs||[];db.features=j.features||[];db.owner=!!j.owner;db.admins=j.admins||[];db.mod=!!j.mod;db.mods=j.mods||[];db.members=j.members||[];db.drafts=(db.posts||[]).filter(p=>p.draft);db.posts=(db.posts||[]).filter(p=>!p.draft);db.isCore=!!j.isCore;db.isEditor=!!j.isEditor;db.canWrite=!!j.canWrite;db.core=j.core||{};if(j.cmsgs)clubMsgs=j.cmsgs;return j}
+  db=j.db;db.me=j.me;db.msgs=j.msgs||[];db.notes=j.notes||[];db.blocked=j.blocked||[];db.admin=!!j.admin;db.reports=j.reports||[];db.email=j.email||'';db.suspended=j.suspended||[];db.clubs=j.clubs||[];db.features=j.features||[];db.owner=!!j.owner;db.admins=j.admins||[];db.mod=!!j.mod;db.mods=j.mods||[];db.members=j.members||[];db.drafts=(db.posts||[]).filter(p=>p.draft);db.posts=(db.posts||[]).filter(p=>!p.draft);db.sugg=j.sugg||[];db.isCore=!!j.isCore;db.isEditor=!!j.isEditor;db.canWrite=!!j.canWrite;db.core=j.core||{};if(j.cmsgs)clubMsgs=j.cmsgs;return j}
  catch(e){toast('Network problem, try again');return null}}
 function ago(ts){const m=Math.round((Date.now()-ts)/60000);if(m<1)return'just now';if(m<60)return m+' min ago';const h=Math.round(m/60);if(h<24)return h+' h ago';return Math.round(h/24)+' d ago'}
 const excerpt=t=>{t=plainLk(t).replace(/\s+/g,' ');return t.length>150?t.slice(0,150).trim()+'...':t};
@@ -484,7 +489,7 @@ const meta=(p,big)=>{const when=`<span>${ago(p._ots||p.ts)}${p.edited?' <span st
  prm=p.prompt&&promptOf(p.prompt)?`<button class="link" data-a="prompt" data-id="${p.prompt}">💭 ${esc(promptOf(p.prompt).title)}</button>`:'',
  rate=`<span class="rate" aria-label="${p.rating} out of 5">${stars(p.rating)}</span>`;
  if(big)return `<div class="pcat">${esc(p.type)} <span>-</span> ${esc(p.media)}</div><div class="meta">${whoHtml(user(p.by))}${draft}${prm}${rate}${when}</div>`;
- return `<div class="meta m1">${whoHtml(user(p.by),1)}<span class="tag">${esc(p.type)}</span>${draft}${prm}</div><div class="meta m2"><span>${esc(p.media)} - ${rate}</span>${when}</div>`};
+ return `<div class="meta m1">${whoHtml(user(p.by),1)}<span class="ptype">${esc(p.type)}</span>${draft}${prm}</div><div class="meta m2"><span>${esc(p.media)} - ${rate}</span>${when}</div>`};
 const card=p=>`<article class="post">${postMenu(p)}<button class="open" data-a="open" data-id="${p.id}">${esc(p.title)}</button>${meta(p)}
  ${bodyHtml(p)}<div class="actions"><button class="btn ghost" data-a="open" data-id="${p.id}">Read post</button></div>${actions(p)}</article>`;
 
@@ -492,7 +497,7 @@ const newTip=()=>{const u=me();return u&&!db.posts.some(p=>p.by===u.id)?'<div cl
 const feedSeed=Math.random().toString(36).slice(2),fh=id=>{let h=0;const q=id+feedSeed;for(let i=0;i<q.length;i++)h=(h*31+q.charCodeAt(i))|0;return h};
 function feedView(){const fl=(me()&&me().following)||[];
  const list=db.posts.filter(p=>filter==='All'||(filter==='Following'?fl.includes(p.by):p.type===filter)).sort((a,b)=>fh(a.id)-fh(b.id));
-  return newTip()+bannerBox()+timesBanner()+composeView()+pickBanner()+promptBox()+pollBox()+bingoBox()+`<div class="filters">${TYPES.concat(me()?['Following']:[]).map(t=>`<button class="chip" data-a="filter" data-t="${t}" aria-pressed="${t===filter}">${t}</button>`).join('')}</div>`+
+  return newTip()+bannerBox()+suggestBox()+timesBanner()+composeView()+pickBanner()+promptBox()+pollBox()+bingoBox()+`<div class="filters">${TYPES.concat(me()?['Following']:[]).map(t=>`<button class="chip" data-a="filter" data-t="${t}" aria-pressed="${t===filter}">${t}</button>`).join('')}</div>`+
  (list.length?(feedPosts=list,feedShown='IntersectionObserver' in window?Math.min(feedWant,list.length):list.length,`<div id="feed-list">${list.slice(0,feedShown).map(card).join('')}</div>${feedShown<list.length?'<div id="more" style="height:1px"></div>':''}`):`<p class="empty">${filter==='Following'?'Nothing here yet. Use Find people to follow someone.':'No fruit on the tree yet. Be the first to post.'}</p>`)}
 
 const postMenu=p=>{const u=me();if(!u)return'';const own=u.id===p.by,adm=isAdmin();if(!own&&!adm&&p.draft)return'';
@@ -508,7 +513,7 @@ function commentHtml(p,c,i){const u=me();
  const own=u&&u.id===c.by, mod=u&&(own||u.id===p.by||isAdmin());
  const hid=!!c.spoiler&&!own&&!rev.has('c'+p.id+'-'+i), cbody=hid?`<button class="link" data-a="reveal" data-id="c${p.id}-${i}">⚠️ Contains spoilers. Tap to show</button>`:lk(c.t)+(c.spoiler?' <span class="hint">(spoiler)</span>':'');
  const main=view.ec===i&&own?`<div class="cm">${av(u,'sm')}<div class="cform" style="flex:1;margin:0"><input id="ce-t" maxlength="300" value="${esc(c.t)}"><button class="btn" data-a="savec" data-id="${p.id}" data-i="${i}">Save</button><button class="btn ghost" data-a="open" data-id="${p.id}">Cancel</button><label class="cspoil"><input type="checkbox" id="ce-spoil"${c.spoiler?' checked':''}>This comment contains spoilers</label></div></div>`
-  :`<div class="cm">${av(user(c.by),'sm')}<div style="flex:1;min-width:0"><div class="chead">${whoHtml(user(c.by),0,1)}${u&&!own?`<button class="link pale" data-a="report" data-k="comment" data-id="${p.id}" data-i="${i}">Report</button>`:''}</div>${cbody}${c.edited?' <span class="hint">(edited)</span>':''}<div class="cacts">${likeRow(p,c,i)}${u?`<button class="link pale" data-a="replyto" data-i="${i}">Reply</button>`:''}${own?`<button class="link pale" data-a="editc" data-i="${i}">Edit</button>`:''}${mod?`<button class="link pale" data-a="delc" data-id="${p.id}" data-i="${i}">Delete</button>`:''}</div>${clikersPanel(p,c,i)}</div></div>`;
+  :`<div class="cm">${av(user(c.by),'sm')}<div style="flex:1;min-width:0"><div class="chead">${whoHtml(user(c.by),0,1)}${u&&!own?`<button class="link pale sm" data-a="report" data-k="comment" data-id="${p.id}" data-i="${i}">Report</button>`:''}</div>${cbody}${c.edited?' <span class="hint">(edited)</span>':''}<div class="cacts">${likeRow(p,c,i)}${u?`<button class="link pale" data-a="replyto" data-i="${i}">Reply</button>`:''}${own?`<button class="link pale" data-a="editc" data-i="${i}">Edit</button>`:''}${mod?`<button class="link pale" data-a="delc" data-id="${p.id}" data-i="${i}">Delete</button>`:''}</div>${clikersPanel(p,c,i)}</div></div>`;
  const reps=(c.replies||[]).map((r,j)=>r.hidden?'':`<div class="cm" style="margin-left:34px">${av(user(r.by),'sm')}<div>${whoHtml(user(r.by),0,1)}<div>${lk(r.t)}</div>${u&&(u.id===r.by||u.id===p.by||isAdmin())?`<div class="cacts"><button class="link pale" data-a="delr" data-id="${p.id}" data-i="${i}" data-j="${j}">Delete</button></div>`:''}</div></div>`).join('');
  const form=view.rp===i&&u?`<div class="cform" style="margin-left:34px"><input id="r-t" maxlength="300" placeholder="Reply as ${esc(u.name)}"><button class="btn" data-a="sendr" data-id="${p.id}" data-i="${i}">Reply</button><button class="btn ghost" data-a="open" data-id="${p.id}">Cancel</button></div>`:'';
  return main+reps+form}
@@ -610,6 +615,7 @@ function settingsView(){if(!me())return inboxView();const A=adminTools();
  ${membersPanel()}
  ${isMod()&&!isLead()?pinView():''}
  ${A.banner||''}
+ ${suggestAdmin()}
  ${isLead()?`<section class="panel"><h2>Fresh pick of the week</h2><div class="row"><div><label for="fp-t">Category</label><select id="fp-t">${TYPES.slice(1).map(t=>`<option${db.pick&&db.pick.type===t?' selected':''}>${t}</option>`).join('')}</select></div><div><label for="fp-m">Title</label><input id="fp-m" maxlength="80" value="${db.pick?esc(db.pick.media):''}"></div></div><label for="fp-n">Why it is a fresh pick (optional)</label><input id="fp-n" maxlength="200" value="${db.pick?esc(db.pick.note||''):''}"><div class="actions"><button class="btn" data-a="setpick">Save pick</button><button class="btn ghost" data-a="clearpick">Remove pick</button></div></section>`:''}
  ${A.prompts||''}
  ${A.polls||''}
@@ -875,6 +881,10 @@ function timesView(){
  const dx=ttDir*28;ttDir=0;return mast+`<div class="tt-slide" style="--dx:${dx}px">${body}</div>`}
 
 const draftsView=u=>{const l=(db.drafts||[]).filter(p=>p.by===u.id);return me()&&me().id===u.id&&l.length?`<section class="panel"><h2>Your drafts</h2>${l.map(p=>`<div class="cm" style="align-items:center;flex-wrap:wrap"><span style="flex:1 1 200px">${esc(p.title)}${p.media&&p.media!==p.title?' <span class="hint">'+esc(p.type)+' - '+esc(p.media)+'</span>':''}</span><button class="btn ghost" data-a="editp" data-id="${p.id}">Edit</button><button class="link" data-a="open" data-id="${p.id}">Open</button></div>`).join('')}</section>`:''};
+const suggestBox=()=>{if(!db.suggOn)return'';const u=me();
+ return `<section class="panel"><h2>💡 Suggestion box</h2><p class="hint" style="margin:0 0 8px">Got an idea to make Tangerine Takes better? Tell us.</p>${u?`<div class="sugg-row"><textarea id="sg-t" maxlength="500" placeholder="Write your suggestion" aria-label="Your suggestion"></textarea><button class="btn" data-a="sendsugg">Send</button></div>`:`<div class="actions" style="margin:0"><button class="btn" data-a="join">Log in to send a suggestion</button></div>`}</section>`};
+const suggestAdmin=()=>{if(!isAdmin())return'';const L=db.sugg||[];
+ return `<section class="panel"><h2>💡 Suggestion box</h2>${isLead()?`<p class="hint" style="margin:0 0 6px">${db.suggOn?'The box is showing on Home under the announcement.':'The box is hidden from members.'}</p><div class="actions" style="margin:0 0 10px"><button class="btn${db.suggOn?' ghost':''}" data-a="togglesugg" data-on="${db.suggOn?0:1}">${db.suggOn?'Turn off':'Turn on'}</button></div>`:''}${L.length?L.map(x=>`<div class="cm" style="flex-wrap:wrap"><div style="flex:1 1 220px"><div class="body">${esc(x.t)}</div><span class="hint">${user(x.by)?esc(user(x.by).name)+' @'+esc(user(x.by).handle):'Deleted member'} · ${ago(x.ts)}</span></div><button class="link" data-a="delsugg" data-id="${x.id}">Delete</button></div>`).join(''):'<p class="hint">No suggestions yet.</p>'}</section>`};
 const bannerBox=()=>db.banner?`<section class="panel" style="background:var(--os);border-color:var(--o)"><h2>📣 ${esc(db.banner.title||'Announcement')}</h2>${db.banner.title&&db.banner.text||(!db.banner.title&&db.banner.text)?`<div class="body">${lk(db.banner.text)}</div>`:''}</section>`:'';
 const promptBox=()=>{const k=(db.prompts||[])[0];if(!k)return'';const n=db.posts.filter(p=>p.prompt===k.id).length;
  return `<section class="panel"><h2>💭 Weekly prompt</h2><div style="font-weight:700;font-size:1.1rem">${esc(k.title)}</div>${k.desc?`<p style="margin:6px 0 0">${esc(k.desc)}</p>`:''}<div class="actions">${me()?`<button class="btn" data-a="promptreply" data-id="${k.id}">Reply with a post</button>`:`<button class="btn" data-a="join">Log in to reply</button>`}<button class="btn ghost" data-a="prompt" data-id="${k.id}">See replies (${n})</button></div></section>`};
@@ -1201,6 +1211,9 @@ app.addEventListener('click',async e=>{
  else if(a==='promptreply'){const k=promptOf(id);if(!k)return;if(!needUser())return;pre={type:'',media:'',prompt:id,ptitle:k.title};rating=0;go({n:'compose'})}
  else if(a==='vote'){if(!needUser())return;const y=window.scrollY;if(await api('pollvote',{id,i:+b.dataset.i,c:b.dataset.c===undefined?undefined:+b.dataset.c})){render();window.scrollTo(0,y)}}
  else if(a==='setbanner'){if(!g('bn-h')){toast('Add a headline first');return}if(await api('setbanner',{title:g('bn-h'),text:g('bn-t'),pub:!!($('bn-pub')&&$('bn-pub').checked)})){toast('Announcement pinned');render()}}
+ else if(a==='sendsugg'){if(!needUser())return;const t=g('sg-t');if(!t){toast('Write your suggestion first');return}if(await api('suggest',{t})){render();toast('Thanks, your suggestion was sent')}}
+ else if(a==='togglesugg'){if(await api('setsuggest',{on:b.dataset.on==='1'})){render();toast(db.suggOn?'Suggestion box is on':'Suggestion box is off')}}
+ else if(a==='delsugg'){if(await api('delsugg',{id})){render()}}
  else if(a==='clearbanner'){if(await api('setbanner',{title:'',text:''})){toast('Announcement removed');render()}}
  else if(a==='newprompt'){if(!g('pr-t')){toast('Write the prompt first');return}if(await api('saveprompt',{id:ed.prompt||undefined,title:g('pr-t'),desc:g('pr-d')})){toast(ed.prompt?'Prompt updated':'Prompt posted');ed.prompt=null;render()}}
  else if(a==='delprompt'){if(!confirm('Delete this prompt? Replies stay as normal posts.'))return;if(await api('delprompt',{id}))render()}
