@@ -251,6 +251,12 @@ body{margin:0;background:var(--bg)}
 #tg .rte.big{min-height:260px;font-size:1.05rem;line-height:1.7;padding:14px 16px}
 #tg .rte.is-empty::before{content:attr(data-ph);color:var(--mut);position:absolute;pointer-events:none}
 #tg .rte a{color:var(--o);text-decoration:underline}
+#tg .rte .hd{background:var(--os);border-bottom:2px dashed var(--o);border-radius:3px}
+#tg .hide{background:var(--ink);color:transparent;border-radius:4px;padding:0 3px;cursor:pointer;-webkit-user-select:none;user-select:none;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+#tg .hide *{color:transparent}
+#tg .hide.on{background:var(--os);color:inherit;-webkit-user-select:text;user-select:text}
+#tg .hide.on *{color:inherit}
+#tg .hide:focus-visible{outline:2px solid var(--o);outline-offset:2px}
 #tg .crew-h{font-size:1.5rem;font-weight:800;line-height:1.2;color:var(--od);margin:0 0 12px}
 #tg .crew-h.ln{padding-bottom:8px;border-bottom:2px solid var(--line);margin-bottom:14px}
 #tg .crew{display:flex;flex-wrap:wrap;gap:16px 44px;margin:0;padding:0;list-style:none}
@@ -345,7 +351,7 @@ async function api(a,d){
   db=j.db;db.me=j.me;db.msgs=j.msgs||[];db.notes=j.notes||[];db.blocked=j.blocked||[];db.admin=!!j.admin;db.reports=j.reports||[];db.email=j.email||'';db.suspended=j.suspended||[];db.clubs=j.clubs||[];db.features=j.features||[];db.owner=!!j.owner;db.admins=j.admins||[];db.mod=!!j.mod;db.mods=j.mods||[];db.members=j.members||[];db.drafts=(db.posts||[]).filter(p=>p.draft);db.posts=(db.posts||[]).filter(p=>!p.draft);db.sugg=j.sugg||[];db.isCore=!!j.isCore;db.isEditor=!!j.isEditor;db.canWrite=!!j.canWrite;db.core=j.core||{};if(j.cmsgs)clubMsgs=j.cmsgs;return j}
  catch(e){toast('Network problem, try again');return null}}
 function ago(ts){const m=Math.round((Date.now()-ts)/60000);if(m<1)return'just now';if(m<60)return m+' min ago';const h=Math.round(m/60);if(h<24)return h+' h ago';return Math.round(h/24)+' d ago'}
-const excerpt=t=>{t=plainLk(t).replace(/\s+/g,' ');return t.length>150?t.slice(0,150).trim()+'...':t};
+const excerpt=t=>{t=plainLk(hideCut(t)).replace(/\s+/g,' ');return t.length>150?t.slice(0,150).trim()+'...':t};
 const stars=n=>'🍊'.repeat(n)+'<span style="filter:grayscale(1);opacity:.3">'+'🍊'.repeat(5-n)+'</span>';
 const av=(u,c='')=>`<span class="av ${c}" aria-hidden="true">${esc(u.avatar)}</span>`;
 const CREW=['Editorial','Team'];
@@ -483,16 +489,18 @@ function actions(p,full){const u=me(),liked=u&&p.likedBy.includes(u.id),rp=!p.dr
  return `<div class="actions">${full?'':`<button class="btn ghost" data-a="open" data-id="${p.id}">Read post</button>`}<button class="act" data-a="like" data-id="${p.id}" aria-label="Like" aria-pressed="${!!liked}"><span class="tl${liked?'':' off'}" aria-hidden="true">🍊</span> ${p.likedBy.length}</button> <button class="act" data-a="open" data-id="${p.id}" aria-label="Comments">💬 ${p.comments.length}</button>${full?`<button class="act" data-a="share" data-id="${p.id}" aria-label="Copy link to share">🔗</button>`:''}${rp}</div>${full?likersPanel(p):''}`}
 const lk=t=>esc(t).replace(/@([a-z0-9_]{3,20})/gi,(m,h)=>{const u=db.profiles.find(x=>x.handle===h.toLowerCase());return u?`<button class="link" data-a="profile" data-id="${u.id}">@${esc(u.handle)}</button>`:m});
 /* Writing boxes work like Word. Bold, italic, underline and strikethrough are saved as hidden [b] [i] [u] [s] tags. Links are saved as [text](https://...). Only http(s) links are shown as links. */
-const fmt=s=>{const op={b:0,i:0,u:0,s:0},st=[];s=s.replace(/\[(\/?)([bius])\]/g,(m,c,t)=>{if(!c){op[t]++;st.push(t);return '<'+t+'>'}if(!op[t])return '';op[t]--;const k=st.lastIndexOf(t);if(k>=0)st.splice(k,1);return '</'+t+'>'});return s+st.reverse().map(t=>'</'+t+'>').join('')};
+/* Hide = inline spoiler. Saved as [h]text[/h]. Readers see a dark bar and tap it to show the words. In the editor it shows as a highlighted box. */
+const fmt=(s,ed)=>{const op={b:0,i:0,u:0,s:0,h:0},st=[];const oT=t=>t==='h'?(ed?'<span class="hd">':'<span class="hide" data-a="unhide" role="button" tabindex="0" title="Tap to show">'):'<'+t+'>',cT=t=>t==='h'?'</span>':'</'+t+'>';s=s.replace(/\[(\/?)([biush])\]/g,(m,c,t)=>{if(!c){op[t]++;st.push(t);return oT(t)}if(!op[t])return '';op[t]--;const k=st.lastIndexOf(t);if(k>=0)st.splice(k,1);return cT(t)});return s+st.reverse().map(cT).join('')};
+const hideCut=t=>String(t==null?'':t).replace(/\[h\][\s\S]*?(\[\/h\]|$)/g,'\u25AE\u25AE\u25AE');
 const lkx=t=>{const L=[];t=String(t==null?'':t).replace(/\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]{1,500})\)/g,(m,x,u)=>{L.push([x,u]);return '\u0001'+(L.length-1)+'\u0002'});
  return fmt(lk(t)).replace(/\u0001(\d+)\u0002/g,(m,i)=>{const q=L[+i];return `<a class="link" href="${esc(q[1])}" target="_blank" rel="noopener noreferrer nofollow">${esc(q[0])}</a>`})};
 const staffTxt=l=>(l||[]).map(x=>x.name+(x.role?' | '+x.role:'')).join('\n');
 const staffList=l=>`<ul class="crew">${(l||[]).map(x=>{const m=String(x.name).match(/^(.*?)\s+(@[A-Za-z0-9_]{3,20})$/);return `<li><div class="crew-n">${m?`<b>${esc(m[1])}</b> <span class="crew-u">${lk(m[2])}</span>`:`<b>${lk(x.name)}</b>`}</div>${x.role?`<div class="crew-r">${esc(x.role)}</div>`:''}</li>`}).join('')}</ul>`;
-const plainLk=t=>String(t==null?'':t).replace(/\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]{1,500})\)/g,'$1').replace(/\[\/?[bius]\]/g,'');
-const fmtBar=id=>`<div class="fmt" role="toolbar" aria-label="Formatting" data-for="${id}"><button type="button" data-a="fmt" data-c="bold" data-for="${id}" title="Bold (Ctrl+B)" aria-label="Bold" aria-pressed="false"><b>B</b></button><button type="button" data-a="fmt" data-c="italic" data-for="${id}" title="Italic (Ctrl+I)" aria-label="Italic" aria-pressed="false"><i>I</i></button><button type="button" data-a="fmt" data-c="underline" data-for="${id}" title="Underline (Ctrl+U)" aria-label="Underline" aria-pressed="false"><u>U</u></button><button type="button" data-a="fmt" data-c="strikeThrough" data-for="${id}" title="Strikethrough (Ctrl+Shift+X)" aria-label="Strikethrough" aria-pressed="false"><s>S</s></button></div>`;
+const plainLk=t=>String(t==null?'':t).replace(/\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]{1,500})\)/g,'$1').replace(/\[\/?[biush]\]/g,'');
+const fmtBar=id=>`<div class="fmt" role="toolbar" aria-label="Formatting" data-for="${id}"><button type="button" data-a="fmt" data-c="bold" data-for="${id}" title="Bold (Ctrl+B)" aria-label="Bold" aria-pressed="false"><b>B</b></button><button type="button" data-a="fmt" data-c="italic" data-for="${id}" title="Italic (Ctrl+I)" aria-label="Italic" aria-pressed="false"><i>I</i></button><button type="button" data-a="fmt" data-c="underline" data-for="${id}" title="Underline (Ctrl+U)" aria-label="Underline" aria-pressed="false"><u>U</u></button><button type="button" data-a="fmt" data-c="strikeThrough" data-for="${id}" title="Strikethrough (Ctrl+Shift+X)" aria-label="Strikethrough" aria-pressed="false"><s>S</s></button><button type="button" data-a="fmt" data-c="hide" data-for="${id}" title="Hide selected words (spoiler)" aria-label="Hide selected words as a spoiler" aria-pressed="false">Hide</button></div>`;
 /* saved text -> what the editor shows */
 function mdToRte(md){return String(md||'').split('\n').map(line=>{const L=[];let t=line.replace(/\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]{1,500})\)/g,(m,x,u)=>{L.push([x,u]);return '\u0001'+(L.length-1)+'\u0002'});
- t=fmt(esc(t)).replace(/\u0001(\d+)\u0002/g,(m,i)=>'<a href="'+esc(L[+i][1])+'">'+esc(L[+i][0])+'</a>');return '<div>'+(t||'<br>')+'</div>'}).join('')}
+ t=fmt(esc(t),true).replace(/\u0001(\d+)\u0002/g,(m,i)=>'<a href="'+esc(L[+i][1])+'">'+esc(L[+i][0])+'</a>');return '<div>'+(t||'<br>')+'</div>'}).join('')}
 /* what the editor shows -> saved text */
 function rteToMd(root){let o='';const nl=()=>{if(o&&!o.endsWith('\n'))o+='\n'};
  const plain=n=>n.nodeType===3?n.nodeValue:Array.from(n.childNodes).map(plain).join('');
@@ -509,12 +517,20 @@ function rteToMd(root){let o='';const nl=()=>{if(o&&!o.endsWith('\n'))o+='\n'};
   if(tg==='I'||tg==='EM'||s.fontStyle==='italic')tags+='i';
   if(tg==='U'||/underline/.test(td))tags+='u';
   if(tg==='S'||tg==='STRIKE'||tg==='DEL'||/line-through/.test(td))tags+='s';
+  if(tg==='SPAN'&&n.classList&&n.classList.contains('hd'))tags+='h';
   const start=o.length;Array.from(n.childNodes).forEach(walk);
   if(tags){const inner=o.slice(start);o=o.slice(0,start)+inner.split('\n').map(x=>x.trim()?tags.split('').map(t=>'['+t+']').join('')+x+tags.split('').reverse().map(t=>'[/'+t+']').join(''):x).join('\n')}}
  Array.from(root.childNodes).forEach(walk);return o.replace(/\n+$/,'')}
 function rteSync(r){const ta=$(r.dataset.for);if(!ta)return;ta.value=rteToMd(r);r.classList.toggle('is-empty',!ta.value.trim());ta.dispatchEvent(new Event('input',{bubbles:true}))}
-function rteBar(r){const bar=app.querySelector('.fmt[data-for="'+r.dataset.for+'"]');if(!bar)return;bar.querySelectorAll('button').forEach(b=>{let on=false;try{on=document.queryCommandState(b.dataset.c)}catch(e){}b.setAttribute('aria-pressed',on?'true':'false')})}
-function rteCmd(id,c){const r=app.querySelector('.rte[data-for="'+id+'"]');if(!r)return;r.focus();document.execCommand(c,false,null);rteSync(r);rteBar(r)}
+function rteBar(r){const bar=app.querySelector('.fmt[data-for="'+r.dataset.for+'"]');if(!bar)return;bar.querySelectorAll('button').forEach(b=>{let on=false;try{if(b.dataset.c==='hide'){const sl=getSelection();let n=sl.rangeCount?sl.anchorNode:null;n=n&&n.nodeType===3?n.parentElement:n;on=!!(n&&n.closest&&n.closest('.hd')&&r.contains(n))}else on=document.queryCommandState(b.dataset.c)}catch(e){}b.setAttribute('aria-pressed',on?'true':'false')})}
+function rteHide(r){const sl=getSelection();if(!sl.rangeCount||!r.contains(sl.anchorNode)){toast('Select the words you want to hide first');return}
+ const rg=sl.getRangeAt(0);let n=rg.commonAncestorContainer;n=n.nodeType===3?n.parentElement:n;const inside=n&&n.closest?n.closest('.hd'):null;
+ if(inside&&r.contains(inside)){const f=document.createDocumentFragment();while(inside.firstChild)f.appendChild(inside.firstChild);inside.replaceWith(f);return}
+ if(rg.collapsed){toast('Select the words you want to hide first');return}
+ const sp=document.createElement('span');sp.className='hd';sp.appendChild(rg.extractContents());rg.insertNode(sp);
+ sp.querySelectorAll('.hd').forEach(x=>{while(x.firstChild)x.parentNode.insertBefore(x.firstChild,x);x.remove()});
+ sl.removeAllRanges();const r2=document.createRange();r2.selectNodeContents(sp);sl.addRange(r2)}
+function rteCmd(id,c){const r=app.querySelector('.rte[data-for="'+id+'"]');if(!r)return;r.focus();if(c==='hide')rteHide(r);else document.execCommand(c,false,null);rteSync(r);rteBar(r)}
 function initRte(){try{document.execCommand('defaultParagraphSeparator',false,'div')}catch(e){}
  app.querySelectorAll('textarea[data-lk]').forEach(ta=>{if(ta.nextElementSibling&&ta.nextElementSibling.classList.contains('rte'))return;
   const r=document.createElement('div');r.className='rte'+(ta.classList.contains('write')?' big':'');r.contentEditable='true';r.setAttribute('role','textbox');r.setAttribute('aria-multiline','true');r.dataset.for=ta.id;r.dataset.ph=ta.getAttribute('placeholder')||'';
@@ -627,7 +643,7 @@ function searchRes(q){q=q.trim().toLowerCase().replace(/^@/,'');
  const rows=memberRows(q);
  const people=`<h2 style="margin:0 0 10px;color:var(--od)">People</h2>`+(rows.length?rows.map(r=>{const u=r.u;return `<div class="panel person">${av(u)}<div style="flex:1 1 140px"><button class="link" data-a="profile" data-id="${u.id}">${esc(u.name)}</button><div class="hint" style="margin:0">@${esc(u.handle)}</div></div>${fbtn(u)}</div>`}).join(''):'<p class="empty">No one found.</p>');
  if(!q)return people;
- const ps=db.posts.filter(p=>[p.title,p.media,p.type].some(x=>x.toLowerCase().includes(q))||(!p.spoiler&&p.text.toLowerCase().includes(q))).slice(0,20);
+ const ps=db.posts.filter(p=>[p.title,p.media,p.type].some(x=>x.toLowerCase().includes(q))||(!p.spoiler&&hideCut(p.text).toLowerCase().includes(q))).slice(0,20);
  return people+`<h2 style="margin:18px 0 10px;color:var(--od)">Posts</h2>`+(ps.length?ps.map(card).join(''):'<p class="empty">No posts found.</p>')}
 const membersPanel=()=>{if(!db.owner)return'';const rows=memberRows('');
  return `<section class="panel"><h2>Member list (owner only)</h2><p class="hint">Copy the table and paste it into Google Sheets.</p><div class="actions" style="margin:8px 0 12px"><button class="btn" data-a="copymembers">📋 Copy table</button></div>${rows.length?`<div class="tblwrap"><table class="mtable" id="m-table"><thead><tr>${MCOLS.map(c=>`<th>${c[0]}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${MCOLS.map(c=>c[1]==='handle'?`<td><button class="link" data-a="profile" data-id="${r.u.id}">@${esc(r.handle)}</button></td>`:`<td>${esc(r[c[1]])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'<p class="hint">No members yet.</p>'}</section>`};
@@ -874,7 +890,7 @@ function hbInit(){const m=app.querySelector('.hb'),t=app.querySelector('.hb-t');
  t.addEventListener('touchend',e=>{if(x0!==null){const dx=e.changedTouches[0].clientX-x0;if(Math.abs(dx)>40)hbGo(hbI+(dx<0?1:-1));x0=null}m.classList.remove('pause')})}
 const ttCredits=p=>{const b=[];if(p.by)b.push(['By',p.by]);if(p.art)b.push(['Art by',p.art]);if(p.layout)b.push(['Layout by',p.layout]);return b.length?`<p class="tt-cred">${b.map(x=>x[0]+' <b>'+esc(user(x[1]).name)+'</b>').join(' · ')}</p>`:''};
 const ttCard=p=>`<article class="tt-card">${p.img?`<button class="tt-imgb" data-a="tpost" data-id="${p.id}" aria-label="Read ${esc(p.title)}"><img class="tt-img" src="/api?img=${p.img}" alt="" loading="lazy"></button>`:''}<div><span class="hint">${ttMeta(p)} · ${ttDate(p.ts)}</span><h3><button data-a="tpost" data-id="${p.id}">${esc(p.title)}</button></h3>${ttCredits(p)}<p class="tt-ex">${esc(excerpt(p.text))}</p>${db.canTimes?`<button class="link" data-a="tfeat" data-id="${p.id}">${p.feat?'★ Featured · remove':'☆ Feature this'}</button>`:''}</div></article>`;
-const ttTwo=t=>{t=plainLk(t).replace(/\s+/g,' ').trim();const m=t.match(/[^.!?]+[.!?]+(?=\s|$)/g);let r=m?m.slice(0,2).join(' ').trim():t;if(r.length>230)r=r.slice(0,230).replace(/\s+\S*$/,'')+'...';return r||excerpt(t)};
+const ttTwo=t=>{t=plainLk(hideCut(t)).replace(/\s+/g,' ').trim();const m=t.match(/[^.!?]+[.!?]+(?=\s|$)/g);let r=m?m.slice(0,2).join(' ').trim():t;if(r.length>230)r=r.slice(0,230).replace(/\s+\S*$/,'')+'...';return r||excerpt(t)};
 const ttRow=p=>`<article class="tt-row${p.img?'':' tt-noimg'}">${p.img?`<button class="tt-imgb" data-a="tpost" data-id="${p.id}" aria-label="Read ${esc(p.title)}"><img class="tt-img" src="/api?img=${p.img}" alt="" loading="lazy"></button>`:''}<div><span class="hint">${ttMeta(p)} · ${ttDate(p.ts)}</span><h3><button data-a="tpost" data-id="${p.id}">${esc(p.title)}</button></h3>${ttCredits(p)}<p class="tt-ex">${esc(ttTwo(p.text))}</p>${db.canTimes?`<button class="link" data-a="tfeat" data-id="${p.id}">${p.feat?'★ Featured · remove':'☆ Feature this'}</button>`:''}</div></article>`;
 let ttCarI=0;
 const ttMotion=()=>window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth';
@@ -1090,6 +1106,7 @@ app.addEventListener('click',async e=>{
  if(st){rating=rating===+st.dataset.n?0:+st.dataset.n;app.querySelectorAll('#f-stars button').forEach(x=>x.classList.toggle('on',+x.dataset.n<=rating));saveCompose();return}
  const b=e.target.closest('[data-a]');if(!b)return;
  if(b.dataset.a==='fmt'){rteCmd(b.dataset.for,b.dataset.c);return}
+ if(b.dataset.a==='unhide'){b.classList.toggle('on');b.title=b.classList.contains('on')?'Tap to hide again':'Tap to show';return}
  const a=b.dataset.a, id=b.dataset.id, p=postById(id), g=i=>$(i)?$(i).value.trim():'';
  if(a==='gocompose'){const b=$('compose-box');if(b){b.scrollIntoView({behavior:'smooth',block:'start'});const f=$('f-type');if(f)setTimeout(()=>f.focus({preventScroll:true}),350)}else go({n:'compose'})}
  else if(a==='feed'){pre=null;feedWant=20;go({n:'feed'})}
@@ -1315,6 +1332,7 @@ document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey)||e.altKey)ret
  else if(e.shiftKey&&k==='x'){e.preventDefault();document.execCommand('strikeThrough');rteSync(r);rteBar(r)}});
 app.addEventListener('input',e=>{const r=e.target;if(r&&r.classList&&r.classList.contains('rte'))rteSync(r)});
 app.addEventListener('paste',e=>{const r=e.target&&e.target.closest?e.target.closest('.rte'):null;if(!r)return;e.preventDefault();const t=(e.clipboardData||window.clipboardData).getData('text/plain');document.execCommand('insertText',false,t)});
+app.addEventListener('keydown',e=>{const h=e.target&&e.target.classList&&e.target.classList.contains('hide')?e.target:null;if(h&&(e.key==='Enter'||e.key===' ')){e.preventDefault();h.classList.toggle('on')}});
 app.addEventListener('mousedown',e=>{if(e.target.closest&&e.target.closest('.fmt button'))e.preventDefault()});
 document.addEventListener('selectionchange',()=>{const a=document.activeElement;if(a&&a.classList&&a.classList.contains('rte'))rteBar(a)});
 
