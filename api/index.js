@@ -5,7 +5,7 @@ import { randomBytes, randomUUID, scryptSync, timingSafeEqual, createHash } from
 
 const redis = Redis.fromEnv({ automaticDeserialization: false });
 const PIECES = ["users", "posts", "lists", "msgs", "clubs", "cmsgs", "features", "meta", "tposts"];
-const META = ["reports", "pick", "suspended", "sessions", "resets", "fails", "core", "admins", "mods", "banner", "prompts", "polls", "bingos", "reposts", "about", "times", "crew", "tstaff"];
+const META = ["reports", "pick", "suspended", "sessions", "resets", "fails", "core", "admins", "mods", "banner", "prompts", "polls", "bingos", "reposts", "about", "times", "crew", "tstaff", "sugg", "suggOn"];
 const pack = v => gzipSync(JSON.stringify(v)).toString("base64");
 const unpack = s => JSON.parse(gunzipSync(Buffer.from(s, "base64")).toString());
 async function load() {
@@ -28,6 +28,8 @@ async function load() {
   if (!db.tstaff || typeof db.tstaff !== "object" || Array.isArray(db.tstaff)) db.tstaff = {};
   if (!Array.isArray(db.tposts)) db.tposts = [];
   if (!Array.isArray(db.mods)) db.mods = [];
+  if (!Array.isArray(db.sugg)) db.sugg = [];
+  db.suggOn = !!db.suggOn;
   db.polls.forEach(l => { if (l.kind === "thisthat" && !l.pairs) { l.pairs = [l.options]; Object.keys(l.votes).forEach(u => { l.votes[u] = { 0: l.votes[u] }; }); l.options = []; } });
   return { db, raw };
 }
@@ -71,7 +73,7 @@ const checkPw = (pw, h) => {
   return a.length === b.length && timingSafeEqual(a, b);
 };
 const emailOk = e => e.length <= 120 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
-const fresh = () => ({ users: [], posts: [], lists: [], msgs: [], clubs: [], cmsgs: [], features: [], core: {}, crew: {}, tstaff: {}, tposts: [], admins: [], mods: [], banner: null, about: null, times: null, prompts: [], polls: [], bingos: [], reposts: [], reports: [], pick: null, suspended: [], sessions: {}, resets: {}, fails: {} });
+const fresh = () => ({ users: [], posts: [], lists: [], msgs: [], clubs: [], cmsgs: [], features: [], core: {}, crew: {}, tstaff: {}, tposts: [], admins: [], mods: [], banner: null, about: null, times: null, prompts: [], polls: [], bingos: [], reposts: [], reports: [], pick: null, suspended: [], sessions: {}, resets: {}, fails: {}, sugg: [], suggOn: false });
 const U = (db, id) => db.users.find(u => u.id === id);
 
 function cleanTop(t) {
@@ -198,6 +200,8 @@ function out(db, uid, extra) {
         comments: (l.comments || []).map((c, i) => ({ ...c, i })).filter(c => !bs.has(c.by))
       })),
       pick: db.pick || null,
+      /* NEW: suggestion box switch (members only see on/off, admins also get the list below) */
+      suggOn: !!db.suggOn,
       /* CHANGED: an announcement can be hidden from visitors who are not logged in (pub === false) */
       banner: db.banner && (uid || db.banner.pub !== false) ? db.banner : null,
       about: db.about || null,
@@ -237,7 +241,7 @@ function out(db, uid, extra) {
     r.notes = me.notes.filter(n => !bs.has(n.from));
     r.blocked = me.blocked.map(x => U(db, x)).filter(Boolean).map(u => pub(u, uid));
     r.email = me.email;
-    if (admin) r.reports = db.reports;
+    if (admin) { r.reports = db.reports; r.sugg = db.sugg; }
     if (admin || mod) r.stats = statsOf(db);
     if (owner || mod) r.suspended = db.suspended;
     if (owner) {
@@ -648,6 +652,7 @@ export default async function handler(req, res) {
           x.comments = (x.comments || []).filter(c => c.by !== id);
           x.comments.forEach(c => { c.replies = (c.replies || []).filter(r => r.by !== id); });
         });
+        db.sugg = db.sugg.filter(x => x.by !== id);
         db.admins = db.admins.filter(x => x !== id);
         db.mods = db.mods.filter(x => x !== id);
         db.polls.forEach(l => { delete l.votes[id]; });
@@ -909,6 +914,26 @@ export default async function handler(req, res) {
         const title = clip(d.title, 100), text = clip(d.text, 1000);
         if (!title && text) bad("Add a headline for the announcement");
         db.banner = title ? { title, text, pub: d.pub !== false, ts: Date.now() } : null;
+        break;
+      }
+      /* NEW: suggestion box */
+      case "suggest": {
+        const m = me(), t = clip(d.t, 500);
+        if (!db.suggOn) bad("The suggestion box is closed right now");
+        if (!t) bad("Write your suggestion first");
+        if (db.sugg.filter(x => x.by === m.id && Date.now() - x.ts < DAY).length >= 5) bad("You have sent a few suggestions today. Try again tomorrow.");
+        if (db.sugg.length >= 300) bad("The suggestion box is full right now");
+        db.sugg.push({ id: id8(), by: m.id, t, ts: Date.now() });
+        break;
+      }
+      case "setsuggest": {
+        if (!isOwner()) bad("Lead admin only");
+        db.suggOn = !!d.on;
+        break;
+      }
+      case "delsugg": {
+        if (!isAdmin()) bad("Admins only");
+        db.sugg = db.sugg.filter(x => x.id !== d.id);
         break;
       }
       case "saveprompt": {
