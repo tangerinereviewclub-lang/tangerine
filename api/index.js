@@ -48,6 +48,7 @@ const TSEC = ["movies", "books", "games", "music", "culture", "magazine"];
 const TROLES = ["publisher", "writer", "artist"];
 const TKINDS = ["Article", "Essay", "Review", "Recommendation"];
 const DAY = 864e5;
+const REASONS = ["Spoiler", "Copying", "Not kind", "Crime"];
 const ADMINS = (process.env.ADMIN_HANDLE || "").split(/[,\s]+/).map(x => x.trim().toLowerCase().replace(/^@/, "")).filter(Boolean);
 const isAdminHandle = h => ADMINS.includes(h);
 const isAdminU = (db, u) => !!(u && (isAdminHandle(u.handle) || db.admins.includes(u.id)));
@@ -152,6 +153,22 @@ function newSession(db, uid) {
 }
 const dropSessions = (db, uid) => Object.keys(db.sessions).forEach(k => { if (db.sessions[k].uid === uid) delete db.sessions[k]; });
 
+function statsOf(db) {
+  const now = Date.now(), W = 8, WEEK = 7 * DAY, wk = t => Math.floor((now - t) / WEEK);
+  const posts = Array(W).fill(0), members = Array(W).fill(0), cats = {};
+  let totalPosts = 0, comments = 0;
+  db.posts.forEach(p => {
+    if (p.draft) return;
+    totalPosts++;
+    comments += (p.comments || []).length;
+    const k = wk(p.ts);
+    if (k >= 0 && k < W) posts[W - 1 - k]++;
+    if (now - p.ts < 30 * DAY) { const c = cats[p.type] || (cats[p.type] = { p: 0, c: 0, l: 0 }); c.p++; c.c += (p.comments || []).length; c.l += (p.likedBy || []).length; }
+  });
+  db.users.forEach(u => { if (!u.joined) return; const k = wk(u.joined); if (k >= 0 && k < W) members[W - 1 - k]++; });
+  return { weeks: W, posts, members, cats, totalPosts, comments, totalMembers: db.users.length };
+}
+
 function out(db, uid, extra) {
   const me = uid ? U(db, uid) : null, bs = blockedSet(db, uid);
   const admin = isAdminU(db, me), owner = !!(me && isAdminHandle(me.handle)), mod = isModU(db, me);
@@ -171,7 +188,7 @@ function out(db, uid, extra) {
   const r = {
     features, isCore, isEditor, canWrite, core: admin ? db.core : {}, owner, mod, admins: owner ? db.admins : [], mods: owner ? db.mods : [],
     db: {
-      profiles: db.users.map(u => ({ ...pub(u, uid), crew: db.crew[u.id] ? (db.crew[u.id] === "Editorial" ? "Editorial" : "Team") : "" })), posts,
+      profiles: db.users.map(u => ({ ...pub(u, uid), warned: admin && u.warned ? u.warned : 0, crew: db.crew[u.id] ? (db.crew[u.id] === "Editorial" ? "Editorial" : "Team") : "" })), posts,
       reposts: db.reposts.filter(r => !bs.has(r.by) && posts.some(p => p.id === r.pid && !p.draft)),
       lists: db.lists.filter(l => !bs.has(l.by)).sort((a, b) => b.ts - a.ts).map(l => ({
         ...l,
@@ -217,6 +234,7 @@ function out(db, uid, extra) {
     r.blocked = me.blocked.map(x => U(db, x)).filter(Boolean).map(u => pub(u, uid));
     r.email = me.email;
     if (admin) r.reports = db.reports;
+    if (admin || mod) r.stats = statsOf(db);
     if (owner || mod) r.suspended = db.suspended;
     if (owner) {
       r.members = db.users.map(u => ({ id: u.id, email: u.email || "", joined: u.joined || 0, everSuspended: !!u.everSuspended || db.suspended.includes(u.id), insta: u.insta || "" }));
@@ -744,8 +762,9 @@ export default async function handler(req, res) {
       case "treport": {
         const m = me(), tp = db.tposts.find(x => x.id === d.id) || bad("Piece not found"), i = parseInt(d.i, 10);
         if (!(tp.comments || [])[i]) bad("Comment not found");
+        const reason = REASONS.includes(d.reason) ? d.reason : bad("Pick a reason");
         if (db.reports.some(r => r.by === m.id && r.pid === tp.id && r.i === i && r.tt)) break;
-        db.reports.push({ id: id8(), kind: "comment", tt: true, by: m.id, pid: tp.id, i, reason: clip(d.reason, 200), ts: Date.now() });
+        db.reports.push({ id: id8(), kind: "comment", tt: true, by: m.id, pid: tp.id, i, reason, ts: Date.now() });
         if (db.reports.length > 200) db.reports.shift();
         break;
       }
@@ -978,8 +997,9 @@ export default async function handler(req, res) {
       case "report": {
         const m = me(), kind = d.k === "comment" ? "comment" : "post", p = P(d.id);
         const i = kind === "comment" ? +d.i : undefined;
+        const reason = REASONS.includes(d.reason) ? d.reason : bad("Pick a reason");
         if (db.reports.some(r => r.by === m.id && r.pid === p.id && r.i === i && r.kind === kind)) break;
-        db.reports.push({ id: id8(), kind, by: m.id, pid: p.id, i, reason: clip(d.reason, 200), ts: Date.now() });
+        db.reports.push({ id: id8(), kind, by: m.id, pid: p.id, i, reason, ts: Date.now() });
         if (db.reports.length > 200) db.reports.shift();
         break;
       }
@@ -992,12 +1012,23 @@ export default async function handler(req, res) {
         else { m.blocked.push(t.id); m.following = m.following.filter(x => x !== t.id); t.following = t.following.filter(x => x !== m.id); }
         break;
       }
+      case "warn": {
+        if (!isAdmin()) bad("Admins only");
+        const m = me(), t = U(db, d.id);
+        if (!t || t.id === m.id) bad("Cannot warn that account");
+        if (isAdminU(db, t)) bad("You cannot warn an admin");
+        const reason = REASONS.includes(d.reason) ? d.reason : bad("Pick a reason");
+        t.warned = Date.now(); t.warnReason = reason;
+        t.notes.unshift({ id: id8(), kind: "warn", from: m.id, text: reason, ts: Date.now(), read: false });
+        if (t.notes.length > 100) t.notes.length = 100;
+        break;
+      }
       case "suspend": {
         const m = me(), t = U(db, d.id);
         if (!isOwner()) bad("Lead admin only");
         if (!t || t.id === m.id) bad("Cannot suspend that account");
         const i = db.suspended.indexOf(t.id);
-        if (i >= 0) db.suspended.splice(i, 1); else { db.suspended.push(t.id); t.everSuspended = true; dropSessions(db, t.id); }
+        if (i >= 0) db.suspended.splice(i, 1); else { if (!t.warned) bad("Warn this person first. Everyone gets one chance."); db.suspended.push(t.id); t.everSuspended = true; dropSessions(db, t.id); }
         break;
       }
       default: bad("Unknown action");
