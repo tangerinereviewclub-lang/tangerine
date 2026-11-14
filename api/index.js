@@ -197,7 +197,8 @@ function out(db, uid, extra) {
         comments: (l.comments || []).map((c, i) => ({ ...c, i })).filter(c => !bs.has(c.by))
       })),
       pick: db.pick || null,
-      banner: db.banner || null,
+      /* CHANGED: an announcement can be hidden from visitors who are not logged in (pub === false) */
+      banner: db.banner && (uid || db.banner.pub !== false) ? db.banner : null,
       about: db.about || null,
       times: db.times || null,
       tposts: db.tposts.slice().sort((x, y) => y.ts - x.ts).map(({ pub, ...p }) => ({
@@ -894,7 +895,7 @@ export default async function handler(req, res) {
         if (!isOwner()) bad("Lead admin only");
         const title = clip(d.title, 100), text = clip(d.text, 1000);
         if (!title && text) bad("Add a headline for the announcement");
-        db.banner = title ? { title, text, ts: Date.now() } : null;
+        db.banner = title ? { title, text, pub: d.pub !== false, ts: Date.now() } : null;
         break;
       }
       case "saveprompt": {
